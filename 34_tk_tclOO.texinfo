@@ -1,0 +1,561 @@
+@c -*- mode: texinfo; coding: utf-8-unix; mode: auto-fill; -*-
+
+@node Le mégawidget 'scrolledLB' avec TclOO
+@section Le megawidget @code{scrolledLB} avec TclO0
+@findex scolledLB (TclOO)
+
+Le développements d'un mégawidget avec un espace de noms fait penser à
+de la programmation objet. Nous allons reprendre avec TclOO une 
+deuxième version du même mégawidget @code{scrolledLB}.
+
+Nous crééons pour cela une deuxième version du module @code{scrolledLB}. Ce
+module possèdera toujours une procédure d'interface nommée
+@code{scrolledLB} et une classe, nommée ici @code{scrolledLB_OO}, une
+variable d'état, qui est maintenant une variable TclOO et des méthodes
+qui remplacent les procédures précédentes.
+
+
+@example
+package provide scrolledLB 2.0
+
+proc scrolledLB @{winName args@} @{ ...@}
+
+::oo::class create scrolledLB_OO@{
+  variable State
+
+  contructor @{frameName args@} @{ ...@}
+
+  method Draw @{parent@} @{ ...@}
+
+  method DoWidgetCommand @{widgets cmd@} @{ ... @}
+
+  method selection @{@} @{ ... @}
+
+  method configure @{args@} @{ ... @}
+
+  method delete @{args@} @{ ... @}
+
+  method widgetcget @{args@} @{ ... @}
+
+  method widgetcommand @{args@} @{ ... @}
+
+  method names @{args@} @{ ... @}
+
+  method subwidget @{args@} @{ ... @}
+  
+@}
+@end example
+
+On retrouve les noms des procédures vues précédemment avec cependant
+quelques différences.
+
+@enumerate
+@item
+En effet la commande d'interface @code{scrolledLB} crée maintenant un
+nouvel objet à chaque appel au lieu d'appeler une commande dans un
+espace de noms communs à tous les mégawidgets crées. Chaque objet a son
+propre espace privé.
+
+@item
+Comme elle est dans l'espace privé de chaque objet, la variable
+@code{State} est maintenant spécifique à chacun d'entre-eux. On peut donc
+supprimer un niveau dans la hiérarchie pointée des sous-éléments.
+
+@item
+Il n'y a plus besoin d'une procédure @code{scrolledLBProc}
+@footnote{@ref{Aiguillage des sous-commandes}},
+qui aiguille sur la sous-commande à appliquer. La notation objet permet
+maintenant directement de choisir la bonne méthode.
+
+@item
+Quand le mégawidget est détruit, nous détruisons automatiquement
+l'objet. Il n'y a plus besoin de renommer la procédure correspondante
+sur une procédure à corps vide.
+@footnote{@ref{Renommage et finalisation}}
+@end enumerate
+
+
+@node method Draw
+@subsection method Draw
+
+La méthode définissant les objets graphiques du mégawidget reste 
+semblable à la procédure précédente.
+
+@example
+method Draw @{parent@} @{
+  # ascenceur
+  set tmp [scrollbar $parent.yscroll -orient vertical \
+      -command "$parent.list yview"]
+  set State(subwidgetName.scroll) $tmp
+  grid $tmp -row 1 -sticky ns \
+      -column $State(scroll.side)
+
+  # boite liste
+  set tmp [listbox $parent.list \
+      -yscrollcommand "$parent.yscroll set" \
+      -height $State(list.height)\
+      -width $State(list.width)]
+  set State(subwidgetName.list) $tmp
+  grid $tmp -row 1 -column $State(list.side)
+
+  # étiquette
+  set tmp  [label $parent.title -text $State(title.text)]
+  set State(subwidgetName.title) $tmp
+  grid $tmp -row 0 -column 0 -columnspan 2
+@}
+@end example
+
+
+@node constructor
+@subsection constructor
+
+La méthode de construction est maintenant un constructeur.
+
+@example
+constructor @{frameName args@} @{
+  # définition des options par défaut
+  array set State @{
+     height 5
+     width 10
+     list.background white
+     list.height 10
+     list.width 20
+     scroll.side 1
+     list.side 0
+     title.text title
+  @}
+  
+  # application des options transmises
+  foreach @{key val@} $args @{
+     set keyName [string range $key 1 end]
+     if @{![info exists State($keyName)]@} @{
+	error "Bad option" "Invalid option '$key'. \n\
+	Must be one of [array names State]"
+    @}
+    set State($keyName) $val
+  @}
+  
+  # dessin du cadre principal:
+  frame $frameName -height $State(height) \
+       -width $State(width) \
+       -class ScrolledLB
+       
+  # application des options quand applicable
+  foreach @{opt val@} $args @{
+       catch @{$frameName configure $opt $val@}
+  @}
+  
+  # dessin du widget
+  my Draw $frameName
+  
+  # application des options aux sous-widgets
+  foreach @{k v@} $args @{
+      lassign [split $k .] sub opt
+      set sub [string trim $sub -]
+      my widgetconfigure $sub -$opt $v
+  @}
+  
+  # renommage
+  uplevel #0 rename $frameName $frameName.fr
+  set State(subwidgetName.frame) $frameName.fr
+  
+  # détruire la commande associée quand on détruit le widget
+  bind $frameName <Destroy> "+ [self] destroy"
+  return $frameName
+@}
+@end example
+
+
+@node method DoWidgetCommand
+@subsection method DoWidgetCommand
+
+Cette méthode transmet une commande à l'un des sous-widgets.
+
+@example
+method DoWidgetCommand @{widgets cmd@} @{
+  foreach widget $widgets @{
+      eval $State(subwidgetName.$widget) $cmd
+  @}
+@}
+@end example
+
+
+@node method selection
+@subsection method selection
+
+Cette méthode retourne un élément sélectionné dans le boite liste.
+
+@example
+method selection @{@} @{
+  set lst [$State(subwidgetName.list) curselection]
+  set itemlst ""
+  foreach l $lst @{
+     lappend itemlst [$State(subwidgetName.list) get $l]
+  @}
+  return $itemlst
+@}
+@end example
+
+
+@node method configure
+@subsection method configure
+
+Cette méthode propage une commande de configuration sur le cadre du
+mégawidget.
+
+@example
+method configure @{args@} @{
+  return [eval $State(subwidgetName.frame) configure @{*@}$args]
+@}
+@end example
+
+
+@node method widgetconfigure
+@subsection method widgetconfigure
+
+Cette méthode propage une méthode de configuration à l'un des
+sous-widgets.
+
+@example 
+method widgetconfigure @{args@} @{
+  set sbwid [lindex $args 0]
+  set cmd [lrange $args 1 end]
+  catch @{eval $State(subwidgetName.$sbwid) configure $cmd@} rtn
+  return $rtn
+@}
+@end example
+
+@node method delete
+@subsection method delete
+
+Effacement d'un élément de la boite liste
+@example
+method delete @{args@} @{
+   return [eval $State(subwidgetName.list) delete @{*@}$args]
+@}
+@end example
+
+@node method insert
+@subsection method method insert
+
+Insertion d'un élément dans la boite liste
+
+@example
+method insert @{args@} @{
+   return [eval $State(subwidgetName.list) insert @{*@}$args]
+@}
+@end example
+
+@node method widgetcget
+@subsection method method widgetcget
+
+Retourner des informations sur l'un des sous-widget.
+
+@example
+method widgetcget @{args@} @{
+  if @{[llength $args] != 2@} @{
+    error "widgetcget subWidgetName -option"
+  @}
+  set sbwid [lindex $args 0]
+  set index subWidgetName.$sbwid
+  set cmd [lrange $args 1 end]
+  catch @{$State($index) cget $cmd@} rtn
+  return $rtn
+@}
+@end example
+
+
+@node method widgetcommand
+@subsection method widgetcommand
+
+Appliquer une commande à l'un des sous-widgets.
+
+@example
+method widgetcommand @{args@} @{
+   return [DoWidgetCommand $widgetName @{*@}$args]
+@}
+@end example
+
+
+@node method names
+@subsection method names
+
+Lister les noms des sous-widgets.
+
+@example
+method names @{args@} @{
+  if @{[string length $args] == 0@} @{
+     set pattern *.*
+  @} @{
+     set pattern *.$args
+  @}
+  foreach n [array names State $pattern] @{
+     lassign [split $n .] sub name
+     lappend  names $name
+  @}
+  return $names
+@}
+@end example
+
+@node method subwidget
+@subsection method subwidget
+
+Cette méthode retourne la variable d'état.
+
+@example
+method subwidget @{args@} @{
+   set name [lindex $args 0]
+   set index subWidgeName.$sname
+   if @{[info exists State($index)]@} @{
+       return $State(index)
+   @}
+@}
+@end example
+
+
+@node Donner le nom du widget à la classe
+@section Donner le nom du widget à la classe
+
+Dans l'exemple précédent, nous avons créé un mégawidget utilisant une
+classe TclOO, @code{scrolledLB}, mais qui utilise pour cela une classe
+@code{scrolledLB}.
+
+Nous allons ici montrer la création d'un autre mégawidget, mais où la
+classe aussi porterait le nom du mégawidget comme pour les widgets Tk.
+
+Pour cela, nous allons surcharger la méthode @code{unknown} qui est une
+méthode présente par défaut dans toutes les classes TclOO. Cette méthode
+sert à informer l'utilisateur s'il a entré une commande qui n'existe
+pas.
+
+@example
+::oo::classe create teste @{@}
+teste moiça
+@result{} unknown method "moiça": must be create, destroy or new
+@end example
+
+
+Nous allons utiliser la commande @code{::oo::define::classmethod} vu
+précédemment
+@footnote{@ref{Fabriquer une commande créant des méthodes de classe}}
+pour ré-écrire notre propre commmande @code{unknown}. Cette nouvelle
+commande regardera si son argument commence par un point. Si c'est le
+cas, elle interprètera l'appel à cette commande comme une tentative de
+création d'un nouvel objet, sinon elle renverra à la commande
+@code{unknown} d'origine grâce à la commande @code{next}.
+
+La classe que nous allons créer sera donc parente de la class de base
+@code{::oo::class} et nous y inscririons cette méthode qui redéfinit la
+méthode @code{unknown} qui est héritée par défaut.
+
+@example
+classmethod unknown @{w args@} @{
+  if @{[string match .* $w]@} @{
+    [self] new $w @{*@}$args
+    return $w
+  @}
+  new $w @{*@}$args
+@}
+@end example
+
+Comme précédment, il faudra aussi renommer la procédure créant la
+fenêtre pour ne pas avoir de conflit avec le nouveau de l'objet. Ceci
+sera fait par le constructeur de l'objet en renommant le nom du widget
+(@code{widgetName}) et en utilisant la commande @code{self} pour le
+renommer @code{$widgeName}.
+
+@example
+constructor @{widgetName args@} @{
+  set State(parent) [frame $widgetName -class labelEntry]
+  rename ::$widgetName ::$widgetName.frame
+  rename [self] ::$widgetName
+@end example
+
+
+@node script complet de la classe 'labelEntry'
+@subsection script complet de la classe @code{labelEntry}
+
+Voici le corps complet de cette classe @code{labelEntry}
+
+@example
+oo::class create labelEntry @{
+    variable State
+    superclass oo::class
+
+    # détournement de la procédure de classe unknown
+    # si le premier argument commence par un point, c'est
+    # qu'on veut construire un widget.
+    classmethod unknown @{w args@} @{
+	if @{[string match .* $w]@} @{
+	    [self] new $w @{*@}$args
+	    return $w
+	@}
+	next $w @{*@}$args
+    @}
+
+    # 
+    constructor @{widgetName args@} @{
+	# création du cadre du widget
+	set State(parent) [frame $widgetName -class labelEntry]
+	# on renomme le cadre pour éviter les collisions de noms
+	rename ::$widgetName ::$widgetName.frame
+	# renommer l'objet appelant avec ce nom
+	rename [self] ::$widgetName
+
+	# création d'un étiquette et une zone d'entrée.
+	label $State(parent).label
+	entry $State(parent).entry
+
+	# placement des deux objets
+	grid $State(parent).label $State(parent).entry
+	# on applique les options qui ont pu être déjà données.
+	my configure @{*@}$args
+    @}
+
+    method configure @{args@} @{
+	# examine les arguments
+	# "-entry.width" devient "parent.entry configure -width"
+	foreach @{k v@} $args @{
+	    lassign [split $k .] type opt
+	    set type [string trim $type -]
+	    catch @{$State(parent).$type configure -$opt $v@} err
+	@}
+    @}
+@}
+@end example
+
+
+@node Utilisation de 'labelEntry'
+@subsection Utilisation de @code{labelEntry}
+
+Voici comment on utilise cette classe.
+
+@example
+labelEntry .author -label.text "Auteur:" \
+    -entry.textvariable State(author)
+grid .author
+
+labelEntry .title -label.text "Ouvrage: " \
+    -entry.textvariable State(title) \
+    -entry.width 23
+grid .title
+
+# assigne des valeurs à afficher dans les zones d'entrées
+set State(title) "Tcl/Tk: A Developer's Guide"
+set State(author) "Clig Flynt"
+
+# reconfigurer l'une des étiquettes
+.author configure -label.background black -label foreground white
+@end example
+
+
+@node Appel de retour avec un Widget TclOO
+@section Appel de retour avec un Widget TclOO
+
+Quand un appel de retour (comme presser un bouton) est fait sur un
+widget TclOO, cet appel est invoqué aussi dans l'espace de noms
+global. Pour relier cet appel à une méthode, il faut utiliser la
+commande @code{self}, comme nous en avons déjà parlé
+@footnote{@ref{Première fenêtre avec des boutons}}.
+
+La commande @code{self} retourne l'information sur l'arbre d'appel de
+l'objet en cours. L'information la plus utile est celle sur le nom de
+l'objet en cours pour enregistrer une commande de retour d'un bouton,
+d'un évènement @code{after}, @code{fileevent}.
+
+La commande @code{my} retourne aussi de l'information sur l'objet en
+cours. Elle retourne le nom de l'objet qualifié (avec tout son chemin),
+qui peut être utilisé comme une variable texte dans une Widget.
+
+L'exemple qui suit démontre commne bâtir une classe TclOO qui crée une
+étiquette qui utilise la variable object comme une @code{-textvariable}
+et un bouton qui invoque la méthode de l'objet quand on le presse.
+
+@example
+option add *font @{"DejaVu Sans" 16@}
+
+::oo::class create OO_gui @{
+  variable objectVar
+
+  constructor @{@} @{
+    set objectVar "aucun bouton pressé"
+    label .l -textvariable "[my varname objectVar]"
+    button .b -text "Changer l'étiquette" \
+      -command "[self] changeLabel"
+    grid .l
+    grid .b
+  @}
+
+  method changeLabel @{@} @{
+    set objectVar "la boutton a été pressé"
+  @}
+@}
+@result{} ::00_gui
+
+00_gui new
+@end example
+
+@float
+@multitable @columnfractions .5 .5
+@item @ @ @ @ @image{./images/34tk_05lbl,,,,.png} @ @ @ @
+@tab  @ @ @ @ @image{./images/34tk_06lbl,,,,.png}
+@end multitable
+@end float
+
+
+@node Combiner des widgets TclOO
+@section Combiner des widgets TclOO
+
+Les mégawidgets peuvent être combinés à leur tour.
+Nous allons ainsi intégrer le mégawidget précédent, @code{labelEntry}
+dans un mégawidget @code{entryForm}.
+@footnote{@ref{script complet de la classe 'labelEntry'}}
+
+Nous utilisons toujours le procédure
+@code{::oo::define::classmethod} qui a été vue précédement
+@footnote{@ref{Fabriquer une commande créant des méthodes de classe}}
+ainsi que la commande @code{my varname} qui permet d'avoir le nom
+qualifié d'une variable.
+
+
+@example
+::oo::class create entryForm @{
+  variable Values
+  
+  constructor @{@{parentFrame @{@}@}@} @{
+    set w [labelEntry $parentFrame.name -label.text "Nom:"\
+      -entry.textvariable [my varname Values(name)] \
+      -entry.width 15]
+    grid $w
+    
+    set w [labelEntry $parentFrame.email -label.text "email:"\
+      -entry.textvariable [my varname Values(email)] \
+      -entry.width 15]
+    grid $w
+
+    set w [labelEntry $parentFrame.passphrase -label.text "mot de
+    passe:" \
+      -entry.texvariable [my varname Values(password)] \
+      -entry.show * -entry.width 15]
+    grid $w
+
+    button $parentFrame.b -text "Submit" -command "[self] submit"
+    grid $parentFrame.b
+  @}
+  method submit @{@} @{
+    set msg "Nom: $Values(name)\nEmail: $Values(email)\n@{Mot de passe@}:
+    $Values(password)"
+    tk_messageBox -type ok -message $msg
+  @}
+@}
+@result{}::entryForm
+
+entryForm new
+@end example
+
+La commande @code{my varname} permet de qualifier les variables des
+sous-objets.
+
+
+@node Modifier un widget TclOO
+@section Modifier un widget TclOO

@@ -1,0 +1,208 @@
+@c ----------------------------------------------------------------------------
+@node dodecalogue
+@chapter Dodécalogue (les douze règles de Tcl)
+@cindex Dodécalogue
+@cindex les douze règles de Tcl
+ 
+
+Ces douze règles définissent la syntaxe et la sémantique du langage
+Tcl. La cinquième règle a été introduite (TIP 157 [2]) à partir la
+version 8.5.0 [3] du langage.
+
+@table @samp
+@item Règle 1 — Commandes et séparateurs:
+Un script TCL est une chaîne contenant une ou plusieurs commandes. Les
+points-virgule et les caractères RL (retour à la Ligne) sont des
+séparateurs de commande sauf s’ils sont commentés comme décrit
+ci-dessous. Les crochets fermés sont des terminateurs de commande
+pendant la substitution de commande (voir ci-dessous) à moins qu'ils
+soient mis en commentaire.
+
+@item Règle 2 — Évaluation en deux étapes :
+Une commande est évaluée en deux étapes. D'abord, l’interpréteur de Tcl
+décompose la commande en mots, puis il exécute des substitutions comme
+décrites ci-dessous. Ces substitutions sont exécutées de la même manière
+pour toutes les commandes. Le premier mot est utilisé pour localiser la
+procédure adéquate pour effectuer la commande, puis, tous les mots de la
+commande sont passés à la procédure. La procédure de la commande est
+libre d’interpréter chacun de ses mots comme elle le souhaite, par
+exemple comme un nombre entier, un nom de variable, une liste, ou un
+script TCL. Les différentes commandes interprètent leurs mots
+différemment.
+
+@item Règle 3 — Mots :
+Les mots d’une commande sont séparés par des espaces (excepté les
+caractères RL qui sont les séparateurs de commande).
+
+@item Règle 4 — Guillemets :
+Si le premier caractère d’un mot est un guillemet (« " ») alors le mot
+sera terminé par le prochain guillemet. Si des points-virgule, des
+crochets fermants, ou des espaces (caractères RL y compris) apparaissent
+entre les guillemets, alors ils seront traités comme des caractères
+ordinaires et inclus dans le mot. Les substitutions de commandes, de
+variables, et d’antislash sont exécutées sur les caractères entre
+guillemets comme décrit ci-dessous. Les guillemets ne sont pas
+considérés comme faisant partie du mot.
+
+@item Règle 5 — Développement d’argument :
+Si un mot commence avec le chaine @{*@} suivi d'un caractère autre qu'un
+espace, alors le préfixe @{*@} est enlevé et le reste du mot analysé
+syntaxiquement comme une liste. Cette liste (suite d'éléments entre
+accolades) est remplacée par la liste de ses éléements (sans les
+accolades). les substitutions par barre inversées sont effectuées
+normalement et les mots individuels inertes peuvent être entourés
+d'accolades ou de doubles guillemets, mais les commandes ne sont pas
+effectuées. Ces mots sont ajoutés en séquencer à la commande en cours de
+substitution et qui précède ce signe @{*@} (elle doit donc accepter des
+arguments multiples si besoin).
+
+@example
+list @{*@}@{puts @{a b c@} ; puts b@}
+@result{} puts @{a b c@} @{;@} puts b
+
+set newlist [list @{*@}@{a b c d@} @{*@}@{e f g@}]
+@result{} a b c d e f g
+@end example
+
+@item Règle 6 — Accolades :
+Si le premier caractère d'un mot est une (« @{ ») accolade ouverte, alors
+le mot sera terminé par l’accolade fermante (« @} »)
+correspondante. Imbrication d'accolades : pour chaque accolade ouverte
+il doit y avoir une accolade fermée correspondante (cependant, si une
+accolade ouverte ou fermée est mise en commentaire avec un antislash,
+elle sera ignorée dans cette recherche de correspondance). Aucune
+substitution n’est exécutée sur les caractères entre accolades, exceptés
+les substitutions d’antislash-RL décrites ci-dessous. Les
+points-virgule, RL, crochets, et les espaces ne sont sujets à aucune
+interprétation spéciale. Le mot se composera exactement des caractères
+entre les accolades externes, les accolades elles-mêmes non-comprises.
+
+@item Règle 7 — Substitution de commandes :
+Si un mot contient un crochet ouvert (« [ ») alors Tcl exécute une
+substitution de commande.  Il utilise l’interpréteur Tcl de manière
+récursive pour traiter les caractères entre crochets comme un script
+Tcl. Le script peut contenir n’importe quel nombre de commandes et doit
+se terminer par un crochet fermé (« ] »). Le résultat du script
+(c-à-d. le résultat de sa dernière commande) est substitué dans le mot
+au lieu des crochets et de tous les caractères entre eux. Il peut y
+avoir n’importe quel nombre de substitutions de commandes dans un unique
+mot. La substitution de commandes n’est pas exécutée sur les mots entre
+accolades.
+
+@item Règle 8 — Substitution de variables :
+Si un mot contient un symbole dollar (« $ ») alors Tcl exécute une
+substitution de variable : le symbole dollar et les caractères suivants
+seront remplacés dans le mot par la valeur d’une variable. La
+substitution de variable peut prendre n’importe laquelle des formes
+suivantes :
+
+@table @samp
+@item $nom : scalaire
+nom est le nom d’une variable scalaire ;
+le nom est une suite d’un ou plusieurs caractères qui peuvent être une
+lettre, un chiffre, un souligné, ou des séparateurs d’espace de noms
+(namespace) (deux points redoublés («::») ou plus).
+
+@item $nom(index) : tableau
+nom donne le nom d’un tableau de variables et index donne le nom d’un élément dans ce tableau.
+nom doit contenir seulement des lettres, des chiffres, des soulignés, et
+des séparateurs d’espace de noms, il peut être une chaîne vide. Les
+substitutions de commandes, de variables, et d’antislash sont exécutées
+sur les caractères d'index.
+
+@item $@{nom@} : scalaire avec nom protégé
+nom est le nom d’une variable scalaire. Il peut contenir n’importe quels
+caractères exceptés une accolade fermante. Il peut y avoir n’importe
+quel nombre de substitutions de variables dans un unique mot. La
+substitution variable ne sera pas exécutée sur des mots entre accolades.
+@end table
+
+@item Règle 9 — Substitution de barre oblique renverssée ('antislash') :
+Si une barre oblique renversée (« \ ») apparaît dans un mot alors une
+substitution est faite. Dans tous les cas sauf ceux décrits ci-dessous,
+la barre oblique est abandonnée et le caractère suivant est traité comme
+un caractère ordinaire et est inclus dans le mot. Ceci permet d’inclure des
+caractères tels que des guillemets, crochets, dollar sans déclencher de
+traitement spécial. Le tableau suivant présente les substitutions
+d’antislash qui sont manipulées particulièrement avec leur valeur de
+remplacement.
+
+@itemize @minus 
+@item \a Alerte audible (bell) (0x7).
+
+@item \b Retour arrière (0x8).
+
+@item \f Avance d'une page (0xc).
+
+@item \n Caractère RL (retour à la ligne) (0xa).
+
+@item \r Retour chariot (0xd).
+
+@item \t Tabulation (0x9).
+
+@item \v Tabulation verticale (0xb).
+
+@item \<retour à la ligne>espace
+Un espace unique remplace la barre oblique, le retour à la ligne et tous les
+espaces et tabulations qui suivent. Cette substitution d’antislash est
+unique parce qu’elle sera effectuée dans un cycle distinct avant que la
+commande ne soit réellement analysée. Ce qui veut dire qu’elle se
+produira même lorsqu’elle se trouve entre accolades. L’unique espace
+résultant de cette substitution sera traité comme séparateur de mot s'il
+n’est pas entre des accolades ou des guillemets.
+
+@item \\ Antislash (« \ »).
+
+@item \ooo
+Le nombre ooo (un, deux, ou trois chiffres) indique la valeur octale de
+huit bits pour le caractère Unicode désiré. Les bits supérieurs du
+caractère Unicode auront pour valeur 0.
+
+@item \xhh
+Le nombre hh indique la valeur hexadécimale de huit bits pour le
+caractère Unicode désiré. N’importe quel nombre de chiffres peut être
+donné, toutefois, seuls les deux derniers seront considérés (le résultat
+est toujours un octet). Les bits supérieurs du caractère Unicode auront
+pour valeur 0.
+
+@item \uhhhh
+Le nombre hhhh (un, deux, trois, ou quatre chiffres) indique la valeur
+hexadécimale de seize bits pour le caractère Unicode désiré.
+@end itemize
+
+La substitution d’antislash n’est pas exécutée sur des mots entre
+accolades, sauf pour \<retour à la ligne> comme c’est indiqué ci-dessus.
+
+@item Règle 10 — Commentaires :
+Si le signe dièse (« # ») apparaît à un endroit où Tcl attend le premier
+caractère du premier mot d’une commande, alors le caractère dièse et les
+caractères qui le suivent, jusqu’au prochain retour à la ligne, seront
+traités comme commentaire et ignorés. Le caractère de commentaire n’est
+significatif que s'il apparaît au début d'une commande.
+
+@item Règle 11 — Ordre de substitution :
+Chaque caractère est traité exactement une seule fois par l’interpréteur
+Tcl en tant qu’élément de création des mots d’une commande. Par exemple,
+si une substitution de variable se produit, alors aucune substitution
+supplémentaire ne sera faite sur la valeur de cette variable : sa valeur
+sera insérée in extenso dans le mot. Si une substitution de commande se
+produit, alors la commande imbriquée est traitée entièrement par un
+appel récursif de l’interpréteur Tcl : aucune autre substitution ne sera
+faite avant cet appel récursif et aucune substitution additionnelle ne
+sera exécutée sur le résultat du script.
+
+Les substitutions ont lieu de gauche à droite et chaque substitution est
+évaluée complètement avant d’essayer d’évaluer la suivante. Ainsi, la
+commande suivante :
+
+ set y [set x 0][incr x][incr x]
+
+affectera toujours la valeur, 012 à la variable y.
+
+@item Règle 12 — Substitutions et limites de mot :
+Les substitutions n’affectent pas les bornes des mots d’une
+commande. Ainsi, pendant la substitution d’une variable, l’intégralité
+de la valeur de la variable devient une partie unique du mot, même si la
+valeur de cette variable contient des espaces.
+@end table
+

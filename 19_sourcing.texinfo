@@ -1,0 +1,266 @@
+@c -*- mode: texinfo; coding: utf-8-unix; mode: auto-fill; -*-
+
+@node Intégrer d'autres scripts ou programmes
+@chapter Intégrer d'autres scripts ou programmes.
+
+Tcl a été conçu au départ pour permettre d'être un liant entre
+différants programmes. Un script Tcl peut donc très simplement appeler
+d'autres programmes, qu'ils soient des scripts Tcl ou d'autres
+programmes exécutables.
+
+
+@node La commande 'eval'
+@section La commande @code{eval}
+@findex eval
+
+Cette commande interprète ses arguments comme des instructions.
+
+@example
+eval arg ?arg?
+@end example
+
+La commande concatène d'abord ses arguments, qui peuvent être en nombre
+variable, et interprète ensuite ceci comme une instruction. Elle
+retourne soit le résultat de la dernière instruction ou l'erreur
+générée.
+
+Voici un premier exemple élémentaire.
+
+@example
+eval expr 3 + 4
+@result{} 7
+@end example
+
+Cette commande rend le langage homoiconique: il est capable de se
+modifier lui même, ce qui permet de faire des META instructions.
+Elle peut être dangereuse à utiliser si elle n'est pas appliquée à une
+liste pure, c'est-à-dire à une liste dont certains membres sont des
+variables. Car une variable peut ainsi devenir une commande elle même.
+
+C'est une des instructions qui permet d'évaluer une expression Tcl deux
+fois.
+@footnote{Voir en particulier @ref{Double substitution avec 'subst'}}
+
+@example
+set b @{the total is $20@}
+@result{} @{the total is $20@}
+set a $b
+@result{} @{the total is $20@}
+eval @{set a $b@}
+@result{} @{the total is $20@}
+eval "set a $b"
+@result{} can't read "20": no such variable
+eval [list set a $b]
+@result{} @{the total is $20@}
+@end example
+
+
+La commande @code{eval} permet de recevoir le nom d'une commande
+sous la forme d'une variable comme dans l'exemple qui suit.
+
+@example
+proc add x @{incr x +2@}
+proc sub x @{incr x -2@}
+
+set a 10
+puts "a=$a"
+while @{a>0@} @{
+  puts -nonewline "ajoute ou retranche 2 (add/sub) ? : "
+  flush stdout
+  set cmd [gets stdin]
+  set a [eval $cmd $a]
+  puts "a=$a"
+@}
+@end example
+
+On entre directement le nom de la fonction dans la question posée.
+
+
+@node la commande 'source'
+@section La commande @code{source}
+@findex source
+
+La commande est la plus simple : il s'agit simplement d'insérer
+à l'endroit de cette commande une autre portion de script Tcl
+stockée dans un autre fichier.
+
+
+@node la commande 'exec'
+@section La commande @code{exec}
+@findex exec
+
+La commande @code{exec} permet de lancer un programme éxécutable à
+l'intérieur de l'exécution d'un script. Ce programme peut avoir été
+écrit dans n'importe quel autre langage.
+
+
+
+@node la commande 'tailcall'
+@section La commande @code{tailcall}
+@findex tailcall
+
+Cette commande a été introduite à partir de la version 8.6 de Tcl, dans le cadre des
+réflexions sur la
+@url{https://fr.wikipedia.org/wiki/Récursion_terminale, récursion
+terminale}. Elle interprète son argument comme une commande et l'exécute
+en remplaçant le contexte d'appel de cette commmande par cette nouvelle
+commande. Ces arguments ne sont donc pas interprétés comme un script et
+il n'y a pas de double subtitution. Il s'agit plutôt d'un fonctionnement
+de macros,
+@url{https://fr.wikibooks.org/wiki/Programmation_C/Pr%C3%A9processeur,
+comme on en trouve dans le language C}. 
+
+Pour comprendre prenons ces deux exemples.
+
+@example
+proc one @{@} @{
+  two
+  return 8
+@}
+
+proc two @{@} @{
+  return 5
+@}
+
+one
+@result{} 8
+@end example
+
+et maintenant avec @code{tailcall} :
+
+@example
+proc two @{@} @{
+  tailcall return 5
+@}
+
+one
+@result{} 5
+@end example
+
+En utilisant maintenant la commande @code{tailcall} dans la nouvelle
+version de la procédure @code{two}, l'exécution s'arrête à la première
+commande @code{return}.
+
+De part sa construction, @code{tailcall} permet d'optimiser le byte-code
+quand on appelle une procédure totallement indépendament du contexte
+dans lequel elle est lancée.
+
+Prenons cet exemple:
+@example
+proc proc1 @{arg1 arg2@} @{
+  # instruction obtenant arg3 et arg4
+  return [proc2 $arg3 $arg4]
+@}
+@end example
+
+La plupart du temps il est avantageux d'écrire à la place.
+
+@example
+proc proc1 @{arg1 arg2@} @{
+  # instruction obtenant arg3 et arg4
+  tailcall proc2 $arg3 $arg4
+@}
+@end example
+
+La commande @code{tailcall} va permettre d'éviter de consommer trop
+d'espace dans la pile en particulier pour les appels
+récursifs@footnote{la taille permise pour la profondeur des appels
+récursifs se paramètre par la commande @code{interp recursionlimit $path
+?newlimit?}}.
+
+
+@subsection L'exemple de la fonction factoriel
+
+@c https://wiki.tcl-lang.org/page/tailcall
+
+Voici d'abord une première implémentation naïve de la fonction
+factorielle. 
+
+@example
+namespace import ::tcl::mathop::*
+
+proc fac n @{
+  if @{$n <= 1 @} @{
+     return 1
+  @} @{
+     * $n [fac [- $n 1]]
+  @}
+@}
+@end example
+
+Nous avons utilisé les opérateurs mathématiques @code{*} et @code{-} de
+la bibliothèque @code{::tcl::mathop} qui appliquent leur opérations sur
+les deux arguments qui suivent (à cause de la contrainte du langage tcl
+où la commande doit toujours être le premier élément d'une
+instruction). Des versions utilisant @code{expr} ou @code{incr} seraient
+simplement plus lourdes à écrire.
+
+Cette première version a cependant un défaut: elle oblige à conserver
+@code{$n} à chaque itération, jusqu'à la dernière. Quand on est arrivé à
+la dernière itération, les multiplications se font en libérant la
+mémoire. Cette technique consomme de l'espace dans la pile pour les
+appels de fonction et dans le tas pour stocker temporairement ces
+variables.
+
+Un autre formulation n'utilisant pas la récursivité serait celle-ci.
+
+@example
+proc fac-i n @{
+  for @{set k 1@} @{$n > 1@} @{incr n -1@} @{
+    set k [expr $n*$k]
+  @}
+  return $k
+@}
+@end example
+
+Cette procédure n'utilise pas la pile, mais une variable, qui occupe
+donc de l'espace dans le tas.
+
+Pour obtenir le meilleur des deux mondes, on peut utiliser un appel
+récursif de fonction, mais avec la commande @code{tailcall}. Cette
+méthode n'utilise pas de variables qui se multiplient sur un tas et en
+utilisant cette commande @code{tailcall}, on n'encombre pas la pile.
+
+@example
+proc fac-tr @{n @{k 1@}@} @{
+  if @{$n <= 1@} @{
+    return $k
+  @} @{
+    tailcall fac-tr [- $n 1][* $n $k]
+  @}
+@}
+@end example
+
+Voici maintenant un programme pour comparer l'efficacité des trois
+méthodes.
+
+@example
+proc test @{@} @{
+    set fmt @{%-8s %-8.2 %-8.2 %-8.2@}   
+    foreach n @{1 5 10 100 500 1000@} @{
+	append result "\n$n: "
+	foreach impl @{fac fac-i fac-tr@} @{
+	    if [catch @{$impl $n@} res] @{
+		append result n/a
+	    @} @{
+		append result " "
+		append result [string trimright \
+                      [time [list $impl $n] 10] \
+                       "microseconds per iteration"]
+	    @}	    
+	@}
+    @}
+    return $result
+@}
+
+fmtLList [test] @{N: frac frac-i frac-tr@} @{6 8 8 8@}
+@result{} ┌────────┬──────────┬──────────┬──────────┐
+@result{} │ N:     │ frac     │ frac-i   │ frac-tr  │
+@result{} ├────────┼──────────┼──────────┼──────────┤
+@result{} │ 1:     │ 1.4      │ 1.2      │ 1.2      │
+@result{} │ 5:     │ 5.8      │ 2.6      │ 10.2     │
+@result{} │ 10:    │ 10.8     │ 3.9      │ 20.4     │
+@result{} │ 500:   │ 1797.4   │ 2063.6   │ 2661.2   │
+@result{} │ 1000:  │ n/a      │ 5284.4   │ 3305.7   │
+@result{} └────────┴──────────┴──────────┴──────────┘
+@end example

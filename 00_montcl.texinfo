@@ -1,0 +1,153 @@
+@c -*- coding: utf-8-unix; mode: texinfo; mode: auto-fill; ispell-local-dictionary: "french" -*-
+\input texinfo
+@c typographie française :    «   » … ’
+
+@c %**start of header (This is for running Texinfo on a region.)
+@setfilename montcl.info
+@documentlanguage fr_FR
+@documentencoding UTF-8
+
+@settitle Mes notes sur Tcl
+@c %**end of header (This is for running Texinfo on a region.)
+
+@paragraphindent 0
+
+@dircategory Programming
+@direntry
+* Tcl: (montcl).              Note perso sur Tcl.
+@end direntry
+
+
+@set TITLE Notes glannées sur Tcl
+
+@set xref-automatic-section-title
+
+@iftex
+@set DOCUMENT article
+@set CHAPTER chapter
+@set SECTION section
+@end iftex
+
+@ifinfo
+@set DOCUMENT Info file
+@set CHAPTER major node
+@set SECTION minor node
+@end ifinfo
+
+@ifhtml
+@set DOCUMENT Web page
+@set CHAPTER chapter
+@set SECTION section
+@end ifhtml
+
+
+@titlepage
+@title @value{TITLE}
+@page
+@vskip 0pt plus 1fill
+@insertcopying
+@end titlepage
+
+@ifnottex
+@node Top
+@top Notes sur Tcl
+Je rassemble ici les notes glannées sur l'utilisation de Tcl.
+@end ifnottex
+
+
+@c ----------------------------------------------------------------------------
+@c bibliographie:
+@c https://www.april.org/files/groupes/doc/introduction-a-tcl/introduction-a-tcl.html?q=groupes/doc/introduction-a-tcl/introduction-a-tcl.html
+@c
+@c ----------------------------------------------------------------------------
+
+
+
+@c --------------------------------------------------------------------
+
+@include 01_tclintro.texinfo
+
+@include 02_string.texinfo
+
+@include 03_list.texinfo
+
+@include 04_dict.texinfo
+
+@include 05_array.texinfo
+
+@include 07_image.texinfo
+
+@include 10_proc.texinfo
+
+@include 15_err.texinfo
+
+@include 16_basic_IO.texinfo
+
+@include 17_tdbc.texinfo
+
+@include 18_sqlite.texinfo
+
+@include 19_sourcing.texinfo
+
+@include 20_namespace.texinfo
+
+@include 22_package.texinfo
+
+@include 23_tclvar.texinfo
+
+@include 24_info.texinfo
+
+@include 25_tcloo.texinfo
+
+@include 26_tcloo_adv.texinfo
+
+@include 30_tk.texinfo
+
+@include 31_tk_megawidget.texinfo
+
+@include 32_tk_namespace.texinfo
+
+@include 34_tk_tclOO.texinfo
+
+@include 35_tklib.texinfo
+
+@include 36_tix.texinfo
+
+@include 40_environnements_multiples.texinfo
+
+@include 50_debugging.texinfo
+
+@include 60_integrer_en_C.texinfo
+
+@include 70_regexp.texinfo
+
+@include 72_msgcat.texinfo
+
+@include 75_log.texinfo
+
+@include 99_dodecalogue.texinfo
+
+
+@node index des caractères spéciaux
+@unnumbered index des caractères spéciaux
+
+@printindex ky
+
+@node index des variables globales prédéfinies
+@unnumbered index des variables globales prédéfinies
+
+@printindex vr
+
+@node index des commandes tcl
+@unnumbered index des commandes tcl
+
+@printindex fn
+
+
+@node index général
+@unnumbered index général
+
+@printindex cp
+
+@c ----------------------------------------------------------------------------
+@bye

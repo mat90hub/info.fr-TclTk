@@ -1,0 +1,479 @@
+@c -*- mode: texinfo; coding: utf-8-unix; mode: auto-fill; -*-
+
+@node Scinder le code en paquets
+@chapter Scinder le code en paquets (@code{packages}).
+@cindex paquets
+@findex package
+@findex package provide
+
+Les espaces de noms (@code{namespace}) permettent de regrouper des
+variables et des procédures dans un espace privé à l'intérieur d'un même
+fichier de script.  Les paquets (@code{packages}) permettent de faire
+des regroupements à travers plusieurs fichiers, qui deviennent alors des
+bibliothèques appelées par le script principal contenu dans un fichier
+séparé.
+
+La commande @code{package provide} va ainsi permettre:
+@itemize @bullet
+@item
+de trouver et de charger les passages de code nécessaires;
+
+@item
+de suivre si le numéros de version est correct;
+
+@item
+de définir si le fichier chargé doit être un script ou une bibliothèque
+partagée (ou DLL sous Windows) ;
+
+@item
+de définir s'il s'agit d'un module.
+
+@end itemize
+
+
+@node Installation d'un paquet
+@section Installation d'un paquet.
+
+L'installation d'un paquet utilise un fichier index, qui liste les
+procédures qui peuvent être appelées. La localisation des fichiers
+contenant ces index est donnée par la variables globale @env{auto_path},
+qui est définie dans le script @file{init.tcl}@footnote{sur mon
+installation, ce fichier est dans le répertoire
+/usr/share/tcltk/tcl8.6/} chargé à chaque lancement de l'interpréteur
+Tcl.
+
+@findex pkg_mkIndex
+Le fichier script @file{pkgIndex.tcl}, qui se trouve dans le répertoire
+du paquet contient la liste des procédures du paquet et les commandes de
+chargement. Les fichiers @file{pkgindex.tcl} sont crées par la commande
+@code{pkg_mkIndex} selon la syntaxe qui suit.
+
+@example
+pkg_mkIndex ?-option? dir pattern ?pattern?
+@end example
+
+Les @code{options} possibles ne sont pas décrites ici (voir la
+documentation), les fichiers qui constituent le paquet sont dans le
+répertoire @code{dir} et suivent le motif @code{pattern}. 
+
+Le fichier @file{pkgIndex.tcl} qui est écrit par cette commande contient
+les informations suivantes.
+
+@itemize @bullet
+@item
+Les noms des paquets définis dans les fichiers
+
+@item
+Le numéro de version de ces paquets
+
+@item
+Le nom de la commande à utiliser pour charger la paquet
+
+@item
+Optionnellement, les noms des procédures définies dans ces paquets.
+
+@end itemize
+
+La commande @code{pkg_mkIndex} ré-écrira le fichier @file{pkgIndex.tcl}
+s'il existait. Si vous développez plusieurs paquet dans un même
+répertoire, il faudra entrer les noms des fichiers à chaque fois que
+vous mettrez à jour l'index. Il peut alors être plus simple de créer les
+deux lignes de script suivantes.
+
+@example
+#!/usr/bin/env tclsh
+pkg_mkIndex [pwd] file1.tcl file2.tcl file3.tcl
+@end example
+
+
+@node Les sous-commandes de 'package'
+@section Les sous-commandes de @code{package}
+
+@node package provide
+@subsection @code{package provide}.
+@findex package provide
+
+L'option @code{provide} de la commande @code{package} permet de définir
+le nom et la version du paquet qui va inclure les procédures du
+fichier. Plusieurs fichiers peuvent définir les procédures d'un même
+paquet (par contre, un fichier ne peut contenir qu'une seule
+instruction de ce type).
+
+@example
+package provide packagename? version?
+@end example
+
+La commande @code{pkg_mkIndex} recherchera ces instructions
+@code{package provide} dans les fichiers et en déduira les entrées du
+fichier @file{pkgIndex.tcl}.
+
+
+@node package require
+@subsection @code{package require}
+@findex package require
+
+L'option @code{require} de la commande @code{package} déclare qu'un
+script va utiliser les procédures définies dans un paquet
+particulier, défini dans un autre fichier. La syntaxe générale
+est.
+
+@example
+package require ?-exact? packageName?versionNum?
+@end example
+
+Si l'option @code{-exact} est présente alors @code{versionNum} doit
+aussi l'être et l'interpréteur Tcl ne chargera que cette version du
+paquet. Le nom du paquet à charger est donné par @code{package Name} et
+si le numéro de version @code{versionNum} est donnée sans la mention
+@code{-exact}, alors Tcl pourra charger cette version du paquet ou toute
+version supérieure s'il ont le même numéro de version
+majeure@footnote{Le numéro de version est constitué de deux entiers
+séparés par un point (.), le premier numéro indiquant la révision
+majeure. La comparaison se fait sur la valeur numérique: la révision
+2.10 est plus récente que la révision 2.9, bien que la 9 soit supérieur
+au 1 dans l'ordre des caractères alphanumériques.}.  Si la mention
+@code{versionNum} n'est pas présente, n'importe quelle version du paquet
+pourra être chargée.
+
+Si un paquet n'est pas sur l'un des répertoires prévus par la
+variable @code{auto_path}, il faudra ajouter le répertoire qui contient
+le fichier @file{pkgIndex.tcl} à votre liste de recherche de fichier en
+utilisant l'une des techniques suivantes.
+
+@itemize @bullet
+@item
+ajouter une ligne du type
+@code{lappend auto_path /usr/project/pakageDir} au début du fichier ;
+
+@item
+ajuster la variable d'environnement @env{TCLLIBPATH} pour y inclure le
+répertoire. À noter que cette variable est une liste dans le style Tcl,
+c'est-à-dire avec des blancs pour séparation et non ceux du système
+d'exploitation (comme les doubles points (:)).
+
+@item
+ajouter le répertoire à la définition de @env{auto_path} qui se situe
+dans le fichier @code{init.tcl}, dans le répertoire de la bibliothèque de
+Tcl. Mais ce type de modification sera effacée à chaque mise à jour du
+paquet Tcl....
+
+@item
+ajouter la ligne @code{package require packageName ?versionNumb?}
+ce qui chargera le paquet dans l'espace de nom global.
+
+@end itemize
+
+
+@subsubsection Recharger un paquet avec 'package ifneeded'
+@cindex recharger un paquet avec @code{package ifneeded}
+
+La commande @code{package ifneeded} est une commande de bas niveau qui
+n'est utilisée que dans les scripts de configuration. Néanmoins avec la
+commande @code{package require} on peut construire une commande qui
+recharge un paquet après une modification de mise au point.
+
+@example
+proc reload pkg @{
+    eval [package ifneeded $pkg [package require $pkg]]
+@}
+@end example
+
+La séquence est alors la suivante.
+
+@example
+package require XYZ
+# Discover bug in package
+# Fix it in editor
+reload XYZ
+@end example
+
+@node package names
+@subsection @code{package names}.
+@findex package names
+
+La commande @code{package names} permet d'avoir la liste des paquets
+qui sont actuellement visibles.
+
+Couplé avec la commande @code{lsearch}, on peut vérifier si un paquet
+est effectivement chargé.
+
+@example
+if @{[lsearch [package names] paquet] < 0@} @{
+  puts "le paquet $paquet n'est pas chargé !"
+@}
+@end example
+
+
+
+@node Modulariser le code
+@chapter Modulariser le code.
+@findex module
+@cindex module
+
+Les paquets sont flexibles et peuvent être constitués de plusieurs
+fichiers, dont certains seraient même des bibliothèques
+précompilées. Mais cette flexibilité a un coût qui est la vitesse de
+recherche dans ces bibliothèques.  Or souvent, les paquets peuvent tenir
+dans un seul fichier. En ajoutant quelques conventions mineures, on peut
+obtenir des paquets particuliers appelés @code{modules}, qui permettent
+d'optimiser le fonctionnnement de l'interpréteur pour ses recherches.
+
+Les conventions à suivre pour qu'un paquet soit un module sont les
+suivantes:
+
+@enumerate
+@item
+Un module doit être dans un fichier unique dont le nom suit le format
+@file{NAME-VERSION.tm}. Le nom doit commencer par une lettre, puis continue
+ensuite avec n'importe quel caractère alphanumérique. La section
+@file{VERSION} doit être avec des chiffres ou un point.
+
+@item
+Un module doit inclure une commande @code{package provide}.
+
+@item
+Le paquet nommé par la commande @code{package provide} doit
+correspondre avec la portion @file{NAME} du nom du fichier.
+
+@item
+La version donnée par la commande @code{package provide} doit
+correspondre avec la portion @file{VERSION} du nom du fichier.
+@end enumerate
+
+Un module ressemble donc à ceci.
+
+@example
+> cat testmod-1.2.tm
+package provide testmod 1.2
+proc testmodCmd @{@} @{
+  puts "testmod is loaded OK"
+@}
+@end example
+
+Le @code{module} a aussi quelques différences avec les paquets. Au
+lieu d'utiliser la variable @env{auto_path} pour la recherche dans les
+répertoires, le module utilise une variable cachée. Ainsi pour ajouter
+un répertoire à la liste de recherche des modules, il faut écrire:
+
+@example
+::tcl::tm::add chemin
+@end example
+
+où @code{chemin} est donc le chemin où se trouve le module à ajouter.
+Cette commande va renforcer les vérifications contre les duplications
+ou les parentés doubles. Le modules se charge ensuite comme un paquet
+avec le numéro de version ou non selon qu'on veut l'imposer ou pas.
+
+@example
+package require nomDuModule
+@end example
+
+Le chemin de recherche des modules est distinct de celui des paquets
+normaux. De plus, il y a des règles strictes : on peut pas charger un
+sous-répertoire d'un répertoire déjà chargé dans la liste de recherche
+des modules.
+
+Quand on veut utiliser des modules répartis dans différents répertoires,
+il faut donc les mettre dans une structure d'arbre et seule la racine
+commune doit être déclarée avec la commande
+@code{::tcl::tm::add chemin}. Les modules mis dans des sous-répertoires
+doivent être déclarés avec leur chemin en remplaçant les @code{/} des
+divisions de répertoires dans un chemin de type unix par les @code{::}.
+
+Sur un exemple, imaginous que nous ayons la répartitions suivante.
+
+@example
+lib --+--- mod01
+      |
+      +--- mod02
+@end example
+
+On va déclarer le chemin de la racine lib dans la liste des répertoires
+où checher les modules.
+
+@example
+::tcl::tm::add ../../lib
+@end example
+
+Puis quand on aura besoin des modules @code{mod01} et @code{mode02}, on
+le fait ainsi.
+
+@example
+package require lib::mod01
+
+...
+
+package require lib::mod002
+
+...
+@end example
+
+Cette contrainte de déclaration reste mineure et permet de gagner du
+temps au moment du chargement du module, qui sont plus simples à
+retrouver au moment de l'exécution.
+
+
+On peut retrouver la liste de recherche des modules avec la commande:
+
+@example
+::tcl::tm::path list
+@end example
+
+Une façon d'ajouter le répertoire courant aux répertoires de recherche
+est par exemple:
+
+@example
+if @{[lsearch [::tcl::tm::path list] [pwd]] < 0@} @{
+    ::tcl::tm::path add [pwd]
+@}
+@end example
+
+On peut vouloir enlever un répertoire de recherche. Par exemple, ceci
+peut être utile quand on développe une nouvelle version en test
+et qu'on ne veut donc pas charger celle qui le serait sinon par défaut.
+
+@example
+::tcl::tm::path remove chemin
+@end example
+
+
+@node Utiliser des espaces de noms empaquetés
+@chapter Utiliser des espaces de noms empaquetés.
+@cindex espaces de noms et paquets
+
+Les espaces de noms et les paquets offrent des fonctionalités
+complémentaires: Les espaces de noms scindent le code en groupes
+cohérents, tandis que les paquets permettent de stocker le code dans des
+fichiers différents.
+
+Néanmoins, un paquet peut être écrit avec ou sans les espaces de noms
+(de fait, ils ont été introduits avant dans Tcl), mais l'association des
+deux possibilités offrent de possibilités renouvelées.
+
+Nous reprenons l'exemple du jeu de la tour de Hanoï vu précédemment. Les
+piles qu'il utilise sont des éléments très généraux qu'on pourrait
+vouloir réutiliser. Il est donc intéressant d'introduire un paquet, qui
+sera ici @code{stackCmds}.
+
+@example
+package provide stackCmds 1.0
+namespace eval stackCmds @{
+  # -----------------------------------
+  # la variable qui définira le contenu standard des piles
+  # -----------------------------------
+  variable stackDef @{
+    variable stack @{@}
+    namespace ensemble create -map [list \
+      peek "::stackCmds::peek [namespace current]::stack"\
+      size "::stackCmds::size [namespace current]::stack"\
+      push "::stackCmds::push [namespace current]::stack"\
+      pop  "::stackCmds::pop  [namespace current]::stack"]
+  @}
+  # -----------------------------------
+  # déclaration de create stack avec l'option ensemble
+  # -----------------------------------
+  namespace ensemble create -map @{
+    createStack "::stackCmds::createStack"
+  @}
+  # -----------------------------------
+  # la commande de création de la pile
+  # -----------------------------------
+  proc createStack @{stackName@} @{
+    variable stackDef
+    uplevel 1 [list namespace eval $stackName $stackDef]
+  @}
+  # -----------------------------------
+  proc push @{name val@} @{
+    upvar $name stack
+    lappend stack $val
+  @}
+  proc peek @{name @{pos end@}@} @{
+    upvar $name stack
+    return [lindex $stack $pos]
+  @}
+  proc size @{name@} @{
+    upvar $name stack
+    return [llength $stack]
+  @}
+  proc pop @{name@} @{
+    upvar $name stack
+    set rtn [lindex $stack end]
+    set stack [lrange $stack 0 end-1]
+    return $rtn
+  @}
+@}
+@end example
+
+On remarque qu'on a ici utilisé le même nom pour le paquet et
+l'espace de noms qui le constitue, ce qui une convention commune en
+Tcl. Ensuite, la procédure @code{createStack} utilise plusieurs
+techniques avancées. Cette procédure est traitée avec l'option
+@code{ensemble}, ce qui permettra plus tard de l'utiliser sous la forme
+d'une sous-commande de @code{stackCmds}. La déclaration de cette
+procédure utilise aussi une technique particulière qui est de créer une
+liste contenant les commandes à exécuter et de la placer au niveau
+supérieur
+@footnote{voir @ref{La commande 'uplevel'}}.
+
+
+
+Mais ici cette technique est utilisée pour déclarer l'espace de noms
+@code{stackName} qui est donné en argument et utilise ensuite la
+@code{variable stackDef} pour déclarer dans cet espace de noms les
+procédures qui seront elles mêmes traitées avec l'option
+@code{ensemble}. Ces techniques avancées vont finalement donner un
+module ré-utilisable de manière simple.
+
+Ce script doit être archivé dans un fichier nommé
+@file{stackCmds-1.0.tm} ce qui permet ensuite de l'utiliser comme un
+module avec @code{package require}, ce qui permet ainsi de le traiter
+comme un module qui n'aura pas besoin du fichier @file{pkg_index.tcl}.
+
+La création de l'espace de noms @code{Hanoi} sera quasi identique
+au cas précédent, sauf pour les premières lignes.
+
+@example
+::tcl::tm::path add .
+package require stackCmds
+namespace eval Hanoi @{
+  stackCmds createStack left
+  stackCmds createStack center
+  stackCmds createStack right
+  ...
+@end example
+
+L'utilisation de l'option @code{ensemble} donne l'illusion que
+@code{stackCmds} est une nouvelle commande et que la procédure
+@code{createStack} est une sous-commande créant elle même de
+nouvelles commandes @code{left}, @code{center} et @code{right}.
+
+Ces dernières commandes seront de nouveau utilisées avec cette technique
+d'ensemble dans des expressions du types:
+
+@example
+left push
+rigth pop
+...
+@end example
+
+Ce nouveau paquet @code{stackCmds} a donc construit des piles dont
+l'utilisation est finalement très intuitive, comme le montrent les
+quelques lignes d'exemple ci-dessous.
+
+@example
+::tcl::tm::path add .
+package require stackCmds
+stackCmds createStack maPile
+maPile push 1
+maPile push 2
+maPile push 3
+maPile size
+maPile peek 1
+maPile pop
+maPile size
+@end example
+
+On a obtenu un style de programmation qui ressemble à la programmation
+objet, mais sans en être vraiment. Le prochain chapitre va montrer
+l'extension TclOO, qui a été développée pour introduire la programmation
+objet et rendre ce genre de manipulations plus simples.

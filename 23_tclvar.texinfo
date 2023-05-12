@@ -1,0 +1,263 @@
+@c -*- coding: utf-8-unix; mode: texinfo; mode: auto-fill -*-
+
+@node Variables d'environnement (tclvar)
+@chapter Variables d'environnement (@code{tclvar})
+@findex tclvar
+
+Nous présentons ici l'ensemble des variables d'environnement qu'utilise Tcl.
+
+@ftable @code
+@item auto_path 
+Si cette variable est initialisée, elle contient un list Tcl contenant
+les répertoires dans lequel il faut chercher pour les opérations de
+chargement automatique. Cette variable est initialisée au démarrage et
+contient dans cet ordre le contenu de la variable d'environnement
+@code{TCLLIBPATH}, le répertoire donné par la variable globale
+@code{tcl_library}, le répertoire parent de le bibliothèque Tcl, les
+répertoires listés dans dans le variable @code{tcl_pkgPath}.
+
+Les autres endroits dans lesquels rechercher les fichiers et paquets
+devraient être ajoutés par une commande @code{lappend}.
+
+Pour la gestion des paquets, il existe d'autres variables, voir la
+section @file{VARIABLES} de la page de manuel des bibliothèques.
+
+@item env
+Cette variable est gérée par Tcl comme un vecteur dont les éléments sont
+des variables d'environnement utilisées par le processus en cours. Ces
+variables sont accès en lecture écriture, création et destruction.
+
+@ftable @code
+@item env(HOME)
+Spécifie le répertoire utilisateur (équivalent de @code{~}).
+
+@item env(TCL_LIBRARY)
+Si cette variable est renseignée, elle donne la localisation des scripts
+de la bibliothèque. Sinon, Tcl utilise les valeurs par défaut.
+
+@item env(TCLLIBPATH)
+Cette variable donne le répertoire pour les chargements automatiques.
+
+@item env(TCL_TZ), env(TZ)
+Ces deux variables spécifient la cadrant horaire de la zone géographique
+actuelle pour formatter les commandes de dates et de temps. Ces
+variables sont normallement réglées par le système d'exploitation.
+
+@item env(LC_ALL), env(LC_MESSAGES), env(LANG)
+Ces variables sont utilisées par le paquet @code{msgcat} pour écrire les
+messages selon la localisation choisie.
+
+@item env(TCL_INTERP_DEBUG_FRAME)
+Si cette variable existe, elle a le même effet qu'exécuter un
+interuption @code{interp debug@{@} -frame 1} comme toute première
+commande de l'interpréteur Tcl.
+@end ftable
+
+
+@item errorCode
+Cette variable contient la valeur retournée par l'option
+@code{-errorcode} de la dernière erreur rencontrée par
+l'interpréteur. Elle donne des informations sur l'erreur qui peuvent
+être facilement interprétées par le script. Nous donnons les erreurs
+définies par défaut, mais les applications peuvent en définir d'autres.
+Cette commande donne en particulier la trace de la propagation de l'erreur.
+
+@ftable @code
+@item ARITH code msg
+Ce format est utilisé pour les erreurs d'arithmétique (par exemple une
+tentative de division par zéro). Le code identifie l'erreur, tandis que
+le message donne une forme lisible pour un utilisateur.
+
+Les codes d'erreur sont
+@ftable @code
+@item DIVZERO
+pour la division par 0
+
+@item DOMAIN
+si l'argument est en dehors du domaine de définition d'une fonction
+mathématique (comme acos(-3))
+
+@item IOVERFLOW
+pour un dépassement d'entier
+
+@item OVERFLOW
+pour un dépassement de flottant
+
+@item UNKNONW
+pour toutes les autres erreurs non identifiées.
+@end ftable
+
+@item CHILDKILLED pid sigName msg
+Ce format est utilisé quand un processus enfant a été tué par un
+signal. Le @code{pid} sera le numéro d'idenfication du processus, le
+@code{signame} sera le nom symbolique du signal ayant causé
+l'interruption. Ce sera l'un des signaux définis dans @file{signal.h}
+comme @code{SIGPIPE}. L'élément @code{msg} sera une description lisible
+par un utilisateur pour expliquer la raison de l'interuption comme
+"write on pipe with no reader" pour @code{SIGPIPE}
+
+@item CHILDSTATUS pid code
+Ce format est utilisé quand un processus enfant s'est terminé avec une
+valeur non nulle. Le @code{pid} identifie le processus et le @code{code}
+est le code de retourné par le processus.
+
+@item CHILDSUSP pid sigName msg
+Ce format est utilisé quand un processus enfant a été suspendu par un
+signal. Le @code{pid} idenfie le processus enfant, @code{sigName}
+identifie le signal selon ce qu'on trouve dans @file{signal.h}, comme
+par exemple le signal @code{SIGTTIN} et @code{msg} est le message
+lisible donné pour l'utilisateur, comme "background tty read" dans le
+cas de @code{SIGTTIN}.
+
+@item NONE 
+Ce format est utilisé quand l'erreur ne donne aucune information.
+
+@item POSIX errName msg 
+Si le premier élément est POSIX, alors l'erreur est intervenue pendant
+un appel noyay POSIX.
+
+@item TCL...
+Indique une erreur propre à Tcl lui-même.
+@end ftable
+
+
+@item errorInfo 
+Cette variable contient la valeur retournée par l'option
+@code{-errorinfo} de la dernière erreur levée par l'interpréteur.
+
+@item tcl_library 
+Cette variable contient le nom du répertoire contenant la bibliothèque
+Tcl, utilisée en particulier pour les chargements automatiqueS.
+
+@item tcl_patchLevel 
+Quand un interpréteur est lancé, Tcl initialise cette variable pour
+contenir une chaîne contenant le niveau du patch actuel de Tcl comme
+8.4.16 pour un patch de Tcl 8.4. Cette valeur est retournée par la
+commande @code{info patchlevel}.
+
+@item tcl_pkgPath
+Cette variable stocke la liste des répertoires des paquets normallement
+installés. Elle n'est pas utilisée sous Windows. Typiquement un paquet
+est installé dans un sous-répertoire de @code{tcl_pkgPath}. Ces
+répertoires sont inclus par défaut dans la variable
+@code{auto_path}. Cette variable n'est normalement pas modifiée par un
+script. Sa valeur est simplement chargée au démarrage et les changements
+ne sont pas répercutés dans @code{auto_path}. Si vous voulez que Tcl
+recherche des paquets dans de nouveaux répertoires, il faut ajouter leur
+noms à @code{auto_patch} et non à @code{tcl_pkgPath}.
+
+@item tcl_platform
+Il s'agit d'un vecteur associatif dont les éléments contiennent des
+informations sur la plateforme sur laquelle le script est en cours
+d'exécution, comme le nom du systèe d'exploitation. Des extensions ou
+applications peuvent définir de nouvelles valeurs, mais celles par
+défaut sont les suivantes. 
+
+@ftable @code
+@item byteOrder
+Savoir si la machine est une 'littleEndian' ou une 'bigEndian'
+
+@item debug
+Si cette variable existe, l'interpréteur a été compilé et lié avec
+l'option @code{debug-enable} pour permettre les essais de mis au point.
+
+@item engine
+Le nom de l'implémentation Tcl. Au début, c'est toujours Tcl.
+
+@item machine
+Donne la machine comme : intel, PPC, 68k, sun4m. Sur les machines Unix,
+cette information est donnée par @code{uname -m}
+
+@item os
+Le système d'explotiation comme: Windows NT, SunOS. Sur les machines
+Unix, cette information est donnée par @code{uname -s}
+
+@item osVersion
+La version du système d'exploirtation. Sur les machines Unix, cette
+information est donnée par @code{uname -r}
+
+@item pathSeparator
+Le caractère utilisé pour les séparer les répertoires dans le nom d'un chemin
+
+@item platform
+Soit windows, soit unit
+
+@item pointerSize
+Cette variable donne la taille en octets des pointeurs natifs de la
+machine.
+
+@item threaded
+Si cette variable existe, alors l'interpréteur a été compilé pour
+permettre les threads
+
+@item user
+Nom de l'utilisateur utilisé pour le connexion (login)
+
+@item wordSize
+Donne la taille des mots en octet pour la machine.
+
+@end ftable
+
+@item tcl_precision 
+Cette variable contrôle le nombre de décimales à générer quand une
+valeur flottante est convertie en chaîne. Par défaut la valeur est à
+0. À ne plus utiliser (maintenu pour des raisons de compatibilité ascendante)
+La valeur par défaut de 0 signifie que Tcl doit utiliser le minimum de
+chiffres pour être au plus proche.
+
+@item tcl_rcFileName
+Cette variable est utilisée pour indiquer une fichier de démarrage
+spécifique à l'utilisateur. Si cette variable est renseignée par
+l'application, le code de démarrage de Tcl ira vérifier si le fichier
+exsite. Par exemple pour les interpréteurs Wish, ces variables sont
+~/.wishrc sur les systèmes Unix.
+
+@item tcl_traceCompile 
+La valeur de cette variable permet de régler le niveau du code de mise
+au point voulu pendant la compilation bytecode. Par défaut, cette valeur
+est à 0 et aucune information n'est donnée. En mettrant cette variable à
+1, une ligne d'information est donnée à chaque fois qu'une procédure est
+compilée. Cette variable n'est utile que sir la variable
+@code{TCL_COMPILE_DEBUG} a été définie pendant le compilation de Tcl.
+
+@item tcl_traceExec 
+Cette variable donne le niveau d'information de traçage voulu pendant
+l'exacution du bytecode. La valeur par défaut est 0 et aucune
+information de traçage n'est donnée. (voir la documentation pour plus
+d'information).
+
+@item tcl_wordchars 
+Cette variable contient une expression régulière qui contrôle ce qui est
+considéré comma un caractère de mot. Cette variable dépend de la
+plateforme. Sous Windows, la valeur par défaut est \S, ce qui veut dire
+tout sauf un caractère espace en Unicode. Sinon, c'est par défaut \w, ce
+qui veut dire tout caractère de mot Unicode (chiffre, lettre ou
+caractère de soulignement).
+
+@item tcl_nonwordchars 
+Cette variable est une expression régulière qui défini tout ce qui n'est
+pas un caractère de mot. Sous windows, c'est \s, sous unix \W.
+
+@item tcl_version 
+Quand un interpréteut est crée, Tcl initialise cette variable pour
+retenir la version de Tcl, qu'on peut aussi récupérer avec la commande
+@code{tclversion}.
+
+@end ftable
+
+
+@ftable @code
+@item argc
+Le nombre d'argumenst de tclsh ou wish
+
+@item argv
+La liste des arguments de tclsh ou wish
+
+@item argv0
+Le script qui est en cours d'exécution par tclsh ou wish
+
+@item tcl_interactive 
+Variable à 1 si le script est exécuté intéractivement dans tclsh ou wish.
+@end ftable
+
+

@@ -1,0 +1,1187 @@
+@c -*- mode: texinfo; coding: utf-8-unix; mode: auto-fill; -*-
+@c makeinfo montcl.texinfo; gzip -f montcl.info; sudo cp montcl.info.gz /usr/local/share/info/
+
+@node Isoler dans des espaces de noms
+@chapter Isoler dans des espaces de noms (@code{namespace}).
+@cindex espace de noms
+@findex namespace
+
+Les espaces de noms permettent d'isoler des procédures et des variables
+dans une portée qui leur est propre. Ceci permet d'éviter les
+duplications de noms involontaires, qui finissent par arriver quand le
+script s'allonge. Ces collisions de noms dupliqués peuvent créer des
+erreurs difficiles à détecter.
+
+Ces regroupements de procédures peuvent aussi permettre une mise au
+point séparemment progressive du code, chaque espace de noms pouvant
+faire l'objet de tests indépendants.
+
+Les espaces de noms partagent avec la portée globale les propriétés
+suivantes.
+
+@itemize @bullet
+@item Toutes les procédures crées dans un espace de noms sont visibles depuis la
+      racine de l'espace de noms.
+
+@item Les variables crées au niveau de l'espace de nom (donc en dehors d'une
+      procédure) sont persistentes et visibles pendant le temps d'exécution
+      de cet espace de noms.
+
+@item Les variables crées dans l'espace de noms (en dehors d'une procédure)
+      peuvent toutes être accédées par n'importe quelle procédure à l'intérieur
+      de cet espace de noms.
+
+@item Quand une procédure d'un espace de noms est exécutée, elle crée un domaine
+      de déclaration de variable localement à l'intérieur de cet espace de noms.
+@end itemize
+
+Les espaces de noms partagent avec les domaines locaux des procédures les
+propriétés suivantes.
+
+@itemize @bullet
+@item Le code évalué dans un espace de noms peut accéder aux variables et aux
+      procédure définies dans l'espace global.
+
+@item Tous les espaces de noms sont contenus dans l'environnement global.
+
+@item Les espaces de noms peuvent s'emboiter les uns dans les autres.
+@end itemize
+
+Les espaces de noms ne protègent pas leur contenu.@footnote{Des
+techniques existent en Tcl pour protéger du code, voir la commande
+@code{safe}} L'accès aux variables et aux procédures se fait à travers
+une notation de chemin similaire à celle qu'utilisent les répertoires,
+en remplaçant le signe séparateur @file{/} (ou @file{\} par
+@code{::}. Nous verrons plus loin, que nous pouvons néanmoins faciliter
+cette lecture externe avec les commandes @code{export} et
+@code{import}@footnote{namespace export}.
+
+Comme les répertoires, les espaces de noms s'emboitent les uns dans les
+autres. L'espace global, qui serait l'équivalent du répertoire racine
+@file{/}, est noté @code{::}. Et on On retrouve ensuite la notion de
+chemins relatifs ou absolus selon que l'on commence le chemin par
+@code{::} ou non. Ainsi la notation @code{::pere::fils} est une
+référence absolue tandis que la notation @code{pere::fils} est une
+références relatives.
+
+@c voir aussi la page : http://wfr.tcl-lang.org/namespace
+
+
+@node les sous-commandes de 'namespace'
+@section les sous-commandes de @code{namespace}
+
+
+@node namespace eval
+@subsection @code{namespace eval}
+@findex namespace eval
+
+Crée l'espace de noms @code{namespaceID} s'il n'existe pas et évalue le
+script donné en argument @code{arg} dans cet espace de noms. S'il y a
+plusieurs arguments (@code{argN}), ils sont d'abord concaténés. Le
+script résultant est ensuite exécuté.
+
+La syntaxe est la suivante.
+
+@example
+namespace eval namespaceID arg ?argN?
+@end example
+
+Sur un exemple:
+
+@example
+namespace eval demo @{
+  proc PrivateProc @{@} @{
+    # suite du script ...
+    ---
+  @}
+  proc publicProc @{@} @{
+    # suite du script ...
+    ---
+  @}
+@}
+@end example
+
+Une convention reconnue est de commencer les procédures privées par des
+majuscules et les procédures exportables par des minuscules. Néanmoins,
+tous les éléments d'un espace de noms restent accessibles en utilisant
+leur noms qualifiés@footnote{Nous appelons le nom qualifié, le nom qui
+inclut l'espace de nom, par exemple @code{demo::publicProc}}.
+
+Quand un espace de noms a été crée, on peut y ajouter des procédures
+soit en réutilisant de nouveau la sous-commande @code{eval} soit en
+nommant la procédure par son nom qualifié.
+
+@example
+namespace eval demo @{@}
+
+proc demo::newProc @{@} @{
+ # exécuter le script
+ ---
+@}
+@end example
+
+Dans cet exemple, on a créé un espace de noms vide, puis on y a 
+ajouté une procédure, référencée de manière relative.
+
+
+@node namespace inscope
+@subsection @code{namespace inscope}
+@findex namespace inscope
+
+La commande @code{namespace inscope} permet d'exécuter des instructions
+dans un espace de noms donnés. À la différence de @code{namespace eval}
+cette commande ne crée pas l'espace de noms s'il ne pré-existe pas. Il
+concatène aussi ses arguments qui peuvent être en nombre variable.
+
+@example
+namespace inscope 'namespace' 'scrip' ?arg?
+@end example
+
+Sur un exemple
+
+@example
+namespace inscope ::foo $script $x $y $z
+@end example
+
+est finalement équivalent à
+
+@example
+namespace eval ::foo [concat $script [list $x $y $z]]
+@end example
+
+
+
+@node namespace export
+@subsection @code{namespace export}
+@findex namespace export
+
+La commande @code{namespace export} prépare la phase d'importation
+que nous verrons dans la section suivante en listant les procédures qui
+pourront l'être. 
+
+@example
+namespace export ?motif?
+@end example
+
+Si le motif est vide, alors la commande renvoie la liste d'exportation,
+c'est-à-dire, la liste des fonctions éventuellement importables.
+
+Le motif utilise la même sémantique que la commande
+@code{glob}@footnote{la commande @code{glob} est utilisée pour
+rechercher des fichiers} et on peut avoir plusieurs de ces motifs
+sur la même commande.
+
+@example
+namespace eval poli @{
+  namespace export public*
+  proc PrivateProc @{@} @{return "privé !"@}
+  proc publicProc @{@} @{return "Bonjour!"@}
+@}
+
+namespace eval poli @{namespace export@}
+@result{} public*
+@end example
+
+Le motif utilisé par la procédure @code{namespace export } ne peut pas
+contenir le nom de l'espace de nom. Il faut donc effectuer
+cette commande dans l'espace de nom qui exporte, ce qu'on peut toujours
+faire avec une commande @code{namespace eval} comme je l'ai fait pour
+obtenir le liste d'exportation.
+
+Les sous-espaces de noms doivent s'exporter avec la même commande pour
+être visible, en pariculier pour l'utilisation de la commande
+@code{ensemble}.
+
+Les effets de la commande peuvent être effacés avec l'option
+@code{-clear}@footnote{Si on ajouter un motif après cette option
+@code{-clear}, ce motif sera ajouté à la liste d'export}.
+
+@example
+namespace eval poli @{namespace export -clear@}
+@end example
+
+Dans ce cas, on ne pourra plus importer.
+
+
+@subsubsection Export et espaces de noms intriqués
+
+Quand des espaces de noms sont inclus les uns dans les autres, les
+espaces de noms inclus doivent être déclarés comme des procédures. Ils
+pourront ensuite redéclarer leur procédure à leur niveau ainsi
+qu'utiliser la commande @code{namespace ensemble} qu'il faudra répéter
+pour chaque espace de noms.
+
+Sur un example
+
+@example
+namespace eval pere @{
+
+  namespace export fils proc1
+
+  namespace ensemble
+
+  proc1 @{..@} @{
+    ...
+  @}
+
+  namespace eval fils @{
+          
+    namespace export proc11
+
+    namespace ensemble
+
+    proc11 @{..@} @{
+      ...
+    @}
+  @}
+@}
+@end example
+
+Avec ceci on peut appeler les procédures suivantes:
+
+@example
+pere proc1 ..
+@result{}  ...
+
+pere fils proc11 ..
+@result{} ...
+@end example
+
+
+@node namespace import
+@subsection @code{namespace import}
+@findex namespace import
+
+La commande @code{namespace import} permet d'importer les commandes qui
+ont été exportées (c'est-à-dire inscrites sur une liste d'exportation
+par la commane @code{export}).  Une commande importée se comporte comme
+si elle avait été défini dans l'espace où elle est importée@footnote{les
+commandes exportées peuvent donc contenir des commandes, qui sont
+elles-mêmes importées}.
+
+(en reprenant l'exemple précédant)
+@example
+namespace import demo::pub*
+publicProc
+@result{} Bonjour!
+@end example
+
+On peut importer plusieurs procédures à la fois et utiliser des motifs
+pour les désigner (comme nous l'avons vu avec le commande @code{export}).
+
+@findex namespace import -force
+Cette commande a aussi l'option @code{-force} pour éventuellement écraser en
+silence une procédure du même nom qui préexisterait dans l'espace de nom
+où on importe.
+
+
+@node namespace forget
+@subsection @code{namespace forget}
+@findex namespace forget
+
+La commande @code{namespace forget} permet d'annuler les effets d'une
+commande @code{namespace import} qui aurait été faite avant. Ceci peut
+permettre de faire ré-apparaitre une procédure, qui aurait été écrasée par
+un import utilisant @code{namespace import -force}.
+
+@node namespace origin
+@subsection @code{namespace origin}
+@findex namespace origin
+
+Cette commande permet de retrouver le nom pleinement qualifié d'une
+commande qui aurait été importée.
+
+@example
+namespace origin Lacommande
+@end example
+
+où @code{lacommande} est la commande dont on recherche l'origine.
+
+@node namespace which
+@subsection @code{namespace which}
+@findex namespace which
+
+Cette commande permet de retrouver si un nom donné correspond à une
+commande ou une variable et de donner son nom pleinement qualifié.
+
+@example
+namespace which ?-command? ?-variable? name
+@end example
+
+
+@node namespace children
+@subsection @code{namespace children}.
+@findex namespace children
+
+La sous-commande @code{children} permet de connaitre les espaces de noms visibles depuis
+l'intérieur d'un espace de noms. La syntaxe est la suivante.
+
+@example
+namespace children ?namespaceID? ?pattern?
+@end example
+
+L'argument optionnel @code{namesaceID} permet de nommer à partir de quel
+espace de noms on lance la recherche. S'il est absent, la recherche se
+fait à partir l'espace de noms en cours. Pour rechercher dans l'espace
+de nom global, il faut indiquer la racine qu'on note ici
+@code{::}@footnote{Voir l'exemple plus loin dans la section
+@ref{variable d'espace de nom}}. L'autre argument optionnel
+@code{pattern} permet de filtrer les espaces de noms recherchés par un
+motif.
+
+Voici un morceau de code qui va rechercher si un espace de nom donné
+existe déjà dans l'espace actuel et le crée le cas échéant (sachant que
+la commande @code{eval} se comporte déjà ainsi par défaut).
+
+@example
+if @{[lsearch ::demo::[namespace children] == -1]@} @{
+  # l'espace de noms demo n'existe pas, on le crée
+  namespace eval demo @{
+    --
+  @}
+@}
+@end example
+
+
+@node namespace code
+@subsection namespace code
+@findex namespace code
+
+La commande @code{namespace code} capture un context pour exécuter un
+script plus tard.
+
+@example
+namespace code 'script'
+@end example
+
+La commande retourne un nouveau script enchassé dans une commande
+@code{namespace inscope} (@ref{namespace inscope}) qui pourra donc être
+évaluée dans n'importe quel niveau ou espace de noms avec la commande
+@code{eval}
+@footnote{@ref{La commande 'eval'}}.
+
+Cette commande est utile car une extension comme Tk exécute ses appels
+de retour dans l'espace globale. La commande @code{namespace code}
+permet de capturer le context d'une commande pour qu'elle puisse ensuite
+s'exécuter plus tard dans un appel de retour.
+
+Imaginons que nous ayons crée une commande script définie dans un espace
+de nom @code{::a::b}.
+
+@example
+namespace eval ::a::b @{
+  set script [namespace code @{foo bar@}]
+@}
+@end example
+
+Ensuite on peut exécuter ce script dans n'importe quel script qui y a
+accès avec un simple @code{eval "$script x y"} et ceci aura le même
+effet que la commande @code{namespace eval ::a::b@{foo bar x y@}}.  Ceci
+est particulièrement utile pour l'extension Tk, car les scripts d'appel
+en retour (callback) s'exécutent normalement dans l'espace global.
+
+@node namespace delete
+@subsection @code{namespace delete}
+@findex namespace delete
+
+Cette commande efface les espaces de noms et tout leur contenu,
+procédure et variables.
+
+@example
+namespace delete namespaceID
+@end example
+
+Où @code{namespaceID} est l'identifiant de l'espace de nom. Les caractères
+génériques ne sont pas acceptés dans ce cas.
+
+
+@node namespace qualifiers
+@subsection @code{namespace qualifiers}
+@findex namespace qualifiers
+
+Cette commande permet de récuperer un chemin qualifié.
+
+@example
+namespace qualifiers ::foo::bar::x
+@result{} ::foo::bar
+@end example
+
+@node namespace tail
+@subsection @code{namespace tail}
+@findex namespace tail
+
+Cette commande permet d'enlever le chemin qualifié
+
+@example
+namespace tail ::foo::bar::x
+@result{} x
+@end example
+
+@node namespace current
+@subsection @code{namespace current}
+@findex namespace current
+
+Cette commande renvoie le nom qualifié de l'espace de noms en cours
+
+@example
+namespace current
+@end example
+
+
+@node namespace parent
+@subsection @code{namespace parent}
+@findex namespace parent
+
+Cette commande renvoir le nom qualifié du parent de l'espace de nom
+courant.
+
+@example
+namespace parent poli
+@result{} ::
+@end example
+
+
+@node Les variables des espaces de noms
+@section Les variables des espaces de noms
+@cindex variable (espace de noms)
+@findex variable (espace de noms)
+
+La commande @code{variable} permet de déclarer et d'initialiser une
+variable dans un espace de nom de la manière suivante.
+
+@example
+variable varName ?value? ?varNameN? ?valueN?
+@end example
+
+Cette commande est proche de l'initialisation des variables @code{global}, avec
+cependant la possibilité ici de donner une valeur initiale.  La valeur
+pour la dernière variable est optionnelle. Les variables ainsi nommées
+auront le durée de vie de l'espace de noms dans lequel elles ont été
+déclarées.
+
+@example
+namespace eval demo @{
+ variable name1
+ variable name2 02 name3 03
+@}
+puts $demo::name2
+@result{} 02
+puts $demo::name1
+@result{} can't read "demo::name1": no such variable
+@end example
+
+On voit ici, que les variables initialisées peuvent être exportées,
+et utilisées mais pas les autres, qui restent indéfinies.
+
+En continuant sur le même exemple, voici une procédure utilisant ces variables.
+
+@example
+namespace eval demo @{
+  proc incrName2 @{@} @{
+    variable name2
+    incr name2
+  @}
+@}
+demo::incrName2
+@result{} 3
+@end example
+
+Certains principes de programmation objet préconisent de n'accéder aux
+variables que par des méthodes, ce qui permet de masquer complètement
+les structures utilisées dans l'objet. L'utilisateur de l'objet n'en
+tiendra donc pas compte et écrira un code qui ne sera pas impacté par
+les éventuels remaniements internes, qui pourraient intervenir ensuite.
+
+Appliquons ceci à notre espace de nom et nous remplaçons l'accès au
+variables directement par l'accès à des procédures qui donneront
+l'illusion d'être de variable, mais seront en fait des procédures.
+
+@example
+namespace eval demo @{
+  proc var1 @{@} @{variable name1; return $name1@}
+  proc var2 @{@} @{variable name2; return $name2@}
+  proc var3 @{@} @{variable name3; return $name3@}
+@}
+puts [demo::var2]
+@result{} 3
+@end example
+
+On n'obtient le contenu des variables avec une substitution de commande
+et non plus de variable.
+
+
+@node variable d'espace de nom
+@subsection variable d'espace de nom
+
+Voici l'exemple d'une variable @code{x} à l'intérieur de l'espace de
+noms @code{compteur}. Cette variable s'accède par la procédure
+@code{getx}, qui l'incrémente à chaque fois. Nous allons aussi en
+profiter pour montrer ici les introspections que l'on peut faire avant
+d'importer une nouvelle procédure, qui pourraient en écraser une autre.
+
+@example
+namespace eval compteur @{
+ variable x 0;
+
+ namespace export getx
+ proc getx @{@} @{
+  variable x;
+  return [incr x]
+ @}
+@}
+
+# vérifions que nous voyons bien cet espace de noms dans l'espace global
+namespace children :: ::compt*
+@result{} ::compteur
+
+# vérifions les commande de type get* actuellement visibles"
+info commands get*
+@result{} gets
+
+# importons maintenant tout ce qui est exporté par l'espace de noms ::compteur::
+namespace import ::compteur::*
+
+# vérifions que la commande gets est maintenant disponible
+info commands get*
+@result{} gets getx
+
+# obtention des valeurs successives du compteur
+getx
+@result{} 1
+getx
+@result{} 2
+
+# pour accéder à x, on peut utiliser le chemin qualifié
+puts "x = $compteur::x "
+@result{} x = 2
+# ou utiliser la commande 'set' dans l'espace de nom
+puts "x = [namespace eval compteur @{set x@}]"
+@result{} x = 2
+
+@end example 
+
+
+@node Ambiguïté de 'set' dans un espace de nom.
+@subsection Ambiguïté de @code{set} dans un espace de nom.
+@cindex ambiguïté de 'set' dans un espace de nom
+
+La fonction @code{set} reste possible pour définir une variable dans un
+espace de nom, mais son utilisation peut être ambiguë comme vont le
+montrer les exemples suivants.
+
+@example
+set varA 1
+@result{} 1
+namespace eval spaceX @{set varA 11;@}
+@result{} 11
+puts $varA
+@result{} 11
+puts $spaceX::varA
+@result{} can't read "spaceX::varA": no such variable
+@end example
+
+Ici la fonction @code{set} utilisée dans l'espace de noms@code{spaceX} a
+mis à jour la variable globale @code{varA} qui pré-existait.  Il n'y a
+pas de variable @code{varA} crée dans l'espace de nom.
+
+Mais si la variable globale n'existe pas, il n'y a pas lieu de la mettre
+à jour !
+
+@example
+namespace eval spaceX @{set varB 2;@}
+@result{} 2
+puts $varB
+@result{} can't read "varB": no such variable
+puts $spaceX::varB
+@result{} 2
+@end example
+
+Dans ce contexte, la commande @code{set} a bien crée une variable dans
+l'espace de nom.
+
+L'utilisation d'une @code{variable} restera toujours moins équivoque
+dans le contexte d'un espace de noms. Elle créera toujours une variable
+dans l'espace de noms et sa valeur pourra rester différente d'un éventuel
+homonyme au niveau global.
+
+@example
+set varC 3
+@result{} 3
+namespace eval spaceX @{variable varC 33;@}
+puts $varC
+@result{} 3
+puts $spaceX::varC
+@result{} 33
+@end example
+
+Le risque n'est pas tant dans une collision de variables, car les
+variables d'un espace de noms sont normalement préfixées (avec leur nom
+qualifié) ; mais dans la modification involontaire du contenu d'une
+variable globale pré-existante.
+
+
+
+@subsection Procédures et variables.
+@cindex procédures et variables
+
+On peut toujours utiliser une @code{variable} dans l'espace global (ce
+qui peut permettre d'ailleurs d'integrer ensuite ce code dans une
+hiérarchie d'espaces de nom). Les procédures peuvent utiliser ces
+variables, comme ici pour des procédures imbriquées.
+
+@example
+proc un @{@} @{
+  variable x 1
+  proc deux @{@} @{
+    variable y 2 x
+    puts "$x / $y"
+  @}
+@}
+deux
+@result{} 1 / 2
+@end example
+
+La variable @code{x} a été initialisée dans la procédure @code{un} et
+redéclarée dans la procédure @code{deux} pour y être visible. Par
+contre, la procédure @code{deux} est bien visible dans l'espace de nom
+global, au même niveau que la procédure @code{un}.
+
+
+@node techniques d'imbrications
+@section Techniques liées aux espaces de noms imbriqués.
+@cindex espace de noms, techniques d'imbrication
+
+Les espaces de noms peuvent s'inclure les uns dans les autres pour
+recréer des fonctionalités typiques de la programmation orientée objet
+comme l'héritage ou l'agrégation. Tcl n'est cependant pas un langage
+orienté objet et il faut avoir recours à des extensions comme [incr Tcl]
+ou Tcl00 (@ref{Programmation objet avec TclOO}).
+
+
+@node L'héritage entre espace de noms.
+@subsection L'héritage entre espace de noms.
+@cindex epace de nom, héritage
+
+On peut réaliser un fonctionnement d'héritage en incluant l'espace de
+nom parent (dont on veut hériter) à l'intérieur de l'espace de noms fils
+(celui qui va hériter des fonctionalités). L'espace de noms parent
+exporte les procédures qu'il propose à l'héritage avec la sous-commande
+@code{namespace export}. Les procédures de l'espace de noms fils
+importeront ces procédures avec la sous-commande @code{namespace import}.
+Les espaces de nom fils peuvent ainsi multiplier les copies des procédures
+de l'espace parent selon ses besoins. Par contre, les variables héritées
+de l'espace parent resteront uniques et attachées à cet espace parent.
+
+Voici un example bâti sur l'espace de noms @code{compteur} que nous
+avons déjà vu@footnote{@ref{variable d'espace de nom}}. Nous allons
+construire deux espaces de noms @code{compteur1} et @code{compteur2} qui
+vont ré-utiliser la procédure @code{getx} de l'espace de noms parent.
+
+@example
+namespace eval compteur @{
+ variable x 0;
+ namespace export getx
+ proc getx @{@} @{
+  variable x;
+  return [incr x]
+ @}
+@}
+
+namespace eval compteur1 @{
+ proc montre @{@} @{
+   namespace import ::compteur::getx
+   puts "montre compteur1: [getx]"
+ @}
+@}
+namespace eval compteur2 @{
+ proc montre @{@} @{
+   namespace import ::compteur::getx
+   puts "montre compteur2: [getx]"
+ @}
+@}
+@end example
+
+Et pour appliquer, on peut faire ainsi.
+
+@example
+puts [::compteur1::montre]
+@result{} montre compteur1: 1
+puts [::compteur2::montre]
+@result{} montre compteur2: 2
+@end example
+
+Et on voit alors que la @code{variable} x est incrémentée quelque soit
+la fonction qui l'appelle. La variable d'espace de nom importée dans
+deux procédures différentes reste unique.
+
+
+@node Technique par procédure déclarante
+@subsection Technique par procédure déclarante.
+
+Pour avoir une variable différente et en quelque sorte un comportement
+de classe d'objets, plusieurs méthodes sont possibles que nous allons
+maintenant montrer. Nous commençons par la technique d'une procédure qui
+va déclarer l'espace de nom. Une nouvelle instance de cet espace de nom
+sera donc crée à chaque appel.
+
+@example
+proc creeCompteur @{@} @{
+  uplevel 1 @{
+    namespace eval compteur @{
+      variable x 0;
+      namespace export getx;
+      proc getx @{@} @{
+        variable x;
+        return [incr x]
+      @}
+    @}
+    namespace import compteur::getx
+  @}
+@}
+@end example
+
+La commande @code{uplevel 1} permet ici de remonter son argument d'un
+niveau, ce qui fait que l'espace de noms @code{compteur} est au même
+niveau que @code{creeCompteur}, donc au niveau global. Nous avons à la
+fois encapsulé l'espace @code{compteur} dans une procédure
+@code{creeCompteur} qui déclare à chaque fois une nouvelle instance et
+gardé cet espace de noms accessible au niveau global (le niveau
+de la procédure @code{creeCompteur}).
+
+@example
+namespace eval compteur1 @{
+  creeCompteur;
+  proc montre @{@} @{
+   return "montre compteur1: [getx]"
+  @}
+@}
+namespace eval compteur2 @{
+  creeCompteur;
+  proc montre @{@} @{
+    return "montre compteur2: [getx]"
+  @}
+@} 
+@end example
+
+Ici les appels successifs à la commande @code{montre} des deux espaces de
+noms feront référence à des variables différentes, ce que nous pouvons
+tout de suite tester.
+
+@example
+puts [::compteur1::montre]
+@result{} montre compteur1: 1
+puts [::compteur2::montre]
+@result{} montre compteur2: 1
+@end example
+
+En interne, les variables sont
+@itemize @minus
+@item @code{::compteur1::compteur::x}
+@item @code{::compteur2::compteur::x}
+@end itemize
+
+qui sont des noms un peu compliqués, mais qu'on n'utilise pas
+normalement. Pat contre, les deux fonctions @code{getx} ont été
+remontées dans la hiérarchie des espaces de nom, pour simplifier
+l'écriture des deux procédures @code{montre}.
+
+On retrouve ces fonctions avec les commandes suivantes.
+
+@example
+foreach i @{1 2@} @{
+  puts [info command [join [list ::compteur $i ::*] ""]]
+@}
+@result{} ::compteur1::getx ::compteur1::montre
+@result{} ::compteur2::getx ::compteur2::montre
+@end example
+
+mais les procédures @code{getx} existent aussi plus bas.
+
+@example
+foreach i @{1 2@} @{
+  puts [info command [join [list ::compteur $i ::compteur::*] ""]]
+@}
+@result{} ::compteur1::compteur::getx
+@result{} ::compteur2::compteur::getx
+@end example
+
+
+@node Technique par une chaîne de script
+@subsection Technique par une chaîne de script.
+
+Cette technique utilise une variable qui contiendra le script de la
+partie déclarante à répéter dans les espaces de noms qui y feront donc
+référence. Nous allons montrer un exemple ou nous construisons une pile
+('stack' en Anglais) avec entre autre les deux fonctions classiques
+d'empilage/dépilage ('push' et 'pop').
+
+
+@example
+set stackDef @{
+  variable stack @{@}
+  proc push @{value@} @{
+    variable stack
+    lappend stack $value
+  @}
+  proc pop @{@} @{
+    variable stack
+    set rtn [lindex $stack end]
+    set stack [lrange $stack 0 end-1]
+    return $rtn
+  @}
+  proc peek @{@{pos end@}@} @{
+    variable stack
+    return [lindex $stack $pos]
+  @}
+  proc size @{@} @{
+    variable stack
+    return [llength $stack]
+  @}
+@}
+@end example
+
+Nous utilisons maintenant cette déclaration @code{stackDef} pour créer
+trois piles qui représenteront les trois piles d'un jeu des tours de
+Hanoï, qui s'exécute à l'intérieur d'un espace englobant, qui
+représente le jeu : l'espace de noms @code{Hanoi}.
+
+@example
+namespace eval Hanoi @{
+  namespace eval left   $stackDef
+  namespace eval center $stackDef
+  namespace eval right  $stackDef
+
+  # bouger un anneau depuis une pile sur l'autre
+  proc moveRing @{from to@} @{
+    $@{to@}::push [$@{from@}::pop]
+  @}
+  proc show @{@} @{
+    puts ""
+    for @{set p 4@} @{$p >= 0@} @{incr p -1@} @{
+      set out ""
+      foreach stack @{left center right@} @{
+         set ring [$@{stack@}::peek $p]
+         if @{$ring ne ""@} @{
+           set l [format %5s  [string repeat - $ring]]
+           set r [format %-5s [string repeat - $ring]]
+         @} else @{
+           set l [format %5s " "]
+           set r $l
+         @}
+         append out [format %s%s%s $l "||" $r]
+      @}
+      puts $out
+    @}
+    puts ""
+  @}
+  proc start @{@} @{
+    variable left
+    for @{set i 4@} @{$i > 0@} @{incr i -1@} @{
+       left::push $i       
+    @}
+  @}
+  proc done @{@} @{
+     if @{[right::size] == 4@} @{
+       return 1
+     @} else @{
+       return 0
+     @}
+  @}
+@}
+@end example
+
+Et pour jouer, on utilise donc l'espace de noms @code{Hanoi}
+avec les procédures qui ont été crées : @code{start},
+@code{show}, @code{moveRing} et @code{done}.
+
+@example
+Hanoi::start
+array set abbr @{l left r right c center@}
+while @{![Hanoi::done]@} @{
+  Hanoi::show
+  puts -nonewline "From (lcr): "
+  flush stdout
+  set from [gets stdin]
+  puts -nonewline "To (lcr): "
+  flush stdout
+  set to [gets stdin]
+  Hanoi::moveRing $abbr($from) $abbr($to)
+@}
+@end example
+
+Ici le jeu est simpliste, on arrête quand la
+pile de droite a quatre anneaux.
+
+La limitation de cette technique est la recopie de la partie de code qui
+est intégrée dans la variable @code{stackDef}. Ici cela ne pose pas de
+problème, car la variable est petite, mais si cette variable augmente
+ainsi que son nombre de copies la mémoire utilisée peut devenir une
+limitation. Nous allons maintenant voir une autre technique, qui résout
+ce problème tout en apportant aussi d'autres fonctionalités.
+
+
+@node namespace ensemble
+@section L'option @code{ensemble} des espaces de noms
+@findex namespace ensemble
+
+@subsection Création d'un ensemble
+@findex namespace ensemble create
+
+Cette option @code{ensemble} est un pas de plus vers la programmation
+objet.  Commençons par un exemple simple d'espace de noms qui utilise
+cette option d'ensemble.
+
+@example
+namespace eval glovar @{
+    namespace export getit setit
+    namespace ensemble create
+
+    variable value "";
+
+    proc getit @{@} @{
+        variable value
+        return $value
+    @}
+    proc setit @{newvalue@} @{
+        variable value
+        set value $newvalue
+    @}
+@}
+@end example
+
+Cet espace de noms s'utilise ainsi:
+
+@example
+glovar
+@result{} wrong # args: should be "glovar subcommand ?arg ...?"
+glovar junk
+@result{} unknown or ambiguous subcommand "junk": must be getit, or setit
+glovar setit abc
+@result{} abc
+glovar getit
+@result{} abc
+glovar g
+@result{} abc
+@end example
+@c tiré de: https://wiki.tcl-lang.org/page/namespace+ensemble
+
+Grâce à la commande @code{namespace ensemble create}, au lieu d'écrire
+la forme normale @code{glovar::setit}, on écrit de manière plus simple
+@code{glovar setit} : tout se passe comme si l'espace de noms était
+devenu une procédure et ses procédures des options ou sous-commandes...
+
+Cependant, il existe une restriction importante seule les procédures
+exportées peuvent être regroupées dans un ensemble de ce type. Si nous
+reprenons l'exemple précédent et que nous ajoutons à l'espace de nom
+@code{golvar} une nouvelle fonction non exportée.
+
+@example
+namespace eval glovar @{
+  proc appendAA @{@} @{
+    variable value
+    return lappend value AA
+  @}
+@}
+@end example
+
+Si on essaye de lancer cette fonction comme les précédentes, on tombe
+sur l'erreur suivante.
+
+@example
+glovar appendAA
+@result{} unknown or ambiguous subcommand "appendAA": must be getit, or setit
+@end example
+
+
+@subsection Technique de la chaîne déclarante.
+@cindex Technique de la chaîne déclarante
+@findex namespace ensemble create -map
+
+Nous allons maintenant utiliser cette option ensemble avec la technique
+de la chaîne déclarante et cette autre forme de cette option
+@code{ensemble}.
+
+@example
+namespace ensemble create -map dictFunc
+@end example
+
+Dans cette forme, on précise exactement les procédures qui seront
+traitées avec le dictionnaire @code{dicFunc}. Ce dictionnaire aa pour
+clés les noms de fonctions et pour valeurs, les scripts à exécuter.
+
+Utilisons ce type de déclaration avec la technique de la chaîne
+déclarante pour ré-écrire l'exemple du jeu de la tour de Hanoï. On
+commence par écrire un espace de noms @code{stackCmds} qui contiendra
+les commandes de manipulation d'une pile.
+
+@example
+namespace eval stackCmds @{
+  proc push @{name val@} @{
+    upvar $name stack
+    lappend stack $val
+  @}
+  proc peek @{name @{pos end@}@} @{
+    upvar $name stack
+    return [lindex $stack $pos]
+  @}
+  proc size @{name@} @{
+    upvar $name stack
+    return [llength $stack]
+  @}
+  proc pop @{name@} @{
+    upvar $name stack
+    set rtn [lindex $stack end]
+    set stack [lrange $stack 0 end-1]
+    return $rtn
+  @}
+@}
+@end example
+
+On prépare ensuite une chaîne de script @code{stackDef} qui utilise
+l'option @code{ensemble} pour lier les commandes qui seront crées par
+cette chaîne de caractères aux procédures de cet espace de noms
+@code{stackCmds}. Ces procédures seront donc stockées qu'une fois
+mais pour plusieurs utilisations.
+
+@findex namespace current
+La chaîne contient aussi la sous-commande @code{namespace current}, qui
+permet de référencer l'espace de noms qui sera courant quand cette
+chaîne sera utilisée. La variable @code{stack} correspondra donc à la
+pile applicable pour chaque espace de nom.
+
+@example
+set stackDef @{
+  variable stack @{@}
+  namespace ensemble create -map [list \
+    peek "::stackCmds::peek [namespace current]::stack" \
+    size "::stackCmds::size [namespace current]::stack" \
+    push "::stackCmds::push [namespace current]::stack" \
+    pop  "::stackCmds::pop  [namespace current]::stack"]
+@}
+@end example
+
+On utilise ensuite cette chaîne de script trois fois de suite pour les déclarations
+des espace de noms correspondant aux trois piles de jetons utilisées
+dans le jeu @code{Hanoi} que nous avons vu.
+
+@example
+namespace eval Hanoi @{
+  namespace eval left   $stackDef
+  namespace eval center $stackDef
+  namespace eval right  $stackDef
+  
+  proc moveRing @{from to@} @{
+    $to push [$from pop]
+  @}
+  proc show @{@} @{
+    puts ""
+    for @{set p 4@} @{$p >= 0@} @{incr p -1@} @{
+      set out ""
+      foreach stack @{left center right@} @{
+        set ring [$stack peek $p]
+        if @{$ring ne ""@} @{
+           set l [format %5s  [string repeat - $ring]]
+           set r [format %-5s [string repeat - $ring]]
+        @} else @{
+           set l [format %5s " "]
+           set r $l
+        @}
+        append out [format %s%s%s $l "||" $r]
+      @}
+      puts $out
+    @}
+    puts ""
+  @}
+  proc start @{@} @{
+    variable left
+    for @{set i 4@} @{$i > 0@} @{incr i -1@} @{
+       left push $i
+    @}
+  @}
+  proc done @{@} @{
+    if @{[right size] == 4@} @{
+       return 1
+    @} else @{
+       return 0
+    @}
+  @}
+@}
+@end example
+
+Dans cette technique ressemble, nous ne faisons pas une simple recopie
+d'écriture, mais une référence qui consomme moins de mémoire.
+
+Le jeux fonctionne comme nous l'avons déjà vu.
+
+@example
+Hanoi::start
+array set abbr @{l left r right c center@}
+while @{![Hanoi::done]@} @{
+   Hanoi::show
+   puts -nonewline "From (lcr): "
+   flush stdout
+   set from [gets stdin]
+   puts -nonewline "To (lcr): "
+   flush stdout
+   set to [gets stdin]
+   Hanoi::moveRing $abbr($from) $abbr($to)
+@}
+@end example
+
+
+
+@node La commande 'uplevel'
+@section La commande @code{uplevel}
+@findex uplevel
+
+La commande @code{uplevel} reprend le principe de la commande
+@code{upvar}, @footnote{@ref{La commande 'upvar'}}
+seulement elle s'applique à une instruction complète au lieu de ne
+s'appliquer qu'à une variable.@footnote{La commande @code{namespace
+eval} fonctionne aussi de façon similaire, puisqu'elle exécute une
+instruction dans un autre espace.}
+
+@example
+uplevel ?level? arg ?arg...?
+@end example
+
+Tous les arguments sont concaténés et le résultat est exécuté dans le
+contexte donné par @code{level}. Si @code{level} est un entier, il donne
+la distance à franchir avant l'exécution de la commande. S'il est
+précédé du signe @code{#}, alors il s'agit du numéro de niveau en valeur
+absolue.
+
+Voici un exemple avec une procédure @code{test}, qui déclare la variable
+@code{a} et lui donne un valeur.
+
+@example
+proc test @{@} @{uplevel [list set a 1]@}
+test
+@result{} 1
+puts $a
+@result{} 1
+@end example
+
+Avec une commande @code{upvar}
+@footnote{@ref{La commande 'upvar'}}
+nous n'aurions fait que de référer à une variable globale @code{a}
+pré-existante. Ici, nous l'avons crée si elle ne pré-existait pas au
+niveau global.
+
+Nous retrouverons cette technique plus loin pour une procédure créant un
+espace de noms, qui se retrouve finalement au même niveau que la
+procédure qui le crée.
+
+@example
+proc createStack @{stackName@} @{
+    variable stackDef
+    uplevel 1 [list namespace eval $stackName $stackDef]
+@}
+@end example
+
+L'intérêt de cette technique est que nous avons paramétré le nom de
+l'espace de nom, qui est ici donné en argument de cette fonction qui le
+crée.
+
+
+

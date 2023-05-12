@@ -1,0 +1,367 @@
+@c -*- coding: utf-8-unix; mode: texinfo; mode: auto-fill; -*-
+@c typographie française :    «   »  … ’
+
+
+@node Extension log
+@appendix Extension log, procédures pour consigner des messages
+
+@c Copyright © 2001-2002 Andreas Kupries <andreas_kupries@@users.sourceforge.net>
+
+
+@section Description de l'extension
+
+L'extension @code{log}, développée par Andreas Kupries, fournit des
+commandes, qui permettent aux procédures de consigner sélectivement des
+informations sur leur état interne pendant leur exécution.
+
+Pour exécuter cette extention, il suffit des lignes suivantes.
+
+@example
+package require log
+log::log notice "Un message"
+@end example
+
+Comme on peut le voir ci-dessus, chaque message consigné est associé à
+un niveau, qui détermine l'importance du message. L'utilisateur peut
+sélectionner quels niveau consigner et quelle commande utiliser pour
+cette consignation pour chaque niveau et le canal à utiliser pour les
+messages. Dans l'exemple qui suit, les consignations de tous les messages
+ayant pour niveau @code{debug} sont désactivées.
+
+@example
+package require log
+log::lvSupress debug
+log::log debug "message non-vue" ; # aucune sortie
+@end example
+
+Par défaut, tous les messages associés à un niveau de retour d'erreur
+sont envoyés dans le canal @code{stderr} : (@code{emergency},
+@code{alert}, @code{critical} et @code{error}.
+
+Les autres messages sont dirigés par défaut sur le canal
+@code{stdout}. Dans l'exemple suivant, l'extension @code{log} est
+reconfigurée pour écrire aussi les messages de niveau @code{debug} sur
+le canal @code{stderr}.
+
+@example
+package require log
+log::lvChannel debug stderr
+log::log debug "Ecrit sur stderr"
+@end example
+
+Chaque niveau de message est aussi associé avec une commande à utiliser,
+quand un message est consigné à ce niveau. Par exemple, le comportement
+paramétré ci-dessus, se fonde sur le fait que tous les messages de tous
+les niveaux utilisent par défaut la commande standard @code{::log::Puts}
+pour la consignation. Dans l'exemple suivant, tous les messages du
+niveau @code{notice} seront consignés en utilisant la commande non
+standard @code{toText}. Ceci désactive le réglage du canal de sortie
+pour ces messages, en assumant que @code{toText} ne l'utilise pas pour
+lui-même. 
+ 	
+@example
+package require log
+log::lvCmd notice toText
+log::log notice "Traité par \"toText\""
+@end example
+
+Une autre base de données maintenue par cet extension est une
+cartographie de niveau par en couleurs. Ceci n'a pas d'influence sur le
+fonctionnement de l'extension et est prévu comme une facilité en
+prévision d'une utilisation de cette extension sur un application Tk,
+qui pourrait vouloir colorizer les messages de consignation.
+
+
+@section Interface de l'application (API)
+@findex [log] levels
+@findex [log] lv2longform level
+@findex [log] lv2color level
+@findex [log] lv2priority level
+@findex [log] lv2cmd level
+@findex [log] lv2channel level
+@findex [log] lvCompare level1 level2
+@findex [log] lvSuppress level
+@findex [log] lvSuppressLE level
+@findex [log] lvIsSuppressed level
+@findex [log] lvCmd level cmd
+@findex [log] lvCmdForall cmd
+@findex [log] lvChannel level chan
+@findex [log] lvChannelForall chan
+@findex [log] lvColor level color
+@findex [log] lvColorForall color
+@findex [log] log level text
+@findex [log] logMsg text
+@findex [log] logError text
+@findex [log] Puts level text
+
+Voici les commandes disponibles avec l'extension @code{log} :
+
+@table @code
+@item ::log::levels
+ Retourne les listes des niveaux reconnus dans l'ordre alphabétique.
+
+@item ::log::lv2longform level
+ Pour toute abréviation unique d'un nom de niveau, donne son nom complet.
+
+@item ::log::lv2color level
+ Pour tout niveau ayant le nom @code{level} (en abrégé ou non) donne la couleur correspondante.
+
+@item ::log::lv2priority level
+ Pour tout niveau ayant le nom @code{level} (en abrégé ou non) donne la niveau de priorité.
+
+@item ::log::lv2cmd level
+ Pour tout niveau ayant le nom @code{level} (en abrégé ou non) donne la commande de consignation du message (par défaut @code{:log::Puts}).
+ 
+@item ::log::lv2channel level
+ Pour tout niveau ayant le nom @code{level} (en abrégé ou non) donne le canal utiliser pour la consignation du message.
+
+@item ::log::lvCompare level1 level2
+ Compare deux niveaux (abrégés ou non) sur la base de leur ordre de
+priorité. Cette commande peut être utilisée par l'option @code{-command}
+de @code{lsort} comme dans cet exemple : 
+@example
+lsort -command ::log::lvCompare [::log::levels]
+@result{} debug info notice warning error critical alert emergency
+@end example
+
+@item ::log::lvSuppress level ?@{0 1@}?
+ Supprime ou remet les messages pour le niveau donné (abrégé ou non). Ne
+pas mettre d'argument optionnel ou mettre 0 supprime le message. Mettre
+un argument à 1 le remet en place.
+
+@item ::log::lvSuppressLE level @{suppress 1@}
+ Supprime ou remet les messages ayant le niveau donné ou inférieur
+(en abrégé ou non). Ne pas mettre d'argument optionnel ou mettre 0
+supprime le message. Mettre un argument à 1 le remet en place.
+
+@item ::log::lvIsSuppressed level
+ Demande si le niveau donné (n abrégé ou non) a ses messages
+supprimés (renvoie 1) ou non (renvoie 0).
+
+@item ::log::lvCmd level cmd
+ Définit la commande de consignation des message pour le niveau
+spécifié (en abrégé ou non). Cette commande sera en réalité préfixée à
+deux arguments, le premier le niveau du message et le second le message
+lui même, dans cet ordre.
+
+@item ::log::lvCmdForall cmd
+ Définit la commande de consignation pour tous les niveaux connus. 
+
+@item ::log::lvChannel level chan
+ Définit le canal de consignation des messages de ce niveau (en
+abrégé ou non). Ce canal est utilisé par la commande par défaut
+@code{::log::Puts}. 
+
+@item ::log::lvChannelForall chan
+ Définit le canal de consignation utilisé par @code{::log::Puts}
+pour tous les niveaux connus.
+
+@item ::log::lvColor level color
+ Définit la couleur pour le canal spécifié (en abrégé ou non).
+
+@item ::log::lvColorForall color
+ Définit la couleur de consignation à utiliser pour tous les niveaux connus.
+
+@item ::log::log level text
+ Consigne un message en utilisant les réglages vus précédemment. Il
+est obligatoire de donné le niveau @code{level} du message de
+consignation. Les erreurs qui pourraient arriver pendant la consignation
+ne sont pas capturées, mais propagées à l'échelon appelant car elles
+peuvent être dues à une erreur de configuration faite à ce niveau du
+code appelant.
+
+@item ::log::logMsg text
+ Équivalent à la commande @code{::log::log info text}.
+
+@item ::log::logError text
+ Équivalent à la commande @code{::log::log error text}.
+
+@item ::log::Puts level text
+ La commande standard de consignation, qui écrit le message au
+niveau donné sur le canal définit par l'utilisateur. Le nom abrégé du
+niveau n'est pas accepté ici. Assume que le processus appelant a fait
+lui même la vérification, si les messages de ce niveau doivent être
+affichés ou non. 
+
+@end table
+
+
+@section Les niveaux
+
+L'extension définit par défaut les niveaux suivants, le niveaux de plus
+haute importance venant en premier.
+
+@itemize @minus
+@item emergency
+@item alert
+@item critical
+@item error
+@item warning
+@item notice
+@item info
+@item debug 
+@end itemize
+
+
+@section Créer un fichier de journalisation
+
+@subsection Ouvrir un fichier de journalisation
+
+L'extension d'Andreas Kupries n'a pas de commande pour écrire dans un
+fichier journalisé, mais il est simple d'en créer un. Nous allons en
+montrer les étapes pas à pas.
+
+Tout d'abord, il faut créer un fichier et le connecter à un canal, ici
+le canal @code{LOG}.
+
+@example
+set LOG [open journal.log w]
+@end example
+
+On redirige ensuite l'ensemble des canaux des évènements de
+journalisation vers ce canal.
+
+@example
+package require log
+::log::lvChannelForall $LOG
+@end example
+
+Toutes les informations de journalisation vont donc maintenant vers ce
+fichier, qui doit donc rester ouvert tant qu'on veut collecter ces
+informations. 
+
+Faisons quelque tests en nous assurant que les messages sont bien
+activés. Pour cela on regarde d'abord quels sont les messages actifs.
+
+@example
+foreach L [lsort -command ::log::lvCompare [::log::levels]] @{
+   puts "$L: [::log::lvIsSuppressed $L]"
+@}
+@result{}
+debug: 1
+info: 1
+notice: 1
+warning: 1
+error: 0
+critical: 0
+alert: 0
+emergency: 0
+@end example
+
+J'ai obtenu que tous les messages sous le niveau @code{error} sont
+désactivés. Je réactive donc tous les messages, qui sont au niveau
+@code{warning} et de niveau plus bas.
+
+@example
+::log::lvSuppressLE warning 0
+
+foreach L [lsort -command ::log::lvCompare [::log::levels]] @{
+   puts "$L:[::log::lvIsSuppressed $L]"
+@}
+@result{}
+debug: 0
+info: 0
+notice: 0
+warning: 0
+error: 0
+critical: 0
+alert: 0
+emergency: 0
+@end example
+
+Je peux maintenant faire des essais de journalisations.
+
+@example
+foreach L [lsort -command ::log::lvCompare [::log::levels]] @{
+  ::log::log $L "ceci est un avertissement de type: $L"
+@}
+flush $LOG
+@end example
+
+La commande @code{flush} sert à s'assurer que les informations envoyées
+au canal @code{LOG} sont effectivement écrites sur le fichier. Sinon,
+elles pourraient n'être écrite qu'au moment de la fermeture du canal.
+
+Le canal de journalisation devra être refermé à la fermeture de
+l'application.
+
+@example
+close $LOG
+@end example
+
+
+@subsection Horodater les informations de journalisation
+
+Quand on utilise un fichier de journalisation, il devient vite utile
+d'ajouter une date et un temps précis pour l'information journalisée
+pour éviter de confondre des informations arrivant à des moments très
+différents. Pour s'y retrouver, il faut donc prévoir de rajouter une
+date et un temps.
+
+Pour cela, nous allons modifier la commande de journalisation pour
+qu'elle ajoute une date et heure obtenue avec la commande @code{clock}
+
+@example
+clock format [clock seconds] -format "%d/%m/%Y %H:%M:%S"
+@end example
+
+Nous allons donc ré-écrire une nouvelle fonction @code{PutsDT} (pour
+'Puts Date & Time') et pour éviter tout problème, nous mettons cette
+nouvelle procédure dans l'espace de noms @code{log}. 
+
+@example
+proc ::log::PutsDT args @{
+  set LEVEL [lindex $args 0]
+  set MSG [lindex $args 1]
+  set ARG1 "[clock format [clock seconds] \
+              -format "%d/%m/%Y %H:%M" ] $LEVEL :"
+  set ARG [concat $ARG1 $MSG]
+  set CHAN [::log::lv2channel $LEVEL]
+  puts $CHAN $ARG
+@}
+@end example
+
+On ouvre maintenant le fichier de journalisation en mode « ajout » et on
+le définit comme canal de journalisation par défaut. On branche aussi la
+commande par défaut de journalisation sur cette nouvelle commande.
+
+@example
+set LOG [open journal.log a]
+::log::lvChannelForall $LOG
+::log::lvCmdForall ::log::PutsDT
+@end example
+
+Et maintenant, testons la journalisation.
+
+@example
+::log::lvSuppressLE warning 0
+
+foreach L [lsort -command ::log::lvCompare [::log::levels]] @{
+  ::log::log $L "ceci est un avertissement de type: $L"
+@}
+flush $LOG
+@end example
+
+On peut refermer le fichier de journalisation.
+
+@example
+close $LOG
+@end example
+
+Puis le réouvrir et ajouter d'autres information de journalisation à
+tout moment.
+
+@example
+set LOG [open journal.log a]
+::log::lvChannelForall $LOG
+
+foreach L [lsort -command ::log::lvCompare [::log::levels]] @{
+  ::log::log $L "deuxième avertissement de type: $L"
+@}
+flush $LOG
+@end example
+
+Les nouvelles information de journalisation s'ajoutent aux précédentes,
+car tant que l'extension @code{log} reste chargée en mémoire, sa
+dernière configuration reste effective.
+

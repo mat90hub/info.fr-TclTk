@@ -1,0 +1,390 @@
+@c -*- mode: texinfo; coding: utf-8-unix; -*-
+@c makeinfo montcl.texinfo; gzip -f montcl.info; sudo cp montcl.info.gz /usr/local/share/info/
+
+@node Se connecter aux bases de données avec tdbc
+@chapter Tcl Data Base Connection (@code{tdbc}).
+@cindex base de données, connection
+@findex tdbc
+@findex sql
+
+@c page internet utilisée
+@c https://www.magicsplat.com/articles/tdbc.html#_configuring_connections
+
+@section Les paquets tdbc
+
+Le paquet @code{tdbc} permet de se connecter à différentes bases de données avec le language
+@code{SQL}. Il faut d'abord charger le paquet @code{tdbc}, puis celui qui correspond à la base
+de données qu'on veut utiliser.
+
+@example
+package require tdbc
+package require tdbc::postgres
+package require tdbc::sqlite3
+package require tdbc::mysql
+@end example
+
+On charge le paquet correspondant à la base de donnée qu'on veut
+utiliser, par exemple pour posgresql.
+
+@example
+package require tdbc::postgres
+@end example
+
+Nous garderons le cas de postgresql.
+
+
+@section Concepts
+
+Le paquet tdbc suit le modèle généralement utilisé pour les interfaces
+aux bases de données et qui consiste dans les étapes suivantes.
+
+@enumerate
+@item Établir une connexion à la base de donnée
+@item Préparer une instruction SQL et l'exécuter
+@item Itérer sur le résultat obtenu
+@item Libérer les objets instruction et résultat
+@item Répéter les étapes 2 à 4 autant de fois que nécessaire
+@item fermer le connexion à la base de données.
+@end enumerate
+
+Tcbc encapsule ces abstractions dans des classes TclOO qui sont
+@itemize
+@item @code{tdbc::connection}
+@item @code{tdbc::statement}
+@item @code{tdbc::resultset}
+@end itemize
+
+
+@section Connection aux bases de données.
+
+On crée l'objet pour se connecter à la base de données avec les deux
+solutions classiques pour les classes TclOO. Voici la solution qui
+permet de définir un nom, qui sera ensuite utilisé comme une fonction.
+
+@example
+tdbc::postgres::connection create db -db syndic -user mathieu -port 5432
+@end example
+
+Quand la connexion à la base a été crée avec la commande ci-dessus, on
+peut utiliser la nouvelle commande, ici @code{db} pour faire les
+opérations sur la base de données.
+
+Pour une base de données SQLite, la création d'une connexion aurait
+simplement demandé le nom du fichier contenant la base (les autres
+paramètres sont souvent inutiles).
+
+@example
+tdbc::sqlite3::connection create db biblio.db
+@end example
+
+Mais pour SQLite, on regardera aussi la connexion direct qui existe pour
+Tcl
+(@ref{Interface direct à sqlite3})
+
+
+L'autre méthode pour créer un objet de connexion avec un nom donné
+automatiquement est la suivante.
+
+@example
+set db [tdbc::postgres::connection new -db syndic -user mathieu -port 5432]
+@end example
+
+Avec cette solution, il faudra utiliser @code{$db} pour effectuer les
+actions sur la base de données.
+
+Quand l'objet de connexion a été crée pour l'une de ces methodes, on
+accède aux différentes méthodes prévues pour cette objet.
+
+
+@menu
+* prepare / execute :: préparer et exécuter une instruction.
+* allrows :: exécute l'instruction SQL en une seule commande
+* foreach :: permet d'itérer ligne à ligne l'exécution de l'instruction.
+* close   :: referme la connexion.
+* configure   :: redonne ou reconfigure la connexion.
+* transaction :: prépare une transaction.
+* commit      :: exécuter une transaction préparée.
+@end menu
+
+
+@node prepare / execute
+@section Préparer et exécuter une instruction SQL
+
+Cette première méthode réalise la requête par étapes. Tout d'abord nous
+récupérons un objet @code{tdbc::statement} grâce à l'objet
+@code{tdbc::connection} crée précédemment. Ceci se fait du travers la
+méthode @code{prepare} de l'objet de connexion.
+
+@example
+set stmt [db prepare @{set search_path=maz@}]
+@result{} ::oo::Obj17::Stmt::2
+@end example
+
+Les instructions SQL doivent être entrées sans point virgule final. Une
+première interception d'erreur peut être faite à ce niveau sur la validité de
+l'instruction SQL. On peut imaginer faire une première vérification
+d'erreur. Voici par exemple une erreur intercepté pour une requête sur
+une table qui n'existe pas.
+
+@example
+set sql "select * from maz.ppp"
+set stmt [db prepare $sql]
+@result{}relation "maz.ppp" does not exist
+@end example
+
+La seconde étape consiste à exécuter l'instruction préparée.
+
+@example
+set sql "select id, nom, prénom, initiales from maz.p04 order by id"
+set stmt [db prepare $sql]
+set res [$stmt execute]
+@end example
+
+on a maintenant un objet @code{$res} de la classe
+@code{tdbc::resultset}. Elle a de nouveau ses méthodes comme par exemple
+@code{columns}.
+
+@example
+$res columns
+@result{}id nom prénom initiales
+@end example
+
+Les méthodes @code{nextlist} et @code{nextdict} permettent de lire le
+résultat ligne à ligne, la première renvoyant les enregistrements sous
+forme de liste, le second sous forme de dictionnaire. Ces méthodes
+renvoient 1 quand il y a un enregistrement et 0 quand il n'y a plus
+rien. Ceci permet ensuite de créer des boucles simplement.
+
+@example
+while @{[$res nextdict val]@} @{
+  set L ""
+  foreach k [dict keys $val] @{
+    append L "[dict get $val $k] "
+  @}
+  puts [string trim $L]
+@}
+@end example
+
+
+Ces commandes peuvent être arrangées aussi dans une commande @code{try}
+qui ressemblerait à ceci.
+
+@example
+set SQL_STATEMENT ...
+set stmt [db prepare $SQL_STATEMENT]
+try @{
+   set res [$stmt execute]
+   try @{
+      -- boucler avec [$res nextdict] ou [$res nextlist]
+   @} finally @{
+      $res close
+   @}
+@} finally @{
+  $stmt close
+@}
+@end example
+
+La méthode @code{allrows} permet d'atteindre ce résultat plus
+rapidement. Néanmoins cette méthode par étape peut parfois être utile.
+
+
+@node allrows
+@section Exécuter une instruction SQL générale @code{allrows}.
+@findex allrows (allrows)
+
+Cette commande permet d'exécuter n'importe quelle instruction SQL, en particulier
+celle qui ne renvoie pas de résultat.
+
+@example
+set COP=MAZ
+syndic allrows "SET SEARCH_PATH=$COP"
+@end example
+
+(remarque: pas de ';' en final des instructions)
+
+La sous commande @code{allrows} a deux options @code{-as dicts} ou @code{-as lists},
+la première étant l'option par défaut.
+
+Cette commande @code{allrows} permet d'obtenir le résultat en un seul coup et on le
+traite ensuite.
+
+Par exemple si on utilise le résultat en liste:
+@example
+set result [syndic allrows -as lists @{SELECT * FROM C04@}]
+foreach row $result @{puts $row@}
+@end example
+
+Le résultat en dictionnaire permet de choisir les champs à montrer:
+@example
+set result [syndic allrows @{SELECT * FROM C04@}]
+foreach row $result @{puts "[dict get $row code] | [dict get $row contenu_du_code]"@}
+
+131      | avances de trésorerie                                           
+132      | avances pour travaux                                            
+450      | compte courant individuel                                       
+451      | provision période en cours                                      
+...
+@end example
+
+Une différence entre l'option @code{-as dicts} et @code{-as lists} est le traitement
+des champs vides ou inexistants.
+
+Créons tout d'abord une petite base de données sqlite3.
+
+@example
+package require tdbc
+package require tdbc::sqlite3
+tdbc::sqlite3::connection create db biblio.db
+db allrows @{
+  "CREATE TABLE auteur (
+    prénom TEXT,
+    nom TEXT);
+  CREATE TABLE livre (
+    auteurID INTEGER REFERENCES auteur,
+    titre TEXT);
+@}
+foreach @{p n@} @{Charles Baudelaire Victor Hugo@} @{
+  db allrows \
+   "INSERT INTO auteur (prénom, nom) VALUES ('$p', '$n')"
+@}
+@end example
+
+Montrons la liste des auteurs tout d'abord en utilisant l'extraction
+sous forme de liste de dictionnaires.
+
+@example
+db allrows @{SELECT prénom, nom FROM auteur@}
+
+@{prénom Charles nom Baudelaire@} @{prénom Victor nom Hugo@}
+@end example
+
+puis comme des listes de listes.
+
+@example
+db allrows -as lists @{SELECT prénom, nom FROM auteur@}
+
+@{Charles Baudelaire@} @{Victor Hugo@}
+@end example
+
+La différence vient dans l'affichage ou nom des clés (ou nom de champ)
+pour chaque valeur extraite.
+
+
+Une autre différence importante est le traitement des enregistrements
+incomplets, dont voici deux exemples différents.
+
+@example
+db allrows "INSERT INTO auteur (prénom) VALUES ('Arthur')"
+db allrows "INSERT INTO auteur (prénom, nom) VALUES ('', 'Peguy')"
+@end example
+
+Si on utilise l'extraction sous forme de liste de dictionnaires.
+
+@example
+db allrows @{SELECT prénom, nom FROM auteur@}
+
+@{prénom Charles nom Baudelaire@} @{prénom Victor nom Hugo@} @{prénom Arthur@} @{prénom @{@} nom Peguy@}
+@end example
+
+Et maintenant sous forme de liste de listes
+
+@example
+db allrows -as lists @{SELECT prénom, nom FROM auteur@}
+
+@{Charles Baudelaire@} @{Victor Hugo@} @{Arthur @{@}@} @{@{@} Peguy@}
+@end example
+
+La liste de liste préserve bien les espaces vides pour les termes
+manquants.
+
+
+@node foreach
+@unnumberedsec Exécuter une instruction SQL en itérant sur les lignes obtenues par la requête @code{foreach}.
+@findex foreach (tdbc)
+
+La sous-commande @code{foreach} permet d'itérer sur les lignes de la
+réquète résultante, ce qui est finalement souvent ce que l'on veut
+faire. Cette commande est d'ailleurs préférable dans le cas de tables de
+données importantes.
+
+@example
+syndic foreach row @{ SELECT * FROM C04 @} @{
+    puts "[dict get $row code ] | [dict get $row contenu_du_code]"
+    @}
+@end example
+
+Pour améliorer la présentation du résultat en format texte, on peut
+utiliser la fonction @code{format} qui va permettre de forcer ici une
+écriture du code sur 4 caractères seulement (en tronquant ou en ajoutant
+des blancs si nécessaire) et la fonction @code{trim}, qui au contraire
+va retirer les caractères blancs sur la fin de la dernière chaîne qui
+est ici @code{contenu_du_code}. Les champs extraits d'une base de
+données sont en effet ici des chaînes de longueur constante. En les
+recopiant ensuite, par exemple dans un tableur, de trop grande chaînes
+pleines de blancs en fin de chaîne peuvent perturber l'affichage
+correct.
+
+L'exemple précédent devient alors:
+
+@example
+syndic foreach row @{ SELECT * FROM C04 @} @{
+    puts -nonewline "code: [format %-4s [string trim [dict get $row code]]] ✺ "
+    puts [string trim [dict get $row contenu_du_code]]
+    @}
+@end example
+
+On a ici choisit d'écrire la ligne avec deux instructions @code{puts},
+dont la première est suivie par @code{-nonewline} pour ne pas avoir
+de retour à la ligne.
+
+
+@node close
+@unnumberedsec Refermer la connexion (@code{close}).
+
+Permet de refermer proprement une connexion à une base de données.
+
+@example
+db close
+@end example
+
+Ceci refermera aussi les ressources associées @code{tdbc::statement} et
+@code{tdbc::resultset}. 
+
+
+
+@node configure
+@unnumberedsec Voir ou reconfigurer le connexion (@code{configure}).
+@findex configure (tdbc)
+
+Permet de retrouver les informations de connexion d'une base.
+
+@example
+db configure
+@end example
+
+Avec des paramètres, on peut rajouter des options qui auraient été omise
+lors de la création objet @code{db}.
+
+@example
+db configure -encoding utf-8 -readonly 0 -timeout 0
+@end example
+
+
+
+@node transaction 
+@unnumberedsec Préparer une transation (@code{prepare}).
+@findex prepare (tdbc)
+
+Certains gestionnaires de bases de données, comme PostgreSQL permettent de
+préparer une requète SQL. Ceci va permettre d'optimiser en cas de répétition et
+aussi d'optimiser les accès à la base de données, ce qui peut être utile en cas
+d'une base de données éloignée.
+
+
+
+@node commit
+@unnumberedsec Executer une transation (@code{commit}).
+@findex commit (tdbc)
+
+Cette sous-commande exécute une transaction qui a été préparée.
+

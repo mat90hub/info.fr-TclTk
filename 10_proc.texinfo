@@ -1,0 +1,1457 @@
+@c -*- mode: texinfo; coding: utf-8-unix; mode: auto-fill; -*-
+@c typographie française :    «   » … ’
+
+@node Diviser le script en procédures
+@chapter Diviser le script en procédures.
+@cindex procédures
+@findex proc
+
+Les procédures rassemblent une série d'instructions Tcl sous un même
+nom, qui lancera ces instructions quand ce nom est mis au début d'une
+ligne d'instruction. Ces procédures ont des arguments, qui servent à
+rendre le script adaptable. Une fois construite et mis au point, les
+procédures ne se distinguent plus des commandes d'origine du langage,
+qu'elles viennent donc compléter@footnote{Si le nom était utilisé,
+l'ancienne procédure est écrasée par cette nouvelle définition}
+@footnote{Les procédures se comportent comme des nouvelles commandes,
+mais ne sont pas à proprement parler des extensions de Tcl, terme que
+l'on réserve pour les paquets et modules qui accèdent à l'API Tcl C.}
+@footnote{En Tcl, on ne distingue pas les procédures des fonctions. Tout
+est défini avec la commande @code{proc}. On utilisera parfois le terme
+fonction, quand on veut souligner l'usage fait de la valeur de retour de
+la procédure, mais il n'y a pas vraiment de différence dans le
+langage. On essaye de réserver le mot @code{command} aux procédures de
+base de Tcl, mais là aussi, la distinction entre une commande et une
+procédure n'est jamais bien claire}
+
+@example
+proc NomProc @{arg1 arg2@} @{
+ # les instruction
+@}
+@end example
+
+@findex return
+La dernière instruction correspond à ce qui sera retourné par la
+procédure. Il est plus propre d'utiliser la commande @code{return} qui
+termine la procédure (quelque soit sa position) et renvoie l'argument
+qu'on lui a donné.
+
+@example
+proc hello @{@} @{
+  return "Bonjour tout le monde !"
+@}
+
+hello
+@result{} Bonjour tout le monde !
+@end example
+
+Cette procédure @code{hello} n'a pas d'argument, mais il a tout de même
+fallu mettre une paire d'accolades vides à leur place.
+
+Les procédures servent principalement à éviter les répétitions de code,
+ce qui facilite la mise au point et maintenance.
+
+
+@node Domaine local ou global
+@section Domaine local ou global.
+@cindex domaine local ou global
+
+
+@node la commande 'global'
+@subsection La commande @code{global}
+@findex global
+
+Les variables utilisées en dehors de toute procédure (et tout espace
+de noms comme nous verrons plus tard
+@footnote{@ref{Isoler dans des espaces de noms}})
+sont dans le domaine global à la différence des variables utilisées dans
+une procédure, qui sont donc dans le domaine local propre à cette
+procédure. En dehors des procédures, ces dernières variables n'existent
+plus.
+
+On peut cependant utiliser la commande @code{global} dans une procédure
+pour déclarer qu'une variable que nous allons y utliser appartient en
+réalité au domaine global et non au domaine local de la procédure.
+
+@example
+proc change_vglob @{@} @{
+ global vglob
+ incr vglob
+@}
+
+change_vglob
+@result{} 1
+change_vglob
+@result{} 2
+puts $vglob
+@result{} 2
+@end example
+
+On remarquera que la procédure a aussi créé une variable dans le
+domaine global si elle ne pré-existait pas et ensuite, elle la
+modifie à l'intérieur de la procédure, mais l'effet est bien dans le
+domaine global.
+
+Si on s'était contenté d'une variable locale, cette technique aurait
+échoué.
+
+@example
+proc change_var @{@} @{incr var@}
+change_var
+@result{} 1
+change_var
+@result{} 1
+puts $var
+@result{} can't read "var": no such variable
+
+@end example
+
+L'incrémentation ne se propage pas, car à chaque appel de la procédure
+@code{change_var}, la variable locale @code{var} est recréée et donc
+initialisée à zéro avant d'être incrémentée. L'appel de la variable dans
+le domaine global ne donne rien (lève une erreur).
+
+On peut aussi utiliser une fonction avec un argument. Voici l'exemple
+utilisant une fonction avec un argument et qui fonctionne donc.
+
+@example
+proc change_arg @{var@} @{incr var@}
+set vlgob 0
+@result{} 0
+change_arg $vglob
+@result{} 1
+@end example
+
+Mais ici l'approche est différente.
+
+@enumerate
+@item l'argument doit être transmis en valeur
+    (soit la valeur d'une variable en utilisant le déférencement
+    @code{$} soit une valeur numérique)
+    
+@item la ré-affectation de la variable se fait en dehors de la fonction
+@end enumerate
+
+Cette dernière façon de procéder répond aux objectifs de la
+programmation fonctionnelle (immutabilité des variables). Mais sur cet
+exemple, un intérêt limité : on ne fait que renommer la commande
+@code{incr} !
+
+L'utilisation de @code{global} peut permettre de résoudre rapidement un
+problème rencontré, mais à terme, il peut dissimuler le changement d'une
+variable globale à l'intérieur d'une procédure qu'on aurait oubliée avec
+la croissance du code. C'est typiquement ce qu'on appelle un effet de
+bord, qui engendre à terme des difficultés de maintenance du code. Donc
+à utiliser à bon escient !
+
+
+@node La commande 'upvar'
+@subsection La commande @code{upvar}
+@findex upvar
+
+Il existe une forme plus flexible pour référencer une variable hors du
+scope d'une procédure : @code{upvar}.  Cette commande permet de
+référencer une variable en précisant exactement de combien de niveaux il
+faut remonter dans l'empilement des procédures (ou des modules, comme
+nous le verrons). Cette forme peut être utile quand on écrit des parties
+de code qui peuvent être intégrées dans d'autres et qu'on ne sait donc
+pas exactement où se trouve le niveau global. Le raisonnement en
+positionnnement relatif est donc alors préférable.
+
+@example
+upvar ?level? varName1 localName1 ?varName2? ?localName2?
+@end example
+
+Si @code{level} n'est pas précisé, il s'agit du niveau juste au dessus.
+
+Voici un example ou la procédure va pouvoir utiliser une variable
+déclaré à l'extérieur de la procédure.
+
+@example
+set var 5
+
+proc test x @{
+  upvar var V
+  return [expr @{$x + $V@}]
+@}
+
+test 3
+@result{} 8
+@end example
+
+Cette procédure aurait pu aussi modifier cette vériable externe
+(attention, c'est ce qu'on appelle un effet de bord, qui peut créer des
+erreurs difficile à détecter lors de la mise au point).
+
+@example
+set var 5
+
+proc test x @{
+  upvar var V
+  set V 3
+  return [expr @{$x + $V@}]
+@}
+
+test 3
+@result{} 6
+puts $var
+@result{} 3
+@end example
+
+La commande @code{upvar} va aussi permettre le passage d'arguments par
+adresse au lieu du passage par valeur qui est la règle pour les
+fonctions Tcl. 
+
+
+@node Passage d'argument par adresse avec la commande 'upvar'
+@subsubsection Passage d'argument par adresse avec la commande @code{upvar}
+@cindex pièges de upvar
+@cindex passage d'argument par adresse
+
+Voici une fonction simple utilisant @code{upvar}
+
+@example
+proc add2 name @{
+  upvar $name var
+  set var [expr $var +2]
+@}
+@end example
+
+Implicitement, cela veut dire que l'argument @code{name} est le nom
+d'une variable et non plus une valeur. On utilise ensuite le signe
+d'indirection @code{$} pour indiquer que c'est la variable référencée
+par @code{$name} qui est mise dans la variable @code{var}.
+
+Voici comment on utilise cette fonction.
+
+@example
+set a 3
+add2 a
+@result{} 5
+@end example
+
+Par contre, ces exemples ne fonctionnent pas:
+
+@example
+add2 3
+@result{} can't read "var": no such variable
+add $a
+@result{} can't read "var": no such variable
+@end example
+
+La procédure attend un nom de variable et non le contenu d'une variable
+ni une valeur scalaire, comme cela se passait aussi avec  @code{global}.
+Il faut donc bien donner le nom de la variable (@code{a}) et non son
+contenu (@code{$a}) ou un scalaire comme @code{3}.
+
+On remarque que l'utilisation de @code{upvar} n'oblige pas à changer
+réellement le contenu d'une variable à un niveau supérieur. Dans
+l'exemple de la fonction @code{add2}, la variable est modifiée par la
+commande @code{set}. Mais on aurait pu écrire une fonction qui ne le
+fait pas avec cet exemple.
+
+@example
+proc plus2 name @{
+upvar $name var
+expr $var + 2
+@}
+@end example
+
+Cette fonction à les mêmes contraintes d'utilisation que @code{add2},
+mais elle ne change pas la valeur globale (pas d'effet de bord).
+
+@example
+set a 3
+@result{} 3
+plus2 $a
+@result{} can't read "var": no such variable
+plus2 a
+@result{} 5
+puts $a
+@result{} 3
+@end example
+
+En conclusion, l'utilisation des commandes @code{global} et @code{upvar}
+dans une procédure obligent à passer les paramètres par adresse ou par
+nom -- pour respecter le vocabulaire de Tcl.  Elle permettent alors de
+modifier une variable en dehors de domaine de la fonction, mais sans que
+cela soit une obligation.
+
+Par contre, l'utilisation de @code{upvar} ne fonctionne pas si le
+paramètre n'est pas un nom. Ce qui arrive, si le paramètre est une chaîne
+entrée directement ou résultant d'une substitution.
+
+@example
+add2 [expr 4 + 5]
+@result{} can't read "var": no such variable
+@end example
+
+La commande @code{[expr 4 + 5]} a été remplacée par la chaine
+résultante, ce qui ne fonctionne plus avec @code{add2} qui attend le nom
+d'une variable et non un contenu.
+
+La version correcte de cet exemple serait:
+
+@example
+set b [expr 4 + 5]
+@result{} 9
+add2 b
+@result{} 11
+@end example
+
+Ce mode de programmation force à systématiser le passage par des
+variables et rend la programmation moins directe. Donc, si on veut
+garder la style direct de Tcl, il ne faut généraliser l'utilisation de
+@code{upvar}, mais l'introduire seulement quand c'est vraiment
+nécessaire.  La programmation fonctionnelle enjoint aussi d'éviter ce
+type de commande qui peut introduire par mégarde des effets de
+bords@footnote{Un effet de bord est une modification secondaire réalisée
+par une procédure et donc en-dehors de son objectif premier
+déclaré. C'est une source d'erreur commune, car on finit souvent par les
+oublier.}.  La programmation fonctionnelle utilise toujours des
+fonctions qui donnent la nouvelle valeur en sortie et ne modifient pas
+les variables mise en argument@footnote{La programmation fonctionnelle
+va plus loin en utilisant le principe dit d'immutabilité@w{}: à chaque
+nouvelle valeur correspond la création d'une nouvelle variable.}
+
+
+@node Exemple d'utilisation en simulant un dictionnaire
+@subsubsection Exemple d'utilisation en simulant un dictionnaire
+@cindex dictionaire simulé avec une liste à clés
+
+Voici un exemple d'utilisation de @code{upvar} qui construit des
+procédures automatisant la création de listes de paires clés/valeurs. Il
+s'agit donc d'une simulation élémentaire de dictionaires, qui existent
+autrement dans Tcl. Il n'y a donc pas une utilité pratique immédiate,
+mais cela aide à comprendre aussi bien la manipulation de @code{upvar},
+que la logique de fonctionnement des dictionnaires.
+
+Commençons par l'ajout d'un élément clé/valeur dans ce type de liste.
+
+@example
+proc dicoAppend @{dico cle val@} @{
+  upvar $dico d
+  lappend d [list $cle $val]
+@}
+dicoAppend dico c1 v1
+@result{} @{c1 v1@}
+dicoAppend dico c2 v2
+@result{} @{c1 v1@} @{c2 v2@}
+@end example
+
+@code{upvar} permet de modifier la liste @code{dico} donnée en argument.
+Cet exemple montre un passage de paramètre par valeur, opposé à un passage
+par référence qui est la règle sous Tcl.
+
+Pour récupérer une valeur associée à une clé, on crée la fonction
+suivante.
+
+@example
+proc dicoSearch @{dico cle@} @{
+  upvar $dico d
+  set pos [lsearch $d $cle*]
+  return [lindex [lindex $d $pos] 1]
+@}
+puts [dicoSearch dico c2]
+@result{} v2
+@end example
+
+Ici @code{upvar} permet d'améliorer la présentation : je peux donner
+@code{dico} comme référence au lieu d'avoir à donner son contenu
+(@code{$dico}). J'obtiens une fonction qui a donc la même logique de
+paramétrage que la précédente. On remarquera aussi qu'il faut bien
+écrire @code{$cle*} comme champ de recherche car la liste est constituée
+ici de couples. La recherche d'un élément constitué uniquement de
+@code{cle} échouerait à cause de cette structure.
+
+Une telle liste de paires ne garantit pas l'unicité des clés (un mot
+peut ainsi avoir plusieurs définitions possibles), ce qui ne sera pas le
+cas des véritables dictionnaires.  On peut même concevoir une fonction
+qui cherche toutes les valeurs associées à une clé donnée.
+
+@example
+proc dicoList @{dico cle@} @{
+  upvar $dico d
+  set start 0
+  set pos [lsearch [lrange $d $start end] $cle*]
+  while @{$pos >= 0@} @{
+    lappend locations [expr @{$pos + $start@}]
+    set start [expr $pos + $start + 1]
+    set pos [lsearch [lrange $d $start end] $cle*]
+  @}
+  foreach l $locations @{
+    lappend rtn [lindex [lindex $d $l] 1]
+  @}
+  return $rtn
+@}
+dicoAppend dico c1 v4
+@result{} @{c1 v1@} @{c2 v2@} @{c3 v3@} @{c1 v4@}
+dicoList dico c1
+v1 v4
+@end example
+
+Voici un autre exemple, qui donne une liste unique (et non une
+liste de paires).
+
+@example
+proc dicAppend @{dico cle val@} @{
+ upvar $dico d
+ set d [concat $d $cle $val]
+@}
+@end example
+
+
+Ces techniques fonctionnent, mais elles trouveront leur limite avec un
+grand nombre de termes (typiquement au delà de 1000 termes). Le temps de
+recherche de la fonction @code{lsearch} appliquée à une liste croît
+linéairement avec le nombre de termes. Les dictionnaires utilisent (à
+l'insu de l'utilisateur) des tables de hachage qui permette de conserver
+de bonnes performances même avec un grand nombre de termes.
+
+
+@node Les procédures et les vecteurs associatifs
+@subsection Les procédures et les vecteurs associatifs
+@cindex procédures et vecteurs associatifs
+
+Les vecteurs associatifs ne peuvent pas être passés (en valeur) en
+argument dans une procédure ni être renvoyés par la commande
+@code{return}. Si on en a besoin, il faut peut être revoir le code pour
+utiliser un dictionnaire, qui n'a pas cette limitation.
+
+Maintenant, on peut modifier un vecteur associatif dans une procédure en
+utilisant la commande @code{upvar}, c'est à dire en passant le vecteur
+par adresse.
+
+On peut aussi vouloir construire un vecteur dans une procédure. Mais il
+n'est pas alors possible de renvoyer le vecteur avec la commande
+@code{return}. On contourne la difficulté en renvoyant une liste de
+couples index/valeur, qui permet ensuite de remplir un vecteur
+simplement avec la commande @code{array set 'vect' 'listIndVal'}.
+
+@example
+proc x @{@} @{return [list Brigitte 14 Florence 16 Véronique 12]@}
+array set result [x]
+array names result
+@result{} Véronique Florence Brigitte
+puts $result(Véronique)
+@result{} 12
+@end example
+
+(L'autre méthode consisterait à utiliser directement des dictionnaires).
+
+Et maintenant, voici une procédure qui augmente toutes les notes de
+cinq points. On passe le vecteur en argument par adresse grâce à cette
+commande @code{upvar}.
+
+@example
+proc r5 vect @{
+  upvar $vect v
+  foreach i [array names v] @{incr v($i) +5@}
+@}
+r5 result
+
+parray result
+@result{} result(Brigitte)  = 19
+@result{} result(Florence)  = 21
+@result{} result(Véronique) = 17
+@end example
+
+Et on n'a pas besoin de renvoyer un vecteur avec cette procédure, car
+l'utilisation de @code{upvar} fait qu'on modifie le vecteur directement
+dans son espace propre.
+
+Une autre technique consisterait à convertir le vecteur en liste de
+couples à l'entrée de la procédure et de refaire la traduction inverse
+en sortie. Ceci se fait très simplement avec les commandes @code{array
+set}
+@footnote{@ref{array set}}
+et @code{array get}
+@footnote{@ref{array get}}.
+
+@example
+# array -> list
+set resLst [array get result]
+@result{} Véronique 17 Florence 21 Brigitte 19
+
+# list -> array
+array set resVect $resLst
+
+parray resVect
+@result{} result(Brigitte)  = 19
+@result{} result(Florence)  = 21
+@result{} result(Véronique) = 17
+@end example
+
+
+@node Arguments obtenus par une liste
+@section Arguments obtenus par une liste
+@findex @{*@} (pour les listes d'arguments)
+
+La commande @code{@{*@}} interpête chacun des éléments la liste accolée
+comme un élément unique (voir @ref{Interpréter une chaîne}).
+Cela peut servir quand on obtient plusieurs arguments attendus au travers
+d'une liste. Si on donne la liste directement, la procédure va échouer
+car elle n'attend pas un seul élément, mais plusieurs. La solution est
+donc d'interpréter la liste pour la remplacer par les éléments qui la
+composent.
+
+Sur un exemple.
+
+@example
+proc add @{a b@} @{
+  return [expr $a + $b]
+@}
+set L [list 3 4]
+@result{} 3 4
+
+add $L
+@result{} wrong # args: should be "add a b"
+
+add @{*@}$L
+@result{} 7
+@end example
+
+La difficulté vient souvent qu'une liste est visualisée par la commande
+@code{puts}, qui l'interprète pour afficher ses éléments. Puis quand on veut
+connaître la taille de la liste, on utilise la commande @code{llength}
+(ou une autre commande de liste commançant par un @code{l}) qui
+interprête de nouveau la liste.
+
+
+@node Les arguments optionnel par défaut ou nommés
+@section Les arguments optionnel par défaut ou nommés.
+
+@subsection Arguments par défaut.
+@cindex Arguments par défaut
+
+Les arguments sont donnés dans une chaîne protégée par des accolades. La
+valeur par défaut d'un argument sera donnée avec une sous chaîne dans la
+chaîne argument, contenant le nom de l'argument et sa valeur par défaut,
+comme dans l'exemple qui suit.
+
+@example
+proc showDefaults @{arg1 @{numberArg 0@} @{stringArg @{valeur par défaut@}@}@} @{
+  puts "arg1: $arg1";
+  puts "numberArg: $numberArg";
+  puts "stringArg: $stringArg"
+@}
+@end example
+
+Dans ce cas, la procédure @code{showDefaults} peut être appelée avec un
+seul argument et les autres seront remplis par défaut. Par contre,
+attention, si on entre deux arguments au lieu de trois, ce ne peut être
+que les deux premiers, car les arguments doivent être entrés dans
+l'ordre (voir plus loin pour les arguments nommés).
+
+@example
+showDefault a
+@result{} arg1: a
+@result{} numberArg: 0
+@result{} stringArg: valeur par défaut
+@end example
+
+
+@subsection Argument optionnel
+@cindex Argument optionnel
+@findex args
+
+Le mot clé @code{args} permet d'entrer un nombre quelconque d'argument
+comme une liste optionnelle. Ce mot clé doit obligatoirement apparaître
+à la place du dernier des arguments. C'est ensuite au programmeur
+d'exécuter le traitement de cette liste d'arguments optionnels avec les
+resources qu'offre le langage tcl. Il est à noter que dès qu'on utilise
+@code{args}, cet argument spécial est toujours présent. Par contre, il
+peut être la chaîne vide, ce qui correspond à l'absence d'argument.
+
+@example
+proc show args @{
+  puts "Existence de la chaîne d'arguments: [info exists args]"
+  puts "Longueur de la chaîne d'arguments: [string length $args]"
+  puts "Nombre d'argument: [llength $args]"
+  set argLst "Liste:"
+  foreach x $args @{
+     lappend argLst "args([lsearch $args $x])=$x,"
+  @}
+  set argLst [string trimright $argLst ,]
+  if @{$argLst ne "Liste:"@} @{puts $argLst@}
+@}
+@end example
+
+ce qui donne
+
+@example
+show
+@result{} Existence de la chaîne d'arguments: 1
+@result{} Longueur de la chaîne d'arguments: 0
+@result{} Nombre d'argument: 0
+
+show   5 6
+@result{} Existence de la chaîne d'arguments: 1
+@result{} Longueur de la chaîne d'arguments: 3
+@result{} Nombre d'argument: 2
+@result{} Liste:args(0)=5, args(1)=6
+
+@end example
+
+On remarque que les blancs qui précèdent l'arguments ne sont pas
+comptabilisés dans la longueur de la chaîne @code{$args}.
+
+Dans le cas pratique, on peut donc vérifier la longueur du contenu de
+@code{args} pour reconnare si des arguments optionnels ont été entrés ou
+non.
+
+@example
+proc show args @{
+  if @{[llength $args] > 0@} @{
+     puts "L'argument existe: $args\n"
+  @} @{
+     puts "Pas d'argument.\n"
+  @}  
+@}
+@end example
+
+Ce qui donne
+
+@example
+show
+@result{} Pas d'argument
+
+show 4 5
+@result{} L'argument existe: 4 5
+
+@end example
+
+Dans le cas où les arguments optionnels suivent des arguments
+obligatoires, il suffit de vérifier les arguments optionnels.
+
+@example
+proc add @{a args@} @{
+  if @{[llength $args] == 0@} @{
+    puts "rien à ajouter -> $a\n"
+  @} @{
+    puts "-> [expr $a + $args]\n"
+  @}
+@}
+@end example
+
+ce qui donne
+
+@example
+add 2
+@result{} rien à ajouter -> 2
+
+add 2 3
+@result{} -> 5
+
+@end example
+
+Le mot clé @code{args} permet aussi de transformer une suite d'arguments
+finaux en liste. On peut vouloir une procédure ayant des premiers
+arguments bien déterminé (avec éventuellement des valeurs par défaut)
+suivi d'une liste d'arguments dont le nombre peut varier. La question se
+pose alors si on doit mettre cette liste variable d'aguments finaux
+entre parenthèse ou non. Voici une méthode, qui laisse l'utilisateur
+libre de mettre des accolades ou de les oublier : si la longueur de la
+liste d'arguments finaux @code{args} vaut 1 (ce qui veut dire que soit
+l'argument est unique, soit c'est une liste entre accolade), on propose
+par défaut d'enlever les accolades avec la commande spéciales
+@code{@{*@}}, qui a l'avantage de ne pas renvoyer d'erreur s'il n'y a
+pas d'accolades.
+
+@example
+proc remove @{dataset $args@} @{
+  if @{[llength $args] == 1@} @{set args @{*@}$args@}
+
+  ...
+@}
+@end example
+
+L'expression @code{@{*@}} décompose la liste qui le suit directement en suite
+d'arguments pris individuellement. Pour notre cas, cela supprime les
+accolades qui pourraient faire croire qu'argument est unique alors qu'il
+s'agit d'une liste de plusieurs éléments disjoints.
+
+Quelques exemple pour comprendre le fonctionnement de cette variable
+@code{args}
+
+@example
+proc test args @{puts $args@}
+
+test a b
+@result{} a b
+test @{a b@}
+@result{} @{a b@}
+test @{a-b@}
+@result{} a-b
+@end example
+
+Pour un singleton, les accolades sont enlevées alors qu'elles ne le sont
+pas dans le cas général. Voyons maintenant le comportement avec la
+technique proposée.
+
+@example
+proc test args @{
+  if @{[llength $args] == 1@} @{set args @{*@}$args@}
+  puts $args
+@}
+
+test a b
+@result{} a b
+test @{a b@}
+@result{} a b
+@end example
+
+Les accolades sont aussi enlevées dans le cas où nous entrons une
+série d'arguments entre accolades. Les formes @code{test a b} et
+@code{test @{a b@}} sont toutes le deux acceptées.
+
+
+@subsection Argument nommé.
+@cindex Argument nommé
+
+Tcl impose d'entrer les arguments dans l'ordre.  Il n'a pas d'argument
+nommés comme en Python ou Ada.
+
+Une discussion existe pour améliorer cet état sur Tcler's
+@url{https://wiki.tcl-lang.org/page/Named+arguments}
+
+Une solution utilise l'instruction @code{args} qui permet d'entrer
+n'importe quel nombre d'arguments et ensuite applique un modèle basé sur
+un vecteur associatif. On entre d'abord en argument les valeurs par
+défaut, qui seront ensuite écrasées ou non par les options qui auront
+été données. L'avantage du vecteur associatif est que les arguments
+peuvent être donnés dans n'importe quel ordre.
+
+@example
+proc replace @{s args@} @{
+  # -- on peut introduire une série de tests sur args ici
+  
+  # la reconnaissance des arguments nommés
+  array set opt [concat @{-from 0 -to end -with ""@} $args]
+
+  # l'exécution du programme avec ces arguments
+  string replace $s $opt(-from) $opt(-to) $opt(-with)
+@}
+
+# test
+replace abcdefg -from 3 -to 4 -with xx
+@result{} abcxxfg
+@end example
+
+Dans cette version simple, un argument mal nommé (par example un
+@code{-wiht}) est simplement ignoré.
+
+Une version amélioré utilise un vecteur anonyme @code{""}.
+@cindex vecteur anonyme
+@cindex anonymous array
+
+Voici rapidement comment on utilise un vecteur anonyme.
+
+@example
+array set "" @{k1 v1 k2 v2 k3 v3@}
+parray ""
+@result{} (k1) = v1
+@result{} (k2) = v2
+@result{} (k3) = v3
+@end example
+
+Ici, l'usage reste limité à l'intérieur de la procédure et on ne risque
+donc pas d'agréger à ce vecteur anonyme, un nombre non contrôlé
+d'éléments.
+
+Voici le même exemple utilisant donc ce vecteur anonyme et ajoutant une
+vérification des arguments entrés.
+
+@example
+proc replace @{s args@} @{
+  # construction du vecteur anonyme
+  array set "" @{-from 0 -to end -with ""@}
+  
+  # vérification des arguments entrés
+  foreach @{key value@} $args @{
+    if @{![info exists ($keys)]@} @{error "bad option '$key'"@}
+    set ($key) $value  
+  @}
+  
+  # exécution du programme avec les arguments 
+  string replace $s $(-from) $(-to) $(-with)
+@}
+@end example
+
+Une proposition a été aussi faite pour remplacer tout le début, assez
+répétitif par une nouvelle commande @code{defargs}.
+
+@example
+proc defargs @{args defaults@} @{
+  upvar 1 "" ""
+  array set "" defaults
+  foreach @{key value@} $args @{
+    if @{![info exists ($key)]@} @{
+      return -code error \
+             -level 2 "bad option '$key', \
+                       should be one of: \
+                       [lsort [array names @{@}]]"
+    @}
+    set ($key) $value
+  @}
+@} 
+@end example
+
+Grâce à cette nouvelle commande, on peut maintenant définir la commande
+de la manière suivante.
+
+@example
+proc replace @{s args@} @{
+  defargs $args @{-from 0 -to end -with ""@}  
+  string replace $s $(-from) $(-to) $(-with)
+@}
+
+# test de la function
+replace suchenwith -from 4 -to 6 -with xx
+@result{} suchxxirth
+@end example
+
+(Le lien internet montre un version plus longue permettant d'utiliser
+des noms d'options raccourcis).
+
+Une autre solution existe avec une commande @code{init} détaillée sur
+ce lien @url{https://wiki.tcl-lang.org/page/init}
+
+
+Ces commandes pour des arguments nommés utilise la même approche que le
+paquet @file{cmdline} de @file{tcllib} qui traite les arguments des
+scripts en ligne de commande
+@footnote{@url{https://core.tcl-lang.org/tcllib/doc/trunk/embedded/md/tcllib/files/modules/cmdline/cmdline.md}}
+
+D'autres approches veulent généraliser en se basant sur la
+différentiation entre un argument et les options. On peut souvent
+appliquer ce schéma quand on a besoin d'arguments nommés. Dans cette
+approche, un argument est une entrée sur laquelle va s'opérer le
+traitement principal de la procédure. Les options sont des entrées
+supplémentaires et qui vont influer le comportement du traitement.
+
+Personnellement, je pense que quand on veut introduire trop d'options
+dans une procédure, c'est qu'on doit sûrement améliorer la division du
+code pour revenir à des procédures plus élémentaire. Puis quand on veut
+réaliser une synthèse, il vaut mieux s'orient vers de la programmation
+objet : un objet unique sur lequel on va appliquer successivement
+plusieurs méthodes simples pour arriver au même résultat qu'une
+procédure avec beaucoup d'options. (à développer ?)
+
+@subsubsection Utilisation de 'cmdline'
+@c https://wiki.tcl-lang.org/page/command+options
+
+Le paquet @code{cmdline}, qui fait partie du paquet @code{Tcllib},
+contient la commande @code{::cmdline::getoptions} qui extrait les
+options d'une variable et retourne un dictionnaire qui les décrit.
+
+@example
+package require cmdline
+proc arith args @{
+    set options @{
+        @{op.arg "add" "operation to apply (defaults to 'add')"@}
+    @}
+    array set parsed [::cmdline::getoptions args $options]
+    if @{[llength $args] != 2@} @{
+        return -code error "wrong # args: must be \"arith ?-op operation? x y\""
+    @}
+    switch $parsed(op) @{
+        add @{return [::tcl::mathop::+ @{*@}$args]@}
+        sub @{return [::tcl::mathop::- @{*@}$args]@}
+        default @{
+            return -code error "Unknown -op \"$parsed(op)\": must be add or sub"
+        @}
+    @}
+@}
+@end example
+
+Exemples d'utilisation.
+
+@example
+arith 
+@result{} wrong # args: must be "arith ?-op operation? x y"
+arith 2 3
+@result{} 5
+arith -op sub 2 3
+@result{} -1
+arith -op mult 2 3
+@result{} Unknown -op "mult": must be add or sub
+@end example
+
+
+@subsection Commandes à options
+@cindex Commandes à options
+@findex options
+
+Le style de programmation de Tcl se rapproche de la programmation
+système sous Unix où beaucoup de commandes ont des options introduites
+par un '-'. L'utilisation d'arguments optionnels permet d'obtenir ce
+type de fonctionnement de manière plus ou moins ellaborée.
+
+
+@subsubsection Mapper l'argument optionnel dans un vecteur
+
+La méthode la plus simple est d'utiliser l'argument optionnel vu
+précédement et de le lire dans un vecteur associatif. Cette méthode à
+l'avantage d'être simple, mais ne comporte pas de traitement d'erreur.
+
+@example
+proc maproc @{a b args@} @{
+  # initialisation des options à leur valeur par défaut
+  array set p @{-nonewline 0@}
+  
+  # lecture des options entrée
+  array set p $args
+
+  # execution du code selon les options
+  if @{$p(-nonewline)@} @{
+    ...
+  @}
+@}
+@end example
+
+On peut aussi renforcer l'aspect optionnel pour éviter d'éventuels
+soucis dans les sous-appels.
+
+@example
+proc maproc @{a b @{args @{@}@}@} @{
+ ...
+@}
+@end example
+
+
+@subsubsection Faire une boucle de reconnaissance sur le '-'
+
+La méthode précédente n'est pas exactement similaire à ce dont on a
+l'habitude en programmation système: les options sont normalement
+immédiatement après la commande et le signe '-' est nécessaire.
+
+Voici une autre méthode utilisant une boucle @code{while} qui lit
+d'abord toutes les options possibles en début en se basant sur la
+reconnaissance du '-', vérifie ces options et les compile dans une
+liste d'options, qui peut ensuite être utilisée dans le code.
+
+@example
+proc maproc args @{
+  while @{[string index $args 0] == "-"@} @{
+    set option [lshift args]
+    
+    # éventuel traitement d'erreur sur l'option entrée
+    if @{$option ... @} @{
+    @} @{
+      # enregistrement de l'option dans une liste
+      lappend optList $option
+    @}    
+  @}
+  # Récupération des arguments non optionnels (non précédé de '-')
+  set others $arg
+  # '$args' peut être remplacer par @{*@}$arg
+  # si on veut tolérer que les arguments supplémentaires puissent avoir
+  # été regroupés en liste.
+
+  # traitement des options si elles sont présentes
+  if @{[llength $optList] > 0@} @{
+     ...
+  @}
+@}
+@end example
+
+Cette méthode utilise la commande @code{lshift} qui ne fait pas partie
+du langage, mais qu'on peut définir ainsi.
+@footnote{voir : https://wiki.tcl-lang.org/page/lshift}
+
+@example
+proc lshift listVar @{
+  upvar 1 $listVar l
+  set r [lindex $l 0]
+  set l [lreplace $l [set l 0] 0]
+  return $r
+@}
+@end example
+
+
+@subsubsection Utitiliser la bibliothèque tcllib::tepam
+
+La paquet tepam (pour Tcl Enhanced Procdure and Argument Manager) peut
+être chargé en début de code pour avoir accès ensuite aux fonctionalités
+de cette bibliothèque, qui doit être normalement accessible comme les
+autres bibliothèque de tcllib.
+
+@example
+package require tepam
+@end example
+
+
+
+@node Sortir d'une procédure avec 'exit' our 'return'
+@section Sortir d'une procédure avec @code{exit} ou @code{return}.
+
+@findex exit
+La commande @code{exit} arrête le processus en cours d'exécution en
+donnant le code d'erreur qui est donné.
+
+@example
+exit ?codeErreur?
+@end example
+
+Si ce code n'est pas donné, la commande renvoie 0, ce qui signifie
+normalement pour le système qu'il n'y a pas d'erreur.
+
+
+@findex return
+La commande @code{return} arrête seulement la procédure en cours
+d'exécution et renvoie la chaîne @code{resultat} qui est donnée.
+
+@example
+return ?resultat?
+@end example
+
+Si cette chaîne @code{résulat} n'est pas donnée, alors la commande
+renvoie simplement un chaîne vide.
+
+En conclusion, la commande @code{exit} sert plutôt a arrêter une
+procédure sur une erreur grave nécéssitant l'arrêt du programme complet
+alors que la commande @code{return} sert à retourner un
+résultat.@footnote{une procédure renvoie toujours un résultat qui est
+simplement celui de la dernière instruction qu'elle a exécuté. La
+commande @code{return} permet de préciser le résultat, en particulier
+s'il est différent de cette dernière instruction.}
+
+
+@node Imbriquer les procédures
+@section Imbriquer les procédures.
+@cindex Imbriquer les procédures
+
+Il est toujours possible d'imbriquer des procédures comme le montre
+l'exemple qui suit.
+
+@example
+proc un @{@} @{
+  puts -nonewline @{Mange @}
+  proc deux @{@} @{
+    puts -nonewline @{du @}
+    proc trois @{@} @{
+      puts poulet
+    @}
+  @}
+@}
+
+un; deux; trois
+@result{} Mange du poulet
+@end example
+
+Même quand elles sont imbriquées, les procédures existent toute dans l'espace
+où la première a été crée (on pourrait refaire la même chose dans les
+espaces de noms que nous verrons plus tard).
+
+@findex info level 0 (dans une procédure)
+On pourrait améliorer l'example pour intercepter le nom de la procédure
+en cours avec cette fonction avec la commande @code{info level 0} qui
+donne le niveau courant et donc ici dans l'example, le nom des
+procédures en cours.
+
+@example
+proc un @{@} @{
+  puts -nonewline "Mange([info level 0]) "
+  proc deux @{@} @{
+    puts -nonewline "du([info level 0]) "
+    proc trois @{@} @{
+      puts "poulet([info level 0])"
+    @}
+  @}
+@}
+
+un; deux; trois
+@result{} Mange(un) du(deux) poulet(trois)
+@end example
+
+Par contre, si on avait utilisé la fonction d'instrospection @code{info
+level} sans argument pour obtenir le niveau d'exécution, on aurait
+obtenu 1 pour les trois procédures, qui s'exécutent toutes au même niveau.
+
+
+@node Renommer une procédure (ou l'effacer)
+@section Renommer une procédure (ou l'effacer).
+@findex rename (proc)
+
+On renomme une procédure pendant l'exécution avec la forme.
+
+@example
+rename ancien_nom ?nouveau_nom?
+@end example
+
+Si l'argument @code{nouveau_nom} est manquant, la procédure
+est effacée.
+
+Par sécurité, on ne peut pas renommer une procédure en prenant le nom
+d'une procédure déjà existante. Il faudrait vérifier son existence avec
+la commande @code{info command} (voir @ref{Savoir si procédure existe}).
+
+
+@node Savoir si procédure existe
+@section Savoir si procédure existe
+@findex info command
+@findex info commands
+
+Tcl permet d'avoir la liste des procédures accessibles dans le niveau
+actuel avec la commande
+
+@example
+info command ?motif?
+@end example
+
+Le motif optionnel utilise la sémantique de la fonction
+@code{glob}. S'il est absent, on obtient toutes les procédures.
+
+On peut aussi utiliser la forme avec un 's':
+
+@example
+info commands ?motif?
+@end example
+
+Pour plus d'exemples, voir aussi
+@ref{Introspection avec la commande 'info'}.
+On peut aussi utiliser cette forme:
+
+@example
+info procs ?motif?
+@end example
+
+
+
+@node Changer une procédure dans l'exécution
+@section Changer une procédure dans l'exécution.
+@findex info args
+@findex info body
+
+
+On peut toujours écrire une procédure dans un script. Nous allons
+utiliser cette propriété avec la fonction d'introspection @code{info}
+pour ré-écrire une procédure pendant l'exécution du script et l'exécuter
+ensuite.
+
+Nous partons d'une procédure simple.
+
+@example
+proc alpha @{args@} @{
+ puts "proc alpha appelée avec $args"
+@}
+@end example
+
+On peut ensuite, vérifier si cette procédure existe.
+
+@example
+if @{[info commands alpha] != ""@} @{
+  puts "il y a une procédure appelée alpha"
+@}
+@end example
+
+Et maintenant on peut lire les arguments et le corps de la procédure
+pour les modifier.
+
+@example
+set alphaArgs [info args alpha]
+set alhpaBody [info body alpha]
+
+# change les mots "alpha" en "beta"
+regsub "alpha" $alphaBody "beta" betaBody
+# créer une nouvelle procédure nommée beta
+proc beta $alphaArgs $betaBody
+@end example
+
+On remarquera qu'il n'a pas été nécessaire des mettre des accolades
+autour des arguments et du corps de la procédure, car les blocs sont
+formés par les variables.
+
+
+@node Mimer l'écriture objet
+@section Mimer l'écriture objet
+
+Nous allons ici utiliser la fonction d'instrospection @code{info level
+0} que nous avons vu pour mimer une notation objet. Le sens
+des mots étant déterminé par leur position, nous utiliserons le même
+terme tour-à-tour pour une variable ou une fonction.
+
+Nous crééons une listes de fruits ou chacun est associé à une liste de
+couleurs. Puis, nous bouclons sur cette liste de fruits, pour créer à
+chaque fois une nouvelle fonction ayant le nom du fruit et comme
+argument une couleur possible. Cette fonction déterminera si cette
+couleur est possible pour ce fruit (jeu simple !).
+
+@example
+set fruitList [list @{apples @{red yellow green@}@} \
+                    @{bananas yellow@} \
+                    @{grapes @{green purple@}@}]
+                    
+foreach fruitDefinition $fruitList @{
+   lassign $fruitDefinition fruitName fruitColors
+   set $fruitName $fruitColors
+   
+   proc $fruitName @{color@} @{
+     set name [lindex [info level 0] 0]
+     upvar #0 $name fruit
+     if @{[lsearch $fruit $color] >= 0@} @{
+        return "Correct, $name can be $color"
+     @} else @{
+        return "No, $name are $fruit"
+     @}
+   @}
+@}
+
+# maintenant on teste !
+foreach fruit [list apples bananas grapes] @{
+   puts "What color are $fruit?"
+   gets stdin answer
+   puts [$fruit $answer]
+@}
+@end example
+
+En première partie de la boucle, nous avons crée trois variables:
+
+@itemize @minus
+@item @code{apple   @result{} @{red yellow green@}}
+@item @code{bananas @result{} @{yellow@}}
+@item @code{grapes  @result{} @{green purple@}}
+@end itemize
+
+En deuxième partie, nous avons crée des procédures qui ont ces mêmes nom
+et pour argument @code{color} et qui retourne une réponse en fonction de
+ce choix.
+
+Le nom de la procédure est récupéré avec la commande @code{set name
+[info level 0]}.  Ensuite, au lieu d'identifier le nom de l'argument
+avec un variable du niveau supérieur comme on le fait habituellement,
+c'est ce nom de la procédure qui est associé avec cette variable
+@code{fruit} du niveau supérieur (elle interviendra dans la boucle de
+test) avec la commande @code{upvar #0 $name fruit}.
+
+Par contre, dans la procédure elle-même c'est la variable @code{fruit}
+qui est utilisée, et qui dans la boucle sera associée à l'une des
+variable @code{apples}, @code{bananas} ou @code{grapes} que l'on a
+construite avant. Elles servent à faire le test de recherche d'une
+couleur.
+
+Dans la boucle final, @code{fruit} est d'abord l'une des variables, puis
+dans le corps de le procédure, c'est la procédure du même nom qui est
+appelée.
+
+
+@node apply et fonctions lambda
+@section La commande @code{apply} et les fonctions lambda.
+@cindex fonctions lambda en tcl
+@findex apply
+@findex lambda function
+
+Les fonctions lambda sont des fonctions qui n'ont pas de nom (remplacé
+par ce terme générique lambda). Elles peuvent être définies et utilisées
+directement dans une instruction et disparaitre ensuite.
+
+Commençons par un exemple basique.
+
+@example
+apply @{@{a b@} @{puts "résultat : $a + $b = [expr $a + $b]"@}@} 4 5
+@result{} résultat : 4 + 5 = 9
+@end example
+
+La commande @code{apply} va permettre d'utiliser une fonction lambda
+pré-stockée dans une variable. Ce transfer d'une fonction dans une variable
+va ouvrir de nouvelles possibilités que nous allons maintenant explorer.
+
+
+@subsection Méthode de stockage d'une fonction lambda dans une variable
+@findex format \& apply
+
+Nous avons vu qu'une fonction lambda peut être stockée dans une variable
+et être ensuite exécutée grâce à la commande @code{apply}.
+
+@example
+set lambda @{@{a b@} @{puts "résultat : $a + $b = [expr $a + $b]"@}@}
+apply $lambda 4 5
+@result{} résultat : 4 + 5 = 9
+@end example
+
+On peut vouloir paramétrer la fonction lambda, mais on tombe alors sur
+la difficulté de substituer le ou les paramètres, sans toucher aux
+arguments de la fonction en construction.
+
+La solution est d'utiliser la commande @code{format} qui permet de
+choisir les substitutions qui seront faites.
+
+Voici un exemple de procédure @code{AoM}, qui permet de choisir entre
+une addition ou une multiplication pour la fonction lambda que nous
+avons utilisée précédement.
+
+@example
+proc AoM @{op@} @{
+    if @{![string equal $op "+"] && \
+         ![string equal $op "*"]@} @{
+             error "il faut '*' ou '+'"
+    @}
+    return [format @{@{a b@} @{puts "$a %s $b = \
+                                    [expr $a %s $b]"@}@} $op $op] 
+@}
+
+apply [AoM +] 4 5
+@result{} 4 + 5 = 9
+@end example
+
+Nous avons paramétré la fonction @code{AoM} avec le paramètre @code{op},
+puis nous l'exécutons avec la commande @code{apply}.  Dans l'expression
+@code{format}, on utilise le code @code{%s}, qui donne les emplacements
+du paramètre. Comme on l'utilise ici à deux emplacements, il faut
+répèter ce paramètre deux foix.
+(@ref{Mettre en forme une chaîne (format)})
+
+
+@subsection Application d'une fonction lambda à une liste.
+@findex apply & map
+
+La commande @code{apply} peut être appliquée aux éléments d'une liste.
+Pour cela, nous définissons une commande @code{map}, qui va appliquer
+(@code{apply}) une fonction lambda à une liste.
+
+@example
+proc map @{lambda list@} @{
+  set result @{@}
+  foreach item $list @{
+      lappend result [apply $lambda $item]
+  @}
+  return $result
+@}
+@end example
+
+Il suffit maintenant de remplacer la variable lambda par une définition
+de fonction.
+
+@example
+# premier example: donne la longueur d'une chaîne
+map @{x @{return [string length $x]:$x@}@} @{a bb ccc dddd@}
+@result{} 1:a 2:bb 3:ccc 4:dddd
+
+# deuxième example appliquant une fonction arithmétique
+map @{x @{return "f($x)=[expr $x**2 + 2]"@}@} @{-4 -2 0 2 4@}@}
+@result{} f(-4)=18 f(-2)=6 f(0)=2 f(2)=6 f(4)=18
+@end example
+
+Ces techniques de remplacement s'appellent souvent @code{map} dans tcl,
+d'où notre choix pour le nom de la procédure appliquant une fonction
+lambda à une liste.
+
+
+@subsection Boucle appliquant une série de fonctions lambda paramétrées.
+
+Cette méthode est inverse à la précédente. Dans la section précédente,
+nous avons appliqué une fonction lambda à une liste de paramètres. Ici,
+nous allons créer une liste de fonctions lambda que nous allons appliquer
+à des paramètres.
+
+Nous construisons une procédure qui constuit le nombre voulu de fonctions
+lambda (ici une simple multiplication).
+
+@example
+proc multipliers @{from to@} @{
+    set result @{@}
+    for @{set i $from@} @{$i <= $to@} @{incr i@} @{
+        lappend result [list \
+          apply @{@{i n@} @{return [expr @{$i * $n@}]@}@} $i]
+    @}
+    return $result
+@}
+
+set mults [multipliers 1 5]
+@result{} @{apply @{@{i n@} @{return [expr @{$i * $n@}]@}@} 1@}
+@result{} @{apply @{@{i n@} @{return [expr @{$i * $n@}]@}@} 2@}
+@result{} @{apply @{@{i n@} @{return [expr @{$i * $n@}]@}@} 3@}
+@result{} @{apply @{@{i n@} @{return [expr @{$i * $n@}]@}@} 4@}
+@result{} @{apply @{@{i n@} @{return [expr @{$i * $n@}]@}@} 5@}
+@end example
+
+Nous avons donc maintenant une liste de fonctions lambda, qui
+contiennent déjà la commande @code{apply}. Il suffit donc d'itérer pour
+appliquer ces fonctions à un argument que l'on ajoute aux définitions de
+@code{apply} qui pour le moment ne contenaient que le paramètre
+@code{i}.
+
+@example
+foreach m $mults @{puts [@{*@}$m 2.5]@}
+@result{} 2.5
+  5.0
+  7.5
+ 10.0
+ 12.5
+@end example
+
+La commande @code{@{*@}} permet d'enlever les accolades encadrantes et
+d'ajouter donc le chiffre @code{2.5} à la place de la valeur de
+l'argument @code{n} dans les commandes @code{apply}.
+
+
+@subsection Conclusion sur @code{apply}
+
+Le commande @code{apply} permet de passer une procédure dans une
+variable scalaire, ce qui permet en retour de manipuler ces définitions
+comme nous le ferions avec des simples variables scalaires.
+
+On pense typiquement aux fonctions paramétrées, mais on peut aussi
+envisager de construire le corps d'une procédure au moment de
+l'exécution.
+
+Un lecteur intéressé peut aussi consulter sur internet les principes de
+la programmation fonctionnelle auxquels appartient justement ce concept
+de fonction lambda.
+
+
+@node Déclarer une procédure dans le code
+@section Déclarer une procédure dans le code
+
+Voici une technique qui permet de déclarer des nouvelles procédures dans
+le code. Ceci peut être utile quand on veut construire des séries de
+procédures très proches les unes des autres. On utilise pour cela la
+commande @code{interp} qui permet de faire référence ici à
+l'interpréteur en cours d'exécution et de lier un nouveau choisi
+(ici @code{tagame}) à l'exécution d'une fonction paramétrée (ici
+@code{doTag} déclarée dans l'espace de nom @code{::xmlstr}). 
+
+@example
+proc declare tagname @{
+  set ns [string trimright [uplevel 1 "namespace current"] :]
+  interp alias @{@} [set ns]::$tagname  @{@} ::xmlstr::doTag $tagname  
+  return
+@}
+@end example
+
+La fonction @code{doTag} et définie plus loin de la façon suivante.
+
+@example
+proc doTag args @{
+  set TAGNAME [lindex $args 0]
+
+  switch $TAGNAME @{
+    ".." @{ ...@}
+    default @{error "$TAGNAME not pre-declared ?"@}
+  @}
+@}
+@end example
+
+Ou encore une autre méthode utilisant un autre type de boucle.
+
+@example
+proc doTag args @{
+
+  while 1 @{
+    set TOKEN [lindex $args 0]
+    set args [lrange $args 1 end]
+
+    ...
+
+    if @{[llength $args] == 0 .... @} break    
+  @}
+@}
+@end example
+
+D'autre formes sont encore possibles.
+
+L'utilisation de @code{args} permet de rester flou sur le nombre
+d'arguments. Le premier sera donc le futur nom de la fonction qui sera
+déclaré par la procédure @code{declare} et la suite des arguments seront
+les arguments de la nouvelle fonction.

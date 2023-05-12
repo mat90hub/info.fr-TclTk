@@ -1,0 +1,1288 @@
+@c -*- coding: utf-8-unix; mode: texinfo; mode: auto-fill -*-
+@c typographie française :    «   » … ’
+
+@node Travailler avec des listes
+@chapter Travailler avec des listes.
+
+@node Créer une liste (list)
+@section Créer une liste (@code{list})
+@findex list
+
+Une liste est simplement une addition de termes séparés par des espaces
+et mis entre accolades pour montrer qu'il s'agit d'une entitée unique.
+
+@example
+set maListe @{a b c d@}
+@result{} a b c d
+@end example
+
+@findex list
+À l'usage, on s'aperçoit qu'il est plus sûr d'utiliser la commande
+@code{list}. C'est une commande qui accepte autant d'argument que l'on
+veut et qui seront les éléments de la liste.
+
+@example
+set maListe [list a b c d]
+@result{} a b c d
+@end example
+
+Nous allons maintenant voir quelques commandes utiles pour les
+listes. Les commandes de liste commence souvant par 'l' pour rappeler
+qu'elles s'appliquent à des listes (et parfois les différentier de leur
+équivalent qui s'applique à une chaîne).
+
+
+@node Connaître la longueur d'une liste (llength)
+@section Connaître la longueur d'une liste (@code{llength})
+@findex llength
+
+On obtient la longueur d'une liste avec la commande @code{llength}.
+
+@example
+llength @{1 2 3 4 5@}
+@result{} 5
+@end example
+
+
+@node Changer un élément dans la liste (lset)
+@section Changer un élément dans la liste (lset)
+@findex lset
+
+La commande @code{lset} permet de changer un élément d'une liste
+positionné à un index donné dans la liste.
+
+@example
+lset 'liste' ?index? 'nouv'
+@end example
+
+Le premier argument est le nom de la liste (non déférencé comme avec la
+commande @code{set}), puis vient optionnellement un entier qui sera
+l'index de l'élément à remplacer et enfin le nouvel élément.
+
+Sur l'exemple pris avec tout d'abord un index.
+
+@example
+set maListe @{a b c d@}
+@result{} a b c d
+lset maListe 1 B
+@result{} a B c d
+@end example
+
+S'il n'y a pas d'index (ou s'il est vide), la liste et alors simplement remplacée par le
+nouvel élément (mais la liste doit préxister).
+
+@example
+lset maListe D
+@result{} D
+@end example
+
+Si l'index est négatif ou plus grand que le nombre d'éléments de la
+liste, alors une erreur est levée. L'index supporte une arithmétique
+élémentaire comme la commande @code{string index} et reconnait le mot
+clé @code{end}.
+
+Cette commande peut aussi s'appliquer aux listes imbriquées.
+
+@example
+set x [list [list a b c] [list d e f] [list g h i]]
+@result{} @{a b c@} @{d e f@} @{g h i@}
+
+lset x 0 j
+@result{} j @{d e f@} @{g h i@}
+@end example
+
+
+@example
+set x [list [list a b c] [list d e f] [list g h i]]
+@result{} @{a b c@} @{d e f@} @{g h i@}
+
+lset x end-1 j
+@result{} @{a b c@} j @{g h i@}
+@end example
+
+@example
+set x [list [list a b c] [list d e f] [list g h i]]
+@result{} @{a b c@} @{d e f@} @{g h i@}
+
+lset x 2 1 j
+@result{} @{a b c@} @{d e f@} @{g j i@}
+@end example
+
+
+
+@node Ajouter un élément (lappend)
+@section Ajouter un élément (@code{lappend})
+@findex lappend
+
+La commande @code{lappend} ressemble à la commande @code{append} mais
+adaptée à une liste@w{}: elle ajoute un élément à une liste. Mais comme il s'agit
+d'une liste et non d'une chaîne, un espace est automatiquement inséré
+avant l'élément inséré.
+
+@example
+set lst [list a b c]
+@result{} a b c
+lappend lst d
+@result{} a b c d
+lappend lst e f g
+@result{} a b c d e f g
+@end example
+
+Il faut bien donner en premier argument le nom d'une liste et non son contenu (ou une liste
+donnée par extension).
+
+On peut ensuite donner autant d'arguments supplémentaires, qui seront
+ajoutés à la liste.
+
+La commande insère les éléments dans le liste qui a été donnée (et aussi
+renvoie la liste complétée).
+
+
+@node Fusionner des listes (lappend @{*@} ou concat)
+@section Fusionner des listes (lappend @{*@} ou @code{concat})
+@cindex fusionner des listes
+@findex lappend (fusionner)
+@findex concat
+
+La commande @code{lappend} peut aussi être utilisée avec la commande
+@code{@{*@}} pour fusionner des listes. Cette seconde commande sert à
+transformer une liste en la suite de ces éléments (la commande supprime
+l'accolade englobante, qui n'est d'ailleurs par toujours visible, mais
+qui va définir une liste).
+
+Dans l'exemple qui suit, on va fusionner plusieurs listes pour former la
+nouvelle liste @code{headers2}. En fait, certaine de ces listes sont des
+tronçons de l'ancienne liste @code{header} et il s'agit finalement
+d'insérer deux nouveaux éléments (@code{cumul} et @code{total}) dans la
+liste après la position 4 et à la fin.
+
+@example
+lappend headers2 @{*@}[lrange $headers 0 4] cumul @{*@}[lrange $headers 5 end] total
+@end example
+
+
+Sinon, la commande @code{concat} réalise aussi cette fusion.
+
+@example
+set l1 @{1 3 4@}
+@result{} 1 3 4
+set l2 @{5 6 7@}
+@result{} 5 6 7
+set l3 concat $l1 $l2
+@result{} 1 3 4 5 6 7
+puts $l1
+@result{} 1 3 4
+@end example
+
+Les listes concaténées, mais la commande retourne les chaînes
+concaténées, qu'il suffit donc d'affecter à une nouvelle chaîne (avec la
+commande @code{set}).
+
+On peut concaténer autant de liste que l'on veut.
+
+@example
+concat $l1 $l1 $l2
+@result{} 1 3 4 1 3 4 5 6 7
+@end example
+
+La site Tcler's Wiki (https://wiki.tcl-lang.org/page/concat) recommande
+néanmoins d'utiliser @code{@{@@@}} à la place de @code{concate} pour
+concaténer des listes pures.
+
+@example
+# Instead of: set foo [concat $bar $boo $spong]
+set foo [list @{*@}$bar @{*@}$boo @{*@}$spong]
+@end example
+
+
+
+@node Insérer un élément (linsert)
+@section Insérer un élément (@code{linsert})
+@findex linsert
+
+La commande @code{linsert} renvoie une chaîne modifiée, dans laquelle un
+nouvel élément a été inséré à une position précise.
+
+@example
+set oldList @{the fox jumps over the dog@}
+@result{} the fox jumps over the dog
+set midList [linsert $oldList 1 quick]
+@result{} the quick fox jumps over the dog
+set newList [linsert $midList end-1 lazy]
+@result{} the quick fox jumps over the lazy dog
+puts $oldList
+the fox jumps over the dog
+@end example
+
+Au contraire de la commande @code{lappend} vue précédemment, la commande
+@code{linsert} ne change pas la chaîne originale.
+
+
+@node Répéter un élément (lrepeat)
+@section Répéter un élément (@code{lrepeat})
+@findex lrepeat
+
+La commande @code{lrepeat} permet de répéter un caractère ou un élément
+n fois pour bâtir une liste répititive plus rapidemnent.
+
+@example
+set maList [lrepeat 3 @{a b c@}]
+@result{} @{a b c@} @{a b c@} @{a b c@}
+@end example
+
+Dans cet exemple, nous avons utilisé comme élément la liste
+@code{@{a b c@}}, qui est donc considérée comme un seul élément grâce
+aux accolades.
+
+Voici un autre avec des commandes imbriquées.
+
+@example
+set maList [lrepeat [lrepeat 3 0]]
+@result{} @{0 0 0@} @{0 0 0@} @{0 0 0@}
+@end example
+
+Cette commande est particulièrement utile pour les initialisations.
+
+
+@node Obtenir la Nième élément (lindex)
+@section Obtenir la Nième élément (@code{lindex})
+@findex lindex
+
+Quand on a une liste, vient rapidement l'envie de choisir le Nième au
+lieu de lire la liste simplement en séquence. Ceci se fait avec la
+commande @code{lindex} qui permet de lire l'élément qualifié par sa
+position dans la chaîne, sachant que l'index commence toujours à 0.
+
+@example
+set maListe [list a b c d]
+@result{} a b c d
+lindex $maliste 1
+@result{} b
+lindex $maliste end
+@result{} d
+@end example
+
+@findex end
+Le mot clé @code{end} signifie toujours le dernier élément (il s'agit en
+fait d'une commande).
+
+@subsection Cas sans arguments
+
+@example
+lindex @{a b c@}
+@result{} a b c
+lindex @{a b c@} @{@}
+@result{} a b c
+@end example
+
+@subsection Cas de listes imbriquées
+
+La fonction peut aussi être utilisée avec des listes imbriquées.
+@example
+lindex @{@{a b c@} @{d e f@} @{g h i@}@} 2 1
+@result{} h
+lindex @{@{a b c@} @{d e f@} @{g h i@}@} @{2 1@}
+@result{} h
+lindex @{@{@{a b@} @{c d@}@} @{@{e f@} @{g h@}@}@} 1 1 0
+@result{} g
+lindex @{@{@{a b@} @{c d@}@} @{@{e f@} @{g h@}@}@} @{1 1 0@}
+@end example
+
+
+@subsection calcul avec les index
+
+Les index peuvent auss réaliser des calculs élémentaires.
+
+@example
+set idx 1
+lindex @{a b c d e f@} $idx+2
+@result{} d
+@end example
+
+
+@node Remplacer ou retirer un élément (lreplace)
+@section Remplacer ou retirer un élément (@code{lreplace})
+@findex lreplace
+@cindex remplacer un élément d'une liste
+@cindex retirer un élément d'une liste
+
+La fonction @code{lreplace} permet de remplacer de nouveaux éléments en
+utilisant leurs position. Elle n'agit pas directement sur la
+liste, mais retourne la liste modifiée. 
+
+@example
+lreplace list start end ?elem?
+@end example
+
+On donne en paramètre la position d'insertion de début et de fin suivi
+du ou des éléments à mettre à la place de ces éléments.
+
+@example
+set lst [list un deux trois quatre cinq six sept]
+@result{} un deux trois quatre cinq six sept
+lreplace $lst 1 3 b c d
+@result{} un b c d cinq six sept
+@end example
+
+Pour ne remplacer qu'un seul élément, le début et la fin doivent être identiques.
+
+@example
+set lst [list un deux troiX quatre]
+@result{} un deux troiX quatre
+set lst [lreplace $lst 2 2 trois]
+@result{} un deux trois quatre
+@end example
+
+Et en fin pour supprimer des éléments, il suffit de ne mettre aucun
+élément pour le remplacement.
+
+@example
+set lst [list un deux trois quatre cinq six sept]
+@result{} un deux trois quatre cinq six sept
+lreplace $lst 1 3
+@result{} un cinq six sept
+@end example
+
+On peut utiliser le mot clé @code{end}
+
+@example
+set lst [list un deux trois quatre cinq six sept]
+@result{} un deux trois quatre cinq six sept
+lreplace $lst end-1 end
+@result{} un deux trois quatre cinq
+@end example
+
+Sur la base de @code{lreplace}, on peut simplement créer une commande
+@code{lremove} pour retirer un élément.
+@c https://www.tcl.tk/man/tcl/TclCmd/lreplace.html
+
+@example
+proc lremove @{listVariable value@} @{
+     upvar 1 $listVariable var
+     set idx [lsearch -exact $var $value]
+     set var [lreplace $var $idx $idx]
+@}
+@end example
+
+Cette fonction modifie la liste donnée en argument pour retirer
+l'élément donné.
+
+@example
+set var [list a b c d e]
+@result{} a b c d e
+lremove var d
+@result{} a b c e
+@end example
+
+On pourrait encore améliorer pour retirer plusieurs éléments.
+
+
+@node Isoler une sous-liste (lrange)
+@section Isoler une sous-liste (@code{lrange})
+@findex range
+
+Sur le même modèle, on peut extraitre une sous-liste d'une liste.
+
+@example
+set maListe [list a b c d]
+@result{} a b c d
+set sousListe [lrange $maList 1 end]
+@result{} b c d
+@end example
+
+On remarquera que @code{lrange $maListe 0 0} produit ici le même
+résultat que @code{lindex $maListe 0}. Ce n'est pas toujours le cas. En
+fat, @code{lrange $maListe 0 0} et exactement équivalent à
+@code{list [lindex $maListe 0]}. La liste singleton @code{@{a@}} est
+différente de l'élément @code{a}. Mais comme les accolades englobantes 
+n'apparaissent pas dans la représentation d'une liste que nous retourne
+le système, la différence reste subtile: une singleton @code{@{a@}} est
+souvent traité de la même manière qu'un élément seul.
+
+
+
+@node Itération sur des listes
+@section Itération sur des listes
+
+Les listes sont tout particulièrement utiles pour les itérations.
+
+
+@node Itérer sur une liste avec 'foreach'
+@subsection Itérer sur une liste avec @code{foreach}
+@findex foreach
+
+L'instruction @code{foreach} est spécialement utile pour parcourir une
+liste. En effet, quand on a déjà une liste disponible, il est beaucoup
+plus simple, rapide et efficace d'utiliser @code{foreach} qu'une boucle
+@code{for}.
+
+@example
+set maListe [list a b c d]
+foreach i $maListe @{puts $i@}
+@end example
+
+à comparer avec
+
+@example
+for @{set i 0@} @{$i < 4@} @{incr i@} @{
+  puts [lindex $maListe $i]
+@}
+@end example
+
+qui est plus lourd, moins rapide et moins lisible ...
+
+En fait, la commande @code{for} sert quand nous devons faire une
+itération et que la liste n'existe pas et elle crée donc cette liste
+en même temps que nous itérons sur elle.
+
+L'itération avec @code{foreach} peut aussi s'appliquer sur deux listes
+en parallèle. Attention tout de même au limite de cet exercice et il
+vaut mieux tester, pour comprendre ce que Tcl va réellement faire avec
+cette double itération. Si les listes sont de même longueur et qu'elles
+viennent d'être construites, il n'y aura pas de problème. Mais si l'une
+des listes revient d'un traitement important, on peut avoir des
+surprises quand à son ordre réel.
+
+@example
+foreach i @{1 2 3 4@} j @{a b c d@} @{
+  puts "$i = $j"
+@}
+@end example
+
+
+
+@node itérer sur une liste avec 'lmap'
+@subsection Itérer sur une liste avec @code{lmap} (programmation fonctionnelle)
+@findex lmap
+@cindex itération sur une liste avec lmap
+
+Le command @code{lmap}, construite sur le modèle de @code{string map},
+permet de boucler sur une liste de manière compacte.
+Supposons que nous ayons une liste de lettre, que nous voulons toutes complémenter par
+1. Il faudrait normalement écrire une boucle utilisant @code{foreach} et
+bâtir peu la nouvelle liste que nous voulons obtenir. Avec cette
+commande @code{string map} nous pouvons faire la boucle et l'affectation
+de son résultat en une seule ligne.
+
+@example
+set maListe @{a b c d@}
+set maListe1 [lmap e $maListe @{append e 1@}]
+@result{} a1 b1 c1 d1
+@end example
+
+@cindex liste en compréhension
+Cette technique d'application d'une liste modèle pour en obtenir une
+autre ('mapping' en Anglais) permet ici de définir une liste en
+compréhension à partir d'une autre liste. Le remplacement des boucles
+utilisant @code{for} par cette méthode compact fait aussi partie des
+techniques de programmation fonctionnelles.
+
+Voici une exemple ou partant d'une liste de listes, on bâtit la liste de
+tous les premiers éléments.
+
+@example
+set LL [list [list a1 a2 a3] [list b1 b2 b3] [list c1 c2 c3]]
+@result{} @{a1 a2 a3@} @{b1 b2 b3@} @{c1 c2 c3@}
+set premiers [lmap l $LL @{set premiers [lindex $l 0]@}]
+@result{} a1 b1 c1
+@end example
+
+Comme avec la commande @code{foreach}, on peut faire des
+itérations multiples.
+
+@example
+set liste1 [list a b c d e]
+set liste2 [list 1 2 3 4 5]
+set liste3 [lmap e1 $liste1 e2 $liste2 @{list $e1$e2@}]
+@result{} a1 b2 c3 d4 e5
+@end example
+
+Il ne faut pas utiliser la commande @code{puts} dans ce type de
+définition de liste en compréhension. Cette commande ne correspond pas à
+une action de construction, mais à une action d'affichage de résultat
+(même si ce n'est que sous la console). Elle introduirait ici des
+accolades vides en fin d'exécution, correspondant au signe @code{return}
+qui est ajouté à la fin de chacune de ces commandes. A priori, on peut
+toujours s'en passer. En désespoir de cause, on peut aussi utiliser la
+commande @code{set} avec l'agument muet @code{-} (@code{set -}).
+
+@cindex listes zippées
+La commande @code{lmap} permet de fusionner deux listes en regroupant
+les termes deux à deux (ce qu'en Anglais on dénomme avec le verbe 'zip'
+qui fait référence aux fermetures éclair pour lesquelles on utilise le
+même verbe ou nom).
+
+@example
+set liste1 [list a b c d e]
+set liste2 [list 1 2 3 4 5]
+set zipped [lmap e1 $liste1 e2 $liste2 @{list $e1 $e2@}]
+@result{} @{a 1@} @{b 2@} @{c 3@} @{d 4@} @{e 5@}
+@end example
+
+On peut effectuer des filtres en utilisant une procédure effectuant le
+filtre. Ici on prend l'exemple de la détermination de la parité.
+
+@example
+set values @{1 2 3 4 5 6 7 8@}
+proc isEven @{n@} @{expr @{($n % 2) == 0@}@}
+set goodOnes [lmap x $values @{expr @{[isEven $x] ? $x : [continue]@}@}]
+@result{} 2 4 6 8
+@end example
+
+N'importe quel test mathématique fonctionne. Mais il faut penser en
+terme de fonction, plutôt que d'instruction. Voici un exemple où on ne
+conserve que les entiers supérieurs à 3 dans une liste.
+
+@example
+set values @{8 7 6 5 4 3 2 1@}
+proc isGood @{counter@} @{expr @{$n > 3@}@}
+set prefix [lmap x $values @{expr @{[isGood $x] ? $x : [break]@}@}]
+@result{} 8 7 6 5 4
+@end example
+
+On pourrait ensuite faire des filtres plus complexes. L'intérêt est la
+compacité de la boucle de filtrage qui tient en une ligne.
+
+
+
+@node Classement d'une liste (lsort)
+@section Classement d'une liste (@code{lsort})
+@findex lsort
+
+La commande @code{lsort} permet de classer une liste.
+
+@example
+lsort ?-option? maliste
+@end example
+
+les options sont les suivantes.
+
+@table @code
+@item -ascii
+le choix par défaut, le classement est fait selon le code ascii
+
+@item -dictionary
+comme l'option @code{ascii} mais la casse est ignorée et si les mots
+contiennent des chiffres, ils sont classés comme des chiffres et non des
+caractères. Par exemple 'bigBoy' sera entre 'bigbang' et 'bigboy' et
+'x10y' sera entre 'x9y' et 'x11y'.
+
+@item -integer
+convertit les éléments de la liste en entiers et utilise la comparaison
+entière.
+
+@item -real
+convertit les éléments de la liste en flottants et utilise la comparaison
+flottants.
+
+@item -command
+utiliser une commande pour faire les comparaisons permettant le classement.
+
+@item -increasing
+le classement est dans l'ordre croissant
+
+@item -decreasing
+le classement est dans l'ordre décroissant
+
+@item -index
+si on utilise cette option, chaque élément de la liste doit lui-même
+être une liste correcte. Le tri est alors fait sur le Nième élément de
+ces sous-liste.
+
+@item -unique
+dans ce cas le dernier jeu d'éléments dupliqués sera retenu. Cette
+option peut dépendre de l'option @code{-index} si elle est utilisée.
+
+@end table
+
+Voici quelques exemples.
+
+@example
+lsort -integer -index 1 @{@{First 24@} @{Second 18@} @{Third 30@}@}
+@result{} @{Second 18@} @{First 24@} @{Third 30@}
+@end example
+
+
+@node Recherche dans une liste (lsearch)
+@section Recherche dans une liste (@code{lsearch})
+@findex lsearch
+
+La commande @code{lsearch} permet de chercher un élément dans une liste.
+
+@example
+lsearch ?options? maliste motif
+@end example
+
+Avec les options suivantes:
+@table @code
+@item -exact
+Dans ce cas, l'élément doit exactement correspondre au motif.  Cette
+option est particulièrement utile si le motif de recherche doit contenir
+un asterix @code{*} qui ne doit pas être un caractère générique.
+
+@item -glob
+La recherche est fait dans le style de la commande @code{glob},
+c'est-à-dire les caractères spéciaux utilisés couramment pour les
+fichiers.
+
+@item -regexp
+Le motif est traité comme une expression rationnelle.
+
+@item -sorted
+Requiert que la liste soit classée et est alors plus rapide
+
+@item -all
+La recherche se fera sur tous les élémnents au lieu de s'arrêter sur le
+premier résultat.
+
+@item -inline
+Retourne l'élément cherché au lieu de retourner son indice.
+
+@end table
+
+
+Voici une autre série d'options moins courantes, qui affinent la
+recherche.
+
+@table @code
+
+@item -start 'index'
+Démarre la recherche à partir d'un certain rang. Si la valeur de l'index
+est @code{end}, cela signifie le dernier élément de la liste. On peut
+aussi écrire @code{end-n} où @code{n} est le nombre d'élément avant la fin.
+
+@item -not
+La recherche prend l'inverse du motif de recherche.
+
+@item -ascii
+Les éléments sont éxaminés comme des chaînes Unicode (le nom a été
+conservé pour des raisons de compatibilité ascendante). Cette option n'a
+de sens qu'utilisée avec @code{-exact} ou @code{-sorted}.
+
+@item -dictionary
+Les éléments sont comparés en utilisant une comparaison de type de
+dictionaire. Ceci fonctionne comme la même option de classement de @code{lsort} où
+'bigBoy' est entre bigbang et bigboy et x10y est entre x9y et x11y.
+
+@item -integer
+Les éléments sont comparés comme des entiers, ce qui n'a de sens qu'avec
+@code{-exact} ou @code{-sorted}
+
+@item -nocase
+La casse des lettres n'est pas considérée dans la recherche. Cela n'a
+donc pas d'effet avec les options @code{-dictionary}, @code{-integer} ou @code{-real}.
+
+@item -real
+Les éléments sont comparés comme des valeurs à virgule flottante, ce qui
+n'a de sens qu'avec @code{exact} ou @code{sorted}.
+
+@end table
+
+
+Pour le cas des listes déjà classées, nous avons vu que l'option
+@code{-sorted} accélérait la recherche. Nous pouvons aussi préciser
+l'ordre (si plus d'une option est donnée, c'est la dernière qui a la
+précédence).
+
+@table @code
+@item -decreasing
+Les éléments ont été classés en ordre décroissant
+
+@item -inscreasing
+Les éléments ont été classés en ordre croissant
+
+@item -bisect
+Reccherche approximative quand la liste est ordonnées. Si la liste est
+ordonnée dans le sens croissant, retournera le dernier index de l'
+élément inférieur ou égal à l'objectif. Pour une liste décroissante, le
+dernier index de l'élément supérieur ou égal à l'objectif. Cette option
+ne fonctionne pas avec @code{-all} ou @code{-not}.
+@end table
+
+Enfin, pour les listes imbriquées, nous avons aussi les options
+suivantes.
+
+@table @code
+@item -stride 'nb'
+Cette option signifie que la liste est constituée de paquets de
+@code{'nb'} éléments et que la recherche s'applique donc au premier
+élément de ces paquet ou --- si l'option @code{-index} est donnée ---
+sur l'élément de cet index dans chaque paquet (l'option @code{-index}
+est alors ignorée).
+
+@item -index 'indexList'
+Désigne un index (comme avec @code{lindex} ou @code{lset})
+@footnote{@ref{Obtenir la Nième élément (lindex)}}
+
+@item -subindices
+Cette option fonctionne avec l'option @code{-index}. En ce cas, le
+résultat de la commande sera le chemin complet vers les index trouvés.
+
+@end table
+
+(à développer)
+@c https://www.tcl.tk/man/tcl8.6/TclCmd/lsearch.htm#M19
+
+Voici des exemples montrant l'utilisation combinée de @code{-index} et
+@code{-subindices}.
+
+@example
+lsearch -all -subindices -index 0 -inline @{@{a 123@} @{b 456@}@} *
+@result{} a b
+lsearch -all -subindices -index 1 -inline @{@{a 123@} @{b 456@}@} *
+@result{} 123 456
+@end example
+
+Voici un autre exemple utile de procédure qui transposant une liste de
+listes en utilisant ces fonctionalités.
+
+@example
+proc transpose @{LList@} @{
+  for @{set index 0@} \
+      @{$index < [llength [lindex $LList 0]]@} \
+      @{incr index@} @{
+     lappend res [lsearch -all -inline -subindices -index $index $LList *]
+  @}
+  return $res
+@}
+@end example
+
+Pour que cet exemple fonctionne, nous avons utilisé @code{-all} pour
+rechercher toutes les occurences, @code{-inline} pour récupérer
+l'élément et non seulement son index, et le couple @code{-subindices
+-index} pour désigner le sous-index.  La transposition est utile quand
+on utilise des Listes de lignes et qu'on veut opérer sur les éléments
+d'une même colonne.  Si ce genre d'opérations se multiplient, il faut
+peut être considérer de passer par un vecteur associatif
+(@ref{plus de dimensions}).
+@c https://wiki.tcl-lang.org/page/Transposing+a+matrix 
+
+
+@node Vérifier si un élément est dans une liste (in / ni)
+@section Vérifier si un élément est dans une liste (@code{in}/@code{ni})
+@findex in
+@findex ni
+
+Pour vérifier si un élément est dans une liste, on peut maintenant
+écrire :
+
+@example
+if @{el in $list@} @{...@}
+@end example
+
+Ce qui est beaucoup plus élégant que la forme qui utilisait
+@code{lsearch}.
+
+@example
+if @{[lsearch -exact $list $el] >= 0@} @{...@}
+@end example
+
+L'exact inverse est @code{ni} ('not in') qui s'utilise de la même façon
+comme condition de test ou dans une expression (exécutable avec
+@code{expr}).
+
+
+@node Filtrer une liste (lsearch)
+@section Filtrage d'une liste (@code{lsearch})
+@findex lsearch -inline
+
+
+La commande @code{lsearch -inline} permet de faire un filtrage. C'est la
+commande de recherche qui renvoie les éléments au lieu de renvoyer les
+index. Les options de cette commande permettent de faire un filtre. 
+
+@example
+lsearch -all -inline ?option? maliste motif
+@end example
+
+
+@node Scinder une liste en variables (lassign)
+@section Scinder une liste en variables (@code{lassign})
+@findex lassign
+
+La commande @code{lassign} permet de scinder une liste en variables@w{}:
+chaque élément de la liste est assigné dans l'ordre aux variables qui
+sont présentées à la suite.
+
+@example
+set lst [list 1 2 3 4 5]
+@result{} 1 2 3 4 5 
+set reste [lassign $lst un deux trois]
+@result{} 4 5
+
+puts $un
+@result{} 1
+puts $deux
+@result{} 2
+puts $troix
+@result{} 3
+puts $reste
+@result{} 4 5
+puts $lst
+@result{} 1 2 3 4 5
+@end example
+
+Si le nombre de variables n'est pas suffisant, la commande renvoie les
+éléments restants, qui sont ici récupérés dans la variable @code{reste}.
+Sinon, les valeurs de la liste ont été assignées dans l'ordre dans les
+variables.
+
+Une variante existe, si on veut supprimer complètement le contenu de la
+liste @code{lst} pour une éventuelle réutilisation
+
+@example
+set lst [list 1 2 3 4 5]
+@result{} 1 2 3 4 5 
+set reste [lassign $lst[set lst @{@}] un deux trois]
+@result{} 4 5
+
+puts $lst
+@result{} 
+@end example
+
+Voici aussi une boucle qui permet de lire le contenu des nouvelles
+variables grâce à la commande @code{set}. 
+
+@example
+foreach v @{un deux trois@} @{
+  puts "[set $v] => $v"
+@}
+@result{} 1 => un
+@result{} 2 => deux
+@result{} 3 => trois
+@end example
+
+
+Voici une autre application, qui montre comment cette commande @code{lassign}
+couplée avec la commande @code{split} que nous avons vu pour les
+chaines, permet de récupérer des éléments d'une expression comme ici le
+nom et l'extension d'un fichier.
+
+@example
+set fileName monfichier.txt
+lassign [split $fileName .] file ext
+puts $file
+@result{} monfichier
+puts $ext
+@result{} txt
+@end example
+
+Cet exemple n'est que pour illustration. Voir la section sur les
+fichiers@footnote{@ref{Trouver un fichier et le manipuler}} qui
+présentent des commandes plus puissantes pour la manipulation des noms
+de fichiers.
+
+
+
+@node Convertir des chaînes en listes de champs
+@section Convertir des chaînes en listes de champs.
+@cindex conversion de chaînes en liste de champs
+
+Nous allons passer en revu différents cas classiques de traitement de
+listes de champs selon la forme qu'elles prennent. Les listes de champs
+sont des répétitions de ligne constitué de variables représentant la
+valeur de certains champs, qui sont toujours ordonnés de manière
+identique. Ils correspondent en gros à des tableaux, chaque colonne
+contenant les différentes valeurs prises par un champ et chaque ligne
+représentant les valeurs prises par un enregistrement.
+
+
+@node Listes avec champs séparés par un caractère simple
+@subsection Listes ordonnées dont les champs sont séparés par un caractère simple.
+@cindex liste avec séparateur simple
+
+Ces listes de champs utilisent un un caractère de séparation de champ
+unique. Ce sont classiquement les tableaux exportés en csv ("comma
+separated values") qui sont des tableaux de valeurs séparées par des
+virgules (ou plutôt points-vigules pour le Français à cause de la
+notation des chiffres décimaux qui utilise déjà la virgule).
+
+Mais on trouve aussi dans les environnements Linux (Unix) des fichiers
+texte organisés comme des tableaux. Le fichier @code{/etc/passwd} est un
+exemple. Le caractère de séparation est alors le double point.
+
+Imaginons que nous ayons récupéré un fichier donnant des noms,
+prénoms et courriels sous la forme suivante, mis ici directement
+dans une variable @code{text} (ce pourrait être le fichier
+@code{/etc/passwd}).
+
+@example
+set text @{
+KEY1:Flynt:Clif:clif@@cflynt.com
+KEY2:Doe:John:jdx@@example.com
+KEY3:Doe:Jane:janed@@example.com
+@}
+@end example
+
+Nous allons ranger ce fichier dans une liste de listes. La liste la plus
+externe, sera la liste des lignes, dont le séparateur est donc le retour
+à la ligne @code{\n}. Les listes internes seront le contenu des champs
+pour chacune des lignes de cette table. Ces contenus de champ sont
+séparés ici par des doubles points @code{:}. La fonction @code{lappend}
+va nous permettre de construire pas-à-pas ces deux listes imbriquées.
+
+@example
+foreach line [split $text \n] @{
+ if @{$line eq ""@} @{continue@}
+ lappend data [split $line :]
+@}
+@end example
+
+La variable @code{data} contient maintenant la liste des lignes.
+
+@example
+puts $data
+
+@result{} @{KEY1 Fynt Clif clif@@cflynt.com@} @{KEY2 Doe John jdx@@example.com@}
+  @{KEY3 Doe Jane janed@@example.com@}
+@end example
+
+Pour retrouver la ligne contenant la clé @code{KEY2}, on lance une
+recherche dans la liste de lignes avec @code{lsearch} sur le terme
+générique @code{KEY2@*}@footnote{attention, dans ce cas @code{KEY2} doit
+bien être en début de ligne, sans blanc devant}. Le résultat sera
+l'index de la ligne contenant @code{KEY2}. Cette index peut être utilisé
+par @code{lindex} pour récupérer cette ligne.
+
+@example
+set position [lsearch $data "KEY2*"]
+@result{} 1
+set line [lindex $data $position]
+@result{} KEY2 Doe John jdx@@example.com
+@end example
+
+La ligne contenant l'enregistrement @code{KEY2} ayant été récupérée, on
+lit ensuite le contenu du champs en utilisant à nouveau la fonction
+@code{lindex}, mais ici les positions sont connues à l'avance par
+la structure de la ligne qui est figée pour chaque ligne.
+
+@example
+puts "l'adresse courriel de [lindex $record 2] [lindex $record 1] \
+       est : [lindex $record 3]"
+@end example
+
+Nous voulons maintenant changer l'adresse courriel. On commence
+(prudemment) par écrire le nouvel enregistrement.
+
+@example
+set newRecord [lreplace $record 3 3 "joed@@example.com"]
+@end example
+
+Que l'on replace ensuite dans la liste.
+
+@example
+set data [lreplace $data $position $position $newRecord]
+@end example
+
+Il ne reste plus qu'à afficher la nouvelle liste dans le format donné au
+début. La command @code{join} va nous permettre de faire le chemin
+inverse et de recréer les chaînes avec doubles points (:) à partir des
+listes.
+
+@example
+foreach record $data @{puts "[join $record :]"@}
+
+@result{} KEY1:Flynt:Clif:clif@@cflynt.com
+  KEY2:Doe:John:joed@@example.com
+  KEY3:Doe:Jane:janed@@example.com
+@end example
+
+La dislocation du fichier en liste nous a permis ici de modifier
+exactement le champs que nous voulions : le champs courriel de
+l'enregistrement @code{KEY2}.
+
+
+@node Liste avec séparateur variable
+@subsection Listes ordonnées dont les champs sont séparés par une répétition variable d'un caractère.
+@cindex liste avec séparateur variable
+
+Le cas précédent était particulièrement simple car le séparateur de
+champs est constitué d'un caractère double-points simple (:). Mais on
+peut aussi trouver des cas, pour lesquels les séparations sont des
+répétitions indéterminées d'un certain caractère, le plus souvent
+l'espace blanc@w{}: les champs sont séparés par des espaces blancs de
+longueur indéfinie, souvent à la suite d'une mise en page élémentaire
+réalisée dans le fichier texte qui a été importé.
+
+Un exemple est le fichier @code{/etc/fstab}, qui comporte donc
+un tableau avec des champs séparés par des espaces blancs de longueur
+indéterminée (et aussi des lignes de commentaires commaçant par le
+caractère dièse #).
+
+@example
+set file [open /etc/fstab RDONLY]
+set text [read $file]
+@end example
+(la commande @code{read} est abordée plus loin)
+
+Maintenant, nous allons lire cette variable @code{text}, la normaliser
+et la mettre dans une liste.
+
+@example
+foreach line [split $text \n] @{
+ if @{[lindex $line 0] eq "#"@} @{continue@}  # enlever les commentaires
+ regsub -all @{ +@} $line @{ @} nline    # ne garder qu'un blanc de séparation
+ if @{[expr [string length $nline] > 0] && [expr ![string equal $nline " "]]@} @{
+     lappend data $nline
+    @}
+@}
+@end example
+
+
+Ensuite, vous pouvez par exemple lister le deux premières colonnes
+ainsi.
+
+@example
+# recherche la champs le plus long en première colonne
+set max 0
+foreach value $data @{
+  regexp @{[^ ]+@} $value word r  # ne garder que les caractères non blancs
+  set strMax [string length $word]
+  if @{$strMax > $max@} @{set max $strMax@}
+@}
+append strF "%-$max" s # construction de la chaîne de formatage
+foreach value $data @{
+  puts "[format $strF [lindex $value 0]] | [lindex $value 1]"
+@}
+@end example
+
+
+@node Listes à structure indéterminée
+@subsection Listes dont la structure est indéterminée à l'avance.
+
+Il y a des cas où les champs apparaissent dans de manière indéterminée à
+l'avance. C'est par exemple le cas de l'en-tête d'un courriel, qui liste
+une série de champs dont ni l'ordre, ni la liste elle-même n'est
+prédéterminés. On veut tout de même pouvoir capturer le contenu de ces
+champs d'une façon structurée pour y accéder ensuite rapidement. La
+solution consiste à construire une chaîne ayant des paires
+identifiant/contenu dans lesquelles on pourra ensuite accéder au contenu
+(long) en recherchant l'identifiant (court) dans la chaîne. Tcl a
+introduit en version 8.5 le type dictionnaire (@code{dic}), qui optimise
+la recherche des identifiants.
+
+Prenons l'exemple d'un couriel reçu, donc avec un en-tête à déchiffrer.
+
+@example
+set header @{
+Return-Path: <root@@firewall.example.com;
+Received: from firewall.example.com
+Received: from mailserver.example.com
+Received: from workstation.noucorp.com
+Date: Tue, 6 Aug 2002 04:13:38 -0400
+Message-Id: <200208060813.g768DcP30231>
+From: root@@firewall.example.com (Cron Daemon)
+To: root@@firewall.workstation.com
+subject: Daily Report
+@}
+@end example
+
+On voit dans cet example que les champs sont séparés de leur valeur par
+un double points (:), sauf pour les valeurs de dates qui contiennent
+aussi des doubles points. Il faudra donc traiter ce cas particulier.
+
+@example
+foreach line [split $header \n@} @{
+  set p [string first : $line]
+  if @{$p < 0@} @{continue@}   # enlever les lignes blanches
+  set key [string range $line 0 [expr @{$p -1@}]]
+  set value [string range $line [expr @{$p + 2@}] end]
+  dict lappend keyedList $key $value
+@} 
+@end example
+
+Pour avoir des sorties, on peut par exemple écrire:
+
+@example
+puts "message de : [dict get $keyedList From]"
+puts "message passé par :"
+foreach r [dict get $keyedList Received] @{
+  puts " [lindex $r 1]"
+@}
+@end example
+
+Nous avons utilisé ici @code{string first : $line} suivi
+des opérations utilisant @code{string range}, car la
+fonction @code{split $line :} n'aurait pas fonctionné
+avec les champs horaires qui contiennent des doubles
+points (:) à l'intérieur de la valeur du champs. Ces valeurs
+auraient été scindées, alors que ce que nous voulons,
+c'est scinder le nom du champs qui est le texte précédant
+le premier double point, du reste du texte qui est la valeur
+du champs.
+
+
+@node Effet de chatoiement
+@section L'effet de chatoiement.
+@cindex chatoiement
+
+L'effet de chatoiement est documenté ici @url{https://wiki.tcl-lang.org/page/shimmering}.
+
+Il s'agit d'une perte de performance, qui peut intervenir dans une
+longue boucle faisant trop d'échanges entre le mode chaîne et le mode
+liste. Ces échanges impliquent des actions masquées, qui consomme du
+temps machine.
+
+Voici un exemple de code à éviter car il implique une effet de
+chatoiement important.
+
+@example
+for @{set i 0@} @{$i < 10000@} @{incr i@} @{ lappend x $i; append x . @}
+@end example
+
+Dans ce code la variable @code{x} est d'abord interprétée comme une
+liste à cause de la commande @code{lappend}, puis tout de suite après
+interprétée comme une chaine par la commande @code{append}. Les
+représentations internes des chaines et des listes sont différentes dans
+Tcl. La représentation des listes est optimisée pour que les fonctions
+qui s'y appliquent soient plus performante. Quand on passe d'une chaine
+à une liste, l'ancienne représentation interne en chaine est oubliée et
+elle doit donc être reconstruite à la prochaine re-traduction d'une
+liste en chaine, ce qui occasionne un temps de traitement interne qui
+peut devenir non négligeable comme dans la boucle de cet exemple.
+
+On pourra comparer le vitesse de la boucle ci-dessus avec celle de ces
+deux boucles successives qui font la même chose. La première ligne
+n'utilise qu'un fonction de liste (@code{x} est donc représenté en
+liste). La deuxième ligne utilise une fonction de liste sur @code{xx} et
+de chaine sur @code{i}. On évite donc les effets de chatoiement à
+l'intérieur des boucles. Par contre, il a fallu construire deux longues
+listes au lieu d'une.
+
+@example
+unset x
+for @{set i 0@} @{$i < 10000@} @{incr i@} @{lappend x $i@}
+foreach i $x @{lappend xx [append i .]@}
+@end example
+
+Retenir quà l'intérieur d'une longue boucle, il faut éviter de mélanger
+les commandes de chaine et de liste appliquées à une même variable.
+
+
+@node Confusion des guillemets doubles
+@section Confusion des guillemets doubles
+
+Les guillemets doubles sont par défaut la marque d'une chaîne dont le
+contenu doit être interprété, à la différence des accolades. Si on veut
+mettre des guillemets doubles l'intérieur d'une chaîne, ils doivent être
+échappés.
+
+@example
+set TXT "Ceci est une chaîne avec des \"guillemets\""
+@result{} Ceci est une chaîne avec des "guillemets"
+@end example
+
+Si un élément d'une liste est entouré de guillemets doubles, cet élément
+est simplement vu comme un chaîne interprétée.
+
+@example
+set b var
+set LST [list a "$b"]
+@result{} a var
+@end example
+
+Si en plus, l'élément entre guillemets contient des espaces, alors il
+sera protégé par des accolades.
+
+@example
+set b var
+set LST [list a "une variable $b"]
+@result{} a @{une variable var@}
+@end example
+
+Ce qui permet ensuite d'utiliser cet élement dans une boucle, sans qu'il
+soit lui même décomposé.
+
+@example
+set b var
+set LST [list a "une variable $b"]
+foreach E $LST @{puts $E@}
+@result{} a
+@result{} une variable var
+@end example
+
+Par contre, si on considère une liste dont les éléments contiennent des
+guillemets doubles en interne, alors ces guillemets vont être échappés.
+
+@example
+set LST [list a style:name="ce01"]
+@result{} a style:name=\"ce01\"
+@end example
+
+Cet échappement des guillemets disparaît normalement à la première
+utilisation, si le contexte permet les substitutions.
+
+@example
+set LST [list a style:name="ce01"]
+@result {} a style:name=\"ce01"\
+foreach E $LST @{append RES "$E"@}
+puts $RES
+@result{} astyle:name="ce01"
+@end example
+
+Imaginons que pour ajouter un blanc entre les éléments, nous décidions
+d'utiliser @code{lappend} à la place de @code{append}.
+
+@example
+set LST [list a style:name="ce01"]
+@result {} a style:name=\"ce01\"
+foreach E $LST @{lappend RES $E@}
+puts $RES
+@result{} a style:name=\"ce01\"
+@end example
+
+Ce n'est pas une solution très bonne. L'apparence est de retrouver une
+chaîne à la fin, car tout est chaîne en Tcl, mais en réalité, les
+éléments ont été interprétés comme des éléments d'une liste et donc les
+doubles guillemets échappés n'ont pas été interprétés.
+
+Une solution aurait été de rester avec des opérations sur les
+chaînes comme cet exemple.
+
+@example
+set LST [list a style:name="ce01"]
+@result {} a style:name=\"ce01\"
+foreach E $LST @{append RES " $E"@}
+string trim $RES
+@result{} a style:name="ce01"
+@end example
+
+
+
+@node Les structures d'ensembles (struct set)
+@chapter Les structures ensembles (@code{struct set}).
+@findex tcllib
+@findex struct
+
+
+Le paquet tcllib ajoute une structure d'ensemble, qui n'existe pas
+sinon. On peut souvent se contenter d'utiliser des listes.
+
+Voici néanmoins quelques exemples d'utilisation
+(@url{https://wiki.tcl-lang.org/page/struct%3A%3Aset})
+
+@example
+package require struct::set
+
+::struct::set include set1 1
+::struct::set include set2 a
+::struct::set include set2 b
+::struct::set include set2 c
+::struct::set include set3 dog
+
+::struct::set add set1 $set2
+
+set mt [::struct::set empty $set1]
+puts $mt
+
+puts [::struct::set size $set1]
+
+puts [::struct::set contains $set1 a]
+puts [::struct::set contains $set1 z]
+
+puts [::struct::set union $set1 $set2 $set3] 
+puts [::struct::set intersect $set1 $set2 $set3] 
+puts [::struct::set intersect $set1 $set2 ] 
+@end example
+
+

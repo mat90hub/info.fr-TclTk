@@ -1,0 +1,761 @@
+@c -*- mode: texinfo; coding: utf-8-unix; mode: auto-fill; -*-
+
+@node Le mégawidget 'scrolledLB' avec un espace de noms
+@section Le megawidget @code{scrolledLB} avec un espace de noms
+@findex scolledLB (namespace)
+
+Dans la section précédente, nous avons présenté les principaux
+mégawidgets présents dans les bibliothèques standards et les principes de
+construction d'un mégawidget. Nous allons aborder maintenant la
+construction effective d'un mégawidget suivant ces principes et en
+utilisant un espace de noms, qui isole le code interne du mégawidget.
+
+
+Le mégawidget proposé sera appelée @code{scrolledLB}. Il est
+composé des trois objets graphiques suivants:
+
+@itemize @bullet
+@item une barre d'ascenceur verticale de défilement (@code{scrollbar})
+@item une boite de listes (@code{listbox})
+@item une étiquette de titre général (@code{label})
+@end itemize
+
+La construction du script est présentée par étapes. Il est mis dans
+un module qui contient une procédure et un espace de noms tous deux
+appelés @code{scrolledLB}.
+
+@example
+package provide scrolledLB 1.0
+
+proc scrolledLB @{args@} @{ ... @}
+
+namespace eval scrolledLB @{ ... @}
+
+@end example
+
+
+@node Définition des éléments graphiques du mégawidget
+@subsection Définition des éléments graphiques du mégawidget
+
+La procédure qui assemble ses éléments graphiques se nomme
+@code{Draw}. Elle place les élements dans un cadre appelé
+@code{subWidgetName}, lui même placé dans le cadre parent, ce dernier
+étant différent pour chaque objet. Comme les autres procédures
+s'occupant de la mécanique intérieur du mégawidget, cette procédure est
+protégée dans un espace de noms privé.
+
+Nous verrons que l'espace privé contient un vecteur associatif
+@code{scrolledLBState}, qui conserve les noms des objets graphiques et
+des propriétés de l'objet. Selon la règle des variables des espaces de
+noms, cette variable doit être redéclarée dans chaque procédure qui
+l'utilise à l'intérieur de l'espace de noms. Nous   l'utilisons ici pour
+conserver le nom de chacun des sous-widgets créés en utilisant le
+principe de la notation pointée, que nous avons posé auparavent.
+@footnote{@ref{Principes généraux des mégawidgets}}.
+
+Voici à quoi ressemble la procédure @code{Draw}.
+
+@example
+proc Draw @{parent@} @{
+  variable scrolledLBState
+
+  # déclaration de la barre d'ascenceur
+  set tmp [scrollbar $parent.yscroll \
+            -orient vertical -command "$parent.list yview"]
+            
+  # enregistrement du chemin dans la variable
+  set scrolledLBState($parent.subWidgetName.yscroll) $tmp
+
+  # positionnement
+  grid $tmp -row 1 -sticky ns \
+       -column $scrolledLBState($parent.scrollSide)
+
+  # On répète pour les deux autres objets.
+  # La boite liste:
+  set tmp [listbox $parent.list \
+     -yscrollcommand "$parent.yscroll set" \
+     -height $scrolledLBState($parent.listboxHeight) \
+     -width $scrolledLBState($parent.listboxWidth) ]
+
+  set scrolledLBState($parent.subWidgetName.list) $tmp
+  grid $tmp -row 1 -column $scrolledLBState($parent.listSide)
+
+  # Le titre de la fenêtre:
+  set tmp [label $parent.title \
+     -text $scrolledLBState($parent.titleText)]
+  set scrolledLBState($parent.subWidgetName.title) $tmp
+  grid $tmp -row 0 -column 0 -columnspan 2
+@}
+@end example
+
+
+@node L'espace de noms contenant
+@subsection L'espace de nom contenant
+
+Outre la variable d'état que nous avons vu (@code{scrolledLBState})
+l'espace de noms contient trois procédures principales.
+
+@table @code
+@item Draw
+La procédure que nous avons vu et qui dessine les éléments du
+mégawidget.
+
+@item MakescrolledLB
+La procédure de création du mégawidget
+
+@item scrolledLBProc
+Une procédure @code{switch} qui oriente sur la bonne sous-commande
+
+@end table
+
+Le code de cet espace de noms aura donc la structure suivante.
+
+@example
+namespace eval scrolledLB @{  
+  variable scrolledLBState
+  set scrolledLBState(unique) 0
+
+  proc MakescrolledLB @{args@} @{
+    ...
+  @}
+
+  proc Draw @{parent@} @{
+    ...
+  @}
+
+  proc ...
+
+  proc scrolledLBProc @{widgetName subCommand args@} @{
+    ...
+  @}  
+@}
+@end example
+
+D'autres procédures peuvent être définies dans cet espace de nom si on
+veut isoler les commandes à lancer à travers la procédure
+@code{scrolledLBProc} et qui peuvent être plus ou moins longues à écrire.
+
+
+@node La procédure de construction du mégawidget (MakesrolledLB)
+@subsection La procédure construction du mégawidget (@code{MakescrolledLB})
+
+La construction du mégawidget se fait dans la procédure
+@code{MakescrolledLB} qui se trouve dans l'espace de noms. Elle a un
+nombre variable d'arguments, mais en principe on trouvera en premier le
+nom du cadre contenant suivi d'une série de couples -option/valeur
+en nombre variable et qui servent aux initialisations faites à la
+création de l'objet.
+
+Voici la structure de la procédure @code{MakescrolledLB} et nous
+reprendront ses éléments un par un dans les sous-sections suivantes.
+
+@example
+
+proc MakescrolledLB @{args@} @{
+
+  # Attribution d'une référence unique
+     
+  # Initialisation des propriétés
+
+  # Dessin du mégawidget
+
+  # Renommmage et finalisation
+  
+@}
+@end example
+
+
+@node Attribution d'une référence unique
+@subsubsection Attribution d'une référence unique
+
+La construction commence par l'attribution d'une référence unique à
+chaque objet, placée dans la variable @code{holder}. Cette référence est
+unique parcequ'elle contient le numéro unique
+@code{scrolledLBState(unique)} qui est déclaré dans l'espace de noms et
+que ce numéro est tout de suite incrémenté pour être prêt pour la
+création d'un éventuel futur second objet.
+
+@example
+set holder .scrolledLB_$scrolledLBState(unique)
+# on met tout de suite à jour ne numéro unique
+incr scrolledLBState(unique)
+@end example
+
+Mais si l'argument contient un nom de cadre, alors la variable
+@code{holder} utilise ce nom préférentiellement.  Il est de la
+responsabilité de l'utilisateur de choisir un nom unique.
+
+@example
+if @{[string first "." [lindex args 0]] == 0@} @{
+  set holder [lindex $args 0]
+  set args [lreplace $args 0 0]
+@}
+@end example
+
+
+@node Initialisation des propriétés
+@subsubsection Initialisation des propriétés
+
+La procédure continue par une série d'initalisation de propriétés, qui
+seront donc maintenant attachées à ce nom de fenêtre (ou zone) unique.
+
+@example
+set scrolledLBState($holder.height) 5
+set scrolledLBState($holder.width) 20
+set scrolledLBState($holder.scrollSide) 1
+set scrolledLBState($holder.listboxHeight) 10
+set scrolledLBState($holder.listboxWidth) 20
+set scrolledLBState($holder.listSide) 0
+set scrolledLBState($holder.titleText) title
+@end example
+
+Comme nous l'avons choisi dans les réflexions de la section
+précédente@footnote{@ref{Principes généraux des mégawidgets}}, le nom
+des propriétés commencent par le nom du contenant, qui est unique, suivi
+du nom de la propriété, qui est générique. La variable
+@code{scrolledLBState} peut donc conserver des propriétés génériques de
+tous les objets crées sans confusion.
+
+L'utilisateur pouvant préciser les propriétés à la création de l'objet,
+le script met ensuite à jour les éventuelles propriétés qui auraient pu
+être déclarées dans la variable args.
+
+@example
+foreach @{key val@} args @{
+  set keyName [string range $key 1 end]
+  if @{![info exists scrolledLBState($holder.$keyName)]@} @{
+     ...
+     error "bad option" ...
+  @}
+  set scrolledKBState($holder.$keyName) $val
+  
+@end example
+
+Le traitement d'erreur utilise une astuce évitant d'avoir à ré-écrire
+toutes les propriétés et facilitant la maintenance du code. Elle utilise
+les initialisations qui viennent d'être faites pour récupérer la liste des
+noms des propriétés applicables à l'object en cours, caractérisé par
+le nom unique de son cadre (@code{$holder}) et la présenter à
+l'utilisateur venant de faire une erreur.
+
+@example
+regsub -all "$holder." \
+  [array names scrolledLBState $holder.*] "" okList
+error "Bad option" "invalid option 'key' .\nMust be one of $okList"
+@end example
+
+On remarquera, qu'on a mis le filtre @code{$holder.*} sur la liste des
+noms du vecteur pour ne pas avoir le nom @code{unique} qui apparaisse,
+ni les noms déjà déclarés pour d'autres objets.
+
+
+@node Dessin du mégawidget
+@subsubsection Dessin du mégawidget
+
+On dessine ensuite le cadre principal avec les dimensions qui viennent
+d'être données.
+
+@example
+frame $holder -height $scrolledLBState($holder.height) \
+  -width $scrollesLBState($holder.width) \
+  -class ScrolledLB
+@end example
+
+On balaye ensuite toutes les options pour les appliquer éventuellement
+au cadre. On utilise la fonction d'interception d'erreur @code{catch}
+pour ne pas planter si la propriété sur laquelle on passe ne s'applique
+pas à un cadre.
+
+@example
+foreach @{opt val@} $args @{
+  catch @{$holder configure $opt $val@}
+@}
+@end example
+
+Puis on dessine le widget avec la commande que nous avons vue.
+@footnote{@ref{Définition des éléments graphiques du mégawidget}}
+
+@example
+Draw $holder
+@end example
+
+
+@node Renommage et finalisation
+@subsubsection Renommage et finalisation
+
+Il faut maintenant renommer le cadre de niveau supérieur, pour pouvoir
+réutiliser ce nom pour la procédure qui servira d'interface utilisateur
+pour créer le mégawidget.
+
+@example
+uplevel #0 rename $holder $holder.fr
+bind $holder <Destroy> "+ rename $holder @{@}"
+return $holder
+@end example
+
+D'autre part, on lie la destruction du cadre à l'effacement de cette
+future procédure @code{$holder}. Cet effacement se fait en renommant la
+procédure sur une procédure avec un corps vide.
+
+Enfin, on retourne ce nom @code{holder} pour qu'il soit utilisé dans la
+procédure d'interface.
+(voir @ref{La procédure de déclaration de l'objet})
+
+
+@node Aiguillage des sous-commandes
+@subsection Aiguillage des sous-commandes
+
+Avant de présenter la fonction associée au megawidget, présentons
+maintenant cette procédure clé de l'espace de nom et qui sert à orienter
+les sous-commandes qui seront passées à l'objet.
+
+Cette procédure prend en compt le nom du widget, le nom de la sous
+commande et ensuite une liste optionnelle d'arguments.
+
+Il s'agit ensuite d'un @code{switch} avec un traitement d'erreur final
+au cas ou l'utilisateur aurait entré une sous-commande qui n'existe pas.
+
+@example
+proc scrolledLBProc @{widgetName subCommand args@} @{
+  variable scrolledLBState
+  set cmdArgs $args
+
+  switch -- $subCommand @{
+    configure @{ ... @}
+
+    widgetconfigure @{ ... @}
+
+    delete -
+    insert @{ ... @}
+    
+    selection @{ ... @}
+
+    widgetcget @{ ... @}
+
+    widgetcommand @{ .. @}
+
+    names @{ .. @} 
+
+    subwidget @{ .. @}
+
+    default @{
+      error "bad command" \
+            "Invalid Command: $subCommand \n\
+            must be configure, widgetconfigure, \
+            widgetcget, names, delete, insert, selection \
+            or subwidget"
+    @}
+  @}
+@}
+@end example
+
+@node Écriture de la sous-commande 'configure'
+@subsubsection sous-commande @code{configure}
+
+Cette sous-commande renvoie simplement à la commande configure du cadre
+du widget avec les paramètres qui ont été donnés.
+
+@example
+configure @{
+  return [eval $widgetName.fr configure $cmdArgs]
+@}
+@end example
+
+
+@node Écriture de la sous-commande 'widgetconfigure'
+@subsubsection Écriture de la sous-commande @code{widgetconfigure}
+
+Cet sous-commande permet d'accéder à la commande de configuration pour
+un sous-widget qui constitue le megawdiget.
+
+@example
+widgetconfigure @{
+  set sbwid [lindex $cmdArgs 0]
+  set cmd [lrange $cmdArgs 1 end]
+  set index $widgetName.subWidgetName.$sbwid
+  catch @{eval $scrolledLBState($index) configure $cmd@} rtn
+  return $rtn
+@}
+@end example
+
+@node Écriture de la sous-commandes 'delete' et 'insert'
+@subsubsection Écriture de la sous-commande @code{delete} et @code{insert}
+
+Ces deux commandes sont adaptées à ce mégawidget qui contient un liste
+texte dans lequel on peut insérer ou enlever une ligne.
+
+@example
+delete -
+insert @{
+  return [eval $widgetName.list $subCommand $cmdArgs]
+@}
+@end example
+
+
+
+@node Écriture de la sous-commande 'selection'
+@subsubsection Écriture de la sous-commande @code{selection}
+
+Cette sous-commande fait référence à la procédure @code{selection} est
+aussi définie dans l'espace de nom.
+
+@example
+selection @{return [selection $widgetName]@}
+@end example
+
+Cette procédure utilise la propriété @code{curselection} du widget
+@code{listbox} qui renvoie le numéro de ligne de l'élément sélectionné,
+puis la command @code{get} pour retourner exactement le contenu de la
+ligne sélectionnée.
+
+@example
+proc selection @{widgetName@} @{
+  set lst [$widgetName.list curselection]
+  set itemlst ""
+  foreach l $lst @{
+    lappend itemlst [$widgetName.list get $l]
+  @}
+  return $itemlst
+@}
+@end example
+
+
+@node Écriture de la sous-commande 'widgetcget'
+@subsubsection Écriture de la sous-commande @code{widgetcget}
+
+Cette sous-commande reprend la commande @code{cget} appliquée ici à l'un
+des composants (subWidgetName) du mégawidget
+
+@example
+widgetcget @{
+  if @{[llength $cmdArgs] != 2@} @{
+     error "$widgetName cget subWidgetName -option"
+  @}
+  set sbwid [lindex $cmdArgs 0]
+  set index $widgetName.subWidgetName.$sbwid
+  set cmd [lrange $cmdArgs 1 end]
+  catch @{eval $scrolledLBState($index) cget $cmd@} rtn
+  return $rtn
+@}
+@end example
+
+
+@node Écriture de la sous-commande 'widgetcommand'
+@subsubsection Écriture de la sous-commande @code{widgetcommand}
+
+Cette sous-commande renvoie à une autre procédure privée contenue dans
+l'espace de nom et qui permet d'executer une commande sur le widget.
+
+@example
+widgetcommand @{
+  return [eval DoWidgetCommand $widgetName $cmdArgs]
+@}
+@end example
+
+
+Cette procédure @code{DoWidgetCommand} propage la commande aux widgets
+qui ont été mis en paramètre avec leur argument.
+
+@example
+proc DoWidgetCommand @{widgetName widgets cmd@} @{
+  variable scrolledLBState
+  foreach widget $widgets @{
+     set index $widgetName.subWidgetName.$widget
+     eval $scrolledLBState($index) $cmd
+  @}
+@}
+@end example
+
+
+@node Écriture de la sous-commande 'names'
+@subsubsection Écriture de la sous-commande @code{names}
+
+Cette sous-commande liste les sous-wigets accessibles du mégawidget.
+
+@example
+names @{
+  if @{[string match $cmdArgs ""]@} @{
+    set pattern $widgetName.subWidgetName.*
+  @} @{
+    set pattern $widgetName.subWidgetName.$scmdArgs
+  @}
+  return $names
+@}
+@end example
+
+
+@node Écriture de la sous-commande 'subwidget'
+@subsubsection Écriture de la sous-commande @code{subwiget}
+
+La sous commande @code{subwidget} donne le nom complet du sous-widget
+donné en argument.
+
+@example
+subwidget @{
+  set name [lindex $cmdArgs 0]
+  set index $widgetName.subWidgetName.$name
+  if @{[info exists scrolledLBState($index)]@} @{
+    return $scrolledLBState($index)
+  @}
+@}
+@end example
+
+
+@node La procédure de déclaration de l'objet
+@subsection La procédure de déclaration de l'objet
+
+Nous allons maintenant la procédure d'interface utilisateur, qui
+déclarer le mégawidget et lance sa création. Cette procédure est donc en
+déhors de l'espace de nom privé du mégawidget et nous avons décidé de
+lui le même nom @code{scrolledLB}.  Cette procédure ne sera lancée qu'à
+la création du mégawidget. Toutes les opérations suivantes seront
+ensuite lancées avec une sous-commande de cette nouvelle commande qui a
+le nom du mégawidget créé. On retrouve en cela, les principes de la
+programmation objet (voir plus loin le chapitre sur l'utilisation de
+@code{scrolledLB}
+@footnote{@ref{Utilisation du mégawidget 'scrolledLB'}})
+
+
+Cette procédure a la structure suivante.
+
+@example
+proc scrolledLB @{args@} @{
+
+  # Création du mégaWidget
+
+  # Écriture d'une ligne de script impliquant le nouveau widget
+
+  # Création d'une procédure utilisant cette ligne de script
+
+  # Finalisation
+@}
+@end example
+
+
+@node Création du mégaWidget
+@subsubsection Création du mégaWidget
+
+Pour créer le mégawidget, on lance la procédure @code{MakescrolledLB}
+dans l'espace de nom (il faut donc donner le chemin complet). Comme nous
+l'avons vu précédemment, la procédure renvoie le nom du cadre qui
+contient le megawidget (le @code{$holder}). Ce cadre peut avoir été
+déclaré comme le premier des arguments ou sera sinon un nom par défaut
+@code{.scrolledLB_N} où @code{N} est une numéro unique, enregistré dans
+l'espace de nom qui retient ainsi tous les numéros des objets qui auront
+été crées.
+
+@example
+set newWidget [eval scrolledLB::MakescrolledLB $args]
+incr scrolledLBState(unique)
+@end example
+
+On ré-incrémente tout de suite le numéro unique conservé dans l'espace
+de nom pour le prochain objet qui sera crée.
+
+
+@node Écriture d'une ligne de script impliquant le nouveau widget
+@subsubsection Écriture d'une ligne de script impliquant le nouveau widget
+
+On écrit maintenant une ligne de script, nommée ici @code{newCmd} qui
+renvoie à la procédure @code{scrolledLBProc} de l'espace de nom
+@code{scrolledLB} avec comme premier argument pré-rempli le nom (ou
+référence) du cadre ce widget nouvellement crée @code{newWidget} et
+comme arguments suivant le liste optionnelle standard @code{args}.
+
+Nous ne voulons pas exécuter cette ligne de script, mais la conserver
+comme un texte à recopier. Nous passons donc par la fonction
+@code{format} qui écrit une chaîne en remplaçant les positions marquées
+par des @code{%s} avec les variables qui suivent et qui sont donc ici
+@code{scrolledLB} @code{scrolledLBProc} et @code{$newWidget}.
+
+@example
+set newCmd [format @{return [namespace eval %s %s %s $args]@}\
+    scrolledLB scrolledLBProc $newWidget]
+@end example
+
+
+@node Création d'une procédure utilisant cette ligne de script
+@subsubsection Création d'une procédure utilisant cette ligne de script
+
+On utilise maintenant cette ligne de script @code{$newCmd} comme corps
+d'une nouvelle procédure qui aura exactement le nom du widget qui a été
+crée et dont le nom a été stocké dans @code{$newWidget}. Ceci est
+possible, car le widget lui même a été renommé avant (voir plus haut).
+
+@example
+proc $newWidget @{args@} $newCmd
+@end example
+
+On garde une déclaration de paramètres optionnels @code{args} pour être
+ensuite totalement libre dans l'utilisation de l'objet.
+
+
+@node Finalisation
+@subsubsection Finalisation
+
+Pour finir, on retourne le nom de cette procédure, qui sera ensuite
+utilisée pour toutes les actions requises sur le mégawidget.
+
+@example
+return $newWidget
+@end example
+
+
+@node Utilisation du mégawidget 'scrolledLB'
+@subsection Utilisation du mégawidget @code{scrolledLB}
+
+Le megawidget que nous venous de créer dans un module peut maintenant
+être utilisé. Il faut tout d'abord inclure le chemin vers ce module et
+le déclarer.
+
+@example
+::tcl::tm::path [pwd]
+package require scrolledLB
+@end example
+
+On peut maintenant créer ces nouvelles listes de sélection avec
+ascenceur en utilisant la procédure de création @code{scrolledLB}.
+
+@example
+set lb [scrolledLB .sbox -listboxHeight 5 -listboxWidth 20 \
+                         -titleText "Pick your Banjo"]
+grid .lb                         
+@end example
+
+et on remplit notre liste de la manière suivante, ici avec des marques
+de banjo.
+
+@example
+foreach brand @{@{Bacon & Day@} Epiphone Gibson Ludwig \
+                Paramount Orpheum Vega Weymann@} @{
+      $lb insert end $brand
+@}
+@end example
+
+et pour avoir un retour sur la sélection en ajoutant un bouton qui
+récupèrera le résultat de la sous commande sélection. Nous devons le
+faire en deux temps, d'abord écrire la ligne de script qui fait
+référence à la sous-commande du widget sans l'exécuter. Nous utilisons
+de nouveau le truchement de la fonction @code{format}. Et ensuite nous
+associons cette ligne de script à notre bouton. Puis nous la plaçons
+dans la fenêtre.
+
+@example
+set cmd [format @{puts "Picking a [%s selection]"@} $lb]
+button .b -text "Output Selection" -command $cmd
+grid .b
+@end example
+
+On peut ensuite vouloir changer le fond de la liste pour s'assurer qu'il
+est blanc et changer la police par défaut.
+
+@example
+option add *ScrolledLB*Listbox*background white
+option add *font @{"DejaVu Sans" 20@}
+@end example
+
+Pour avoir la liste des widgets.
+
+@example
+$lb names
+@result{} list yscroll title
+@end example
+
+et on retrouve que l'ascenceur s'appelle donc @code{yscroll}.
+
+@example
+$lb subwidget yscroll
+@result{} .sbox.yscroll
+@end example
+
+pour élargir l'ascenceur à 15 pixels.
+
+@example
+$lb widgetconfigure yscroll -width 15
+@end example
+
+@float
+@ @ @ @ @image{./images/31tk_07scr,,,,.png}
+@end float
+
+
+@node Appel de retour et widget utilisant un espace de noms
+@section Appel de retour et widget utilisant un espace de noms
+
+Quand une commande associée à un élément graphique Tk est exécutée, elle
+est évalué dans l'espace global. Le code suivant ne fonctionnera pas
+comme attendu.
+
+@example
+namespace eval badCode @{
+  variable clicked 0
+  button .b -text "Ckick" -command "set clicked 1"
+@}
+@end example
+
+En appuyant sur le bouton, on ne va pas mettre à jour la variable
+@code{clicked} de l'espace de nom @code{badCode}, mais on crée une
+nouvelle variable globale à laquelle on affecte 1, celle de l'espace de
+noms restant à 0.
+
+@findex namespace current
+Pour corriger ce code, il faut utiliser la commande
+@code{namespace current} de la manière suivante.
+
+@example
+namespace eval goodCode @{
+  variabel clicked 0
+  button .b -text "Click" -command "set [namespace current]::clicked 1"
+@}
+@end example
+
+Dans cet exemple la commande associée au bouton change bien la variable
+@code{clicked} de l'espace de nom @code{goodCode}.
+
+
+La commande @code{namespace code script} permet d'atteindre le même résultat,
+car elle force le @code{script} à être évalué dans l'espace de nom en
+cours. L'exemple précédant devient.
+
+@example
+namespace eval goodCode @{
+  variable clicked 0
+  button .b -text "Click" -command "[namespace code @{set clicked 1@}]"
+@}
+@end example
+
+Cette dernière méthode est celle qui est recommandée pour les script
+associés à des éléments graphiques, car elle est adaptée au scripts longs
+et compliqués (pas besoin de répéter plusieurs fois des commandes
+@code{namespace current}).
+
+
+@node Éléments graphiques multilingues
+@section Éléments graphiques multilingues
+
+Voici La structure d'une fenêtre multilingue. Les textes des étiquettes
+sont remplacés par des vecteurs associatifs qui iront chercher la bonne
+traduction dans une table.
+
+@example
+proc Draw @{parent@} @{
+  variable worldFormState
+  button $parent.translate \
+    -text $worldFormState($parent.buttonText) \
+    -command [namespace code [list translate $parent]]
+  # ...
+  tk_optionMenu $parent.options \
+    [namespace current]::worldFormState(language) \
+       French English German Spanish
+     ...
+@}
+@end example
+
+On regardera aussi la paquet donné en annexe
+(@ref{Internationalisation et localisation}).
+
+
+@node Incorporer un mégawidget dans un autre
+@section Incorporer un mégawidget dans un autre
+
+@c à écrire (section 14.7)

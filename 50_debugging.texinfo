@@ -1,0 +1,198 @@
+@c -*- coding: utf-8-unix; mode: texinfo; -*-
+@c typographie française :    «   » … ’
+
+@node Technique de mise au point
+@chapter Technique de mise au point.
+
+@section Retrouver la dernière erreur en mode interactif
+
+la commande @code{errorInfo} permet de retrouver le descriptif de la
+dernière erreur rencontrée.
+
+@example
+set errorInfo
+@end example
+
+
+On peut lui donner un alias en @kbd{?} avec la commande
+
+@example
+interp alias @{@} ? @{@} set errorInfo
+@end example
+
+
+@section Maintenir un journal
+
+Une des premières techniques de mise au point est d'imprimer des
+messages donnant l'état de certaine variables pendant l'exécution des
+commandes. L'extension @code{log} permet de réaliser une journalisation
+de messages, aussi bien pour la mise au point que pour les informations
+sur l'exécution du programme en cours en gérant les canaux de
+sortie. Ceci permet en particulier d'utiliser ces extensions dans le
+cadre d'une application graphique, les messages de mise au point étant
+alors dirigés vers un canal approprié, typiquement la console à partir de
+laquelle l'application a été lancée ou vers un fichier.
+
+Une description complète de cette extension est donnée en annexe.
+@ref{Extension log}.
+
+
+
+@section Méthode de test avec des modules
+
+La mise au point d'un module demande de penser le rechargement le module
+après chaque correction d'une erreur pour vérifier la correction.
+
+Voici une procédure qui s'assure du rechargement du module.
+
+@example
+proc reload pkg @{
+    package forget $pkg
+    package require $pkg
+@}
+@end example
+
+Si on a une extension, par exemple nommée @file{tables}, on la recharge
+alors avec l'instruction suivante.
+
+@example
+reload tables
+@end example
+
+
+@section Méthode de test avec des classes
+
+Quand on travaille avec des classes, le sujet est un peu plus compliqué
+car on ne peut pas redéclarer un classe qui existe déjà. Une classe peut
+être intégrée dans un module, mais le rechargement du module n'implique
+pas le rechargement de la classe qui y est définie et celle en cours
+avec ses objets reste applicable. Il faut donc bien préciser la
+destruction de l'ancienne classe avant de tester une correction d'erreur.
+Il faut pour cela savoir quelle est le nom de la classe à détruire. Ici
+je prends l'exemple d'une classe nommée @code{tdomods}.
+
+@example
+proc reload pkg @{
+    if @{[info commands tdomods] eq "tdomods"@} @{tdomods destroy@}
+    package forget $pkg
+    package require $pkg
+@}
+@end example
+
+De manière plus précise, on peut aussi se servir de l'adaptabilité de
+TclOO pour redéfinir une méthode précise en cours de mise au point avec
+la commande @code{oo::define}. Voir aussi l'aide de TclOO, on peut
+renommer une méthode (@code{oo::renamemethod}) ou l'effacer
+(@code{oo::deletemethod}). Il y aussi des techniques permettant de
+filtrer les méthodes.
+
+Une bonne connaissance de TclOO permet beaucoup d'adaptabilité en cours
+de mise au point.
+
+
+
+@section Organiser des tests automatiques avec @code{tcltest}
+
+@subsection Motivations
+
+Il est conseillé de faire des sessions de mises au point régulières
+pendant le développement d'un projet. Plus on recule ce moment, pris
+dans l'enthousiasme du développement, plus la mise au point risque
+d'être longue et pénible.
+
+Un projet qui prend de l'envergure va aussi se diviser en plusieurs
+fichiers, soit qui s'appellent avec la commande @code{source}, soit qui
+correspondent à des paquets ou des modules. Les modifications faites
+dans un des fichiers peuvent parfois avoir des conséquences sur les
+autres, ou une réorganisation des répertoires peut casser les liens et
+introduire des erreurs qui peuvent être plus ou moins simples à
+retrouver.
+
+Il est donc recommandé de développer des fichiers de tests automatiques
+en même temps qu'on développe son projet. Ces fichiers de tests peuvent
+aussi illustrer la façon d'utiliser les commandes qu'on développe en
+donnant des exemples d'application concrets et qui font fonctionnent.
+
+La méthode que j'utilise est d'avoir sur le répertoire des fichiers
+portant le même nom que les fichiers testés, mais avec l'extension
+@file{.test} pour 'test' et aussi pour qu'ils soient classés après les
+fichiers @code{.tcl} ou @code{.tm} auxquels ils se réfèrent.
+
+Les tests sont construits pour faire fonctionner les procédures. Souvent
+leur mise au point demande des itérations justement avec la mise au
+point du code source. Quand j'utilise Emacs, je commence donc par tester
+ligne par ligne ces fichiers de test dans une zone de travail
+@code{*inferior-tcl*} avant de valider mon fichier test.
+
+
+
+@subsection Utiliser l'extension @code{tcltest}
+@c http://wfr.tcl-lang.org/96
+@c https://tcl.tk/man/tcl8.6/TclCmd/tcltest.htm
+
+
+@file{tcltest} est une extension Tcl permettant d'effectuer des batteries
+de tests automatiques.  On s'organise pour mettre les fichiers
+du projet sous un répertoire donné (ce peut être par exemple un
+répertoire nommé @file{src}).  Un sous-répertoire @file{test} est
+ensuite crée et on y range les fichiers ayant le même nom que les
+fichiers à tester, mais avec l'extension @file{.test} au lieu de
+@code{.tcl}.
+
+Les répertoires @file{test} contient un fichier @file{all.tcl} qui
+a le contenu suivant.
+
+@example
+#!/usr/bin/env tclsh
+#-*- mode: Tcl; fill-column: 80; -*-
+
+package require tcltest
+namespace import ::tcltest::*
+runAllTests
+@end example
+
+Cette méthode facilite le lancement d'une batterie de tests
+répétifis. S'ils sont bien écrits, ceci peut devenir très utile en cours
+de développement, pour vérifier qu'une nouvelle procédure ne vient pas
+perturber les fonctionnements qu'on avait prévus dans les autres
+procédures déjà développées. En théorie, cela ne devrait pas être le cas
+si le code est bien structuré, mais dans la pratique, c'est souvent
+utile !
+
+Prenons par exemple un fichier qui a défini une procédure @code{square}.
+Nous pouvons écrire ceci dans le fichier @file{.test} qui lui
+correspond.
+
+@example
+#!/usr/bin/env tclsh
+#-*- mode: Tcl; fill-column: 80; -*-
+
+package require tcltest
+namespace import ::tcltest::*
+
+# sofware we test
+source ../src/square.tcl
+
+test square1: @{Teste le carré de 0.@}\
+   -body @{square 0@}\
+   -result 0
+
+test square1: @{Teste le carré d'un nombre négatif.@}\
+    -body @{square -9@}\
+    -result 81
+
+test square2: @{Teste le carré d'une variable.@}\
+    -setup @{set a 11@}\
+    -body @{square $a@}\
+    -result 121
+
+cleanupTests
+@end example
+
+Les tests vont s'effectuer sur un shell en lançant la commande
+@code{tclsh all.tcl} qui lancera donc tous les fichiers @file{.test}
+du répertoire.
+
+Il existe un autre fichier info dédié à cette extension.
+@xref{Top,,,tcltest.fr, "Tester des programmes grâce à Tcl"}
+

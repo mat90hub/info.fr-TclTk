@@ -1,0 +1,1165 @@
+@c -*- mode: texinfo; coding: utf-8-unix; mode: auto-fill; -*-
+
+@node Instrospection et adaptabilité
+@section Instrospection et adaptabilité
+
+La programmation objet avec TclOO conserve les caractéristiques
+importantes de Tcl qui sont ses facultés d'introspection du code et de
+le modifier progressivement. Ceci permet en particulier de constuire une classe
+progressivement en testant régulièrement chacune des additions.
+
+Quatre commandes principales caractérisent cette aptitude de
+modification du code objet.
+
+@ftable @code
+@item oo::define
+Cette commande définit une nouvelle fonctionalité pour tous les membres
+d'une classe.
+
+@item oo::objdefine
+Cette commande définit une nouvelle fonctionalité pour un objet donné seulement.
+
+@item info class
+Cette commande retourne les informations sur une classe
+
+@item info object
+Cette commande retourne les information sur un objet.
+@end ftable
+
+Cette adaptabilité est un outil puissant, mais cela peut aussi aboutir à
+des situations difficiles à maintenir si on n'y prend pas garde.
+
+
+@node Modifier les classes (define class)
+@subsection Modifier les classes (@code{define class})
+@findex define class (tclOO)
+
+Avec la commande @code{oo:define}, Tcl permet de modifier une classe
+déjà crée, ce qui introduit beaucoup de flexibilité, car on peut donc
+envisager de modifier des objets en cours d'exécution. Quand cette
+commande est utilisée pour changer les fonctionalités d'une classe, tous
+les objets qui ont été crées avec cette classe vont immédiatement en
+bénéficier.
+
+On peut modifier au ajouter une méthode avec la forme:
+@example
+oo::define className method methodName arguments script
+@end example
+
+où
+@itemize @bullet
+@item className
+est le nom de la classe à changer
+
+@item methodName
+est le nom de la méthode à modifier ou à ajouter
+
+@item arguments
+est la liste des arguments
+
+@item script
+est le contenu de la méthode
+@end itemize
+
+Voici un exemple élémentaire d'une classe @code{addition} créée vide et
+à laquelle on ajoute ensuite la méthode @code{add} et qui correspond à
+un autre style de programmation que celui que nous avons vu jusqu'à
+présent.
+
+@example
+oo::class create addition @{@}
+
+oo::define addition method add @{a b@} @{return [expr @{$a + $b@}]@}
+@end example
+
+
+@node Ajouter un filtres
+@subsubsection Ajouter un filtre
+
+Nous avons déjà vu l'utilité de la définition d'un filtre précédemment.
+La méthode de filtrage doit être une méthode de l'objet qui peut être
+une méthode acquise par un mixin ou un héritage. Mais elle ne peut pas
+être une procédure normale (en dehors de la classe). Si nous voulons
+ajouter un filtrer à notre classe précédente, nous devons donc d'abord
+ajouter une méthode dans cette classe:
+
+@example
+oo::define addition method show @{args@} @{
+  puts "─ [info level 0]"
+  next @{*@}$args
+@}
+@end example
+
+La ligne @code{next @{*@}args} permet de transmettre les
+arguments. Ensuite on déclare cette méthode comme une méthode de
+filtrage par la commande qui suit.
+
+@example
+oo::define addition filter show
+@end example
+
+et on pourrait ainsi déclarer plusieurs filtre à la suite sur la même
+ligne de commande.
+
+@node Rediriger une méthode (forward)
+@subsubsection Rediriger une méthode (@code{forward})
+@findex forward
+
+Parfois lors d'une migration d'une bibliothèque, il peut être plus simple
+de rediriger sur une autre méthode plutôt que de tout ré-écrire.  C'est
+ce que va permettre l'option @code{forward}. On peut même rediriger
+ainsi une méthode sur une procédure normale.
+
+Le format ci-dessous redirige l'invocation de @code{newName} vers
+la commande @code{actualCmd} avec d'éventuels arguments pré-fixés.
+
+@example
+oo::define className forward newName actualCmd ?args?
+@end example
+
+@itemize @bullet
+@item className
+est le nom de la classe
+
+@item newName
+est le nouveau nom de la classe
+
+@item actualCmd
+est la commande réellement effectuée
+
+@item args
+sont les arguments éventuels à ajouter devant
+@end itemize
+
+Sur notre example précédent.
+
+@example
+oo::define addition forward print puts
+oo::define addition forward sum my add
+@end example
+
+La dernière ligne ajouter simplement une procédure @code{sum}
+qui réutilise la procédure @code{add} déjà définie grâce à la
+commande @code{my}.
+
+
+@node Renommer une méthode (renamemethod)
+@subsubsection Renommer une méthode (@code{renamemethod})
+@findex renamemethod (tclOO)
+
+On peut avoir besoin de renommer des méthodes pour résoudre des conflits
+de noms, en particulier quand on utilise des bibliothèques de différentes
+origine. Le renommage d'une méthode s'effecture alors simplement avec
+l'option @code{renamemethod} de la commande @code{define}.
+
+@example
+oo::define className renamemethod oldName newName
+@end example
+
+Mais attention le renommage ne va pas être fait dans les méthodes qui
+utilisent l'ancien nom, dans les filtres ou les redirections.
+
+Dans l'exemple précédent, si nous exécutons la commande suivante:
+@example
+oo::define addition renamemethod add oldAdd
+@end example
+
+On pourra utiliser @code{oldAdd} mais plus @code{add}. Si on utilise
+@code{sum} qui était un homonyme de @code{add}, cette fonction ne
+marchera plus. 
+
+@example
+addition create toto
+@result{} ::toto
+
+toto add 2 3
+@result{} ─ toto add 2 3
+  unknown method "add": must be destroy, oldAdd, print, show or sum
+
+toto sum 2 3
+@result{} ─ toto sum 2 3
+  ─ my add 2 3
+  unknown method "add": must be <cloned>, destroy, eval, oldAdd,
+  ➥ print, show, sum, unknown, variable or varname
+@end example
+
+@node Effacer une méthode (deletemethod)
+@subsubsection Effacer une méthode (@code{deletemethod})
+@findex deletemethod
+
+Si on a ajouté une méthode provisoire, il faut pouvoir l'effacer. Ceci
+se fait avec la commande.
+
+@example
+oo::define className deletemethod methodName ?methodName?
+@end example
+
+Par exemple, on peut vouloir supprimer la méthode @code{show} quand
+le debogage est fini.
+
+@example
+oo::define addition deletemethod show
+@end example
+
+ce qui enlèvera toutes les indications de débogages que nous avions mis.
+
+@node Gérer la visibilité des méthodes (export/unexport)
+@subsubsection Gérer la visibilité d'une méthode (export/unexport)
+@cindex méthode privée ou publique
+@findex export
+@findex unexport
+
+Dans les espaces de nom, c'était une convention de commencer les
+procédures privées par des majuscules et les autres par des
+minuscules. TclOO a renforcé cette convention et l'utilise pour
+déterminer automatiquement si une procédure est publique ou privée.
+Néanmoins, on peut toujours contourner cette restriction avec les
+commande @code{export} et @code{unexport}. Ces commandes peuvent être
+utilisées dans la définition d'une méthode ou ensuite avec la commande
+@code{oo::define} que nous avons vu.
+
+@example
+oo::define className export methodName ?methodName?
+oo::define className unexport methodName ?methodName?
+@end example
+
+@node Modifier le processus d'héritage
+@subsubsection Modifier le processus d'héritage
+
+Les classes héritées par @code{superclass} ou @code{mixin} peuvent aussi
+être modifié pendant l'exécution. Mais on perd alors toute la chaîne
+d'héritage. Si on veut en garder une parcelle, il faut commencer par
+l'identifier grâce à la commande @code{info class}.
+
+@example
+oo::define className superclass className ?className?
+oo::define className mixin className ?className?
+@end example
+
+Rappelons que quand des classes mélangées (mixins) sont ajoutées, les
+méthodes de ces classes sont appelées en premier et elles doivent donc
+repasser le contrôle avec une commande @code{next} à la méthode de base
+ayant le même nom. Le contrôle passe donc d'abord aux classes mélangées,
+puis au superclass (classes héritées). Si on n'est pas sûr qu'il y en
+ait, on peut utiliser la commande @code{catch} pour intercepter une
+éventuelle erreur.
+
+@example
+oo::class create base @{
+  method show @{args@} @{
+    puts "base show args: $args"
+    catch @{next "base::show args: $args"@}
+  @}
+@}
+oo::class create addSuper @{
+  method show @{args@} @{
+    puts "addSuper show - $args"
+    catch @{next ""addSuper::show args: $args''@}
+  @}
+@}
+oo::class create addMixin @{
+  method show @{args@} @{
+    puts "addMixin show - $args"
+    catch @{next "addMixin::show args: $args"@}
+  @}
+@}
+
+base create base1
+@result{} ::base1
+
+base1 show "no super"
+@result{} 1
+
+oo::define base superclass addSuper
+base1 show "with addSuper"
+@result{} base show args: @{with addSuper@}
+  addSuper show - @{base::show args: @{with addSuper@}@}
+  0
+
+oo::define base mixin addMixin
+base1 show "with super and mixin"
+@result{} addMixin show - @{with super and mixin@}
+  base show args: @{addMixin::show args: @{with super and mixin@}@}
+  addSuper show - @{base::show args: @{addMixin::show args: \
+                     @{with super and mixin@}@}@}
+  0
+@end example
+
+
+@node Construire une classe dynamiquement
+@subsubsection Construire une classe dynamiquement.
+
+On voit donc qu'une classe peut être crée vide avec @code{oo::create} et
+qu'on peut choisir de lui adjoindre ensuite les méthodes avec
+@code{oo::define} en fonction du déroulement du programme. Ceci peut
+être utile quand vous avez à construire plusieurs classes similaires et
+qu'on peut donc envisager une construction automatique dans une
+boucle.
+
+Les constructeurs et destructeurs peuvent être définis de la même
+façon que les méthodes à l'exception que le destructeur n'a pas
+d'argument et ne renvoie pas de valeur.
+
+@example
+oo::define className constructor args script
+oo::define className desctructor script
+@end example
+
+Comme avec @code{mixin} et @code{superclass} la liste des
+@code{variable} remplacera l'ancienne liste s'il y en avait une
+avant. Il faut donc recourir à @code{info class variable className} si
+on veut identifier et sauvegarder quelques unes des variables qui
+préexistaient.
+
+On peut aussi ajouter une nouvelle variable à une classe avec la
+commande qui suit.
+
+@example
+oo::definie className variable variableName1 variableName2...
+@end example
+
+Toujours dans notre exemple de jeux de rôle, le code suivant
+montre comment créer rapidement trois classes de personnages
+similaires.
+
+@example
+foreach type @{warrior mage cleric@} hits @{8 4 6@} @{
+  oo::class create $type
+  oo::define $type variable hitpoints myName
+  oo::define $type constructor @{name@} \
+     "set hitpoints $hits; set myName \$name"
+  oo::define $type method display @{@} @{
+     return  "$myName has $hitpoints"
+  @}
+  oo::define $type destructor @{
+     puts "$myName go bye-bye"
+  @}
+@}
+
+set w1 [warrior new Siegfried]
+set m1 [mage new Brunhilda]
+
+puts "[$w1 display] hitpoints"
+@result{} Siegfried has 8 hitpoints
+
+puts "[$m1 display] hitpoints"
+@result{} Brunhilda has 4 hitpoints
+
+$m1 destroy
+@result{} Brunhilda go bye-bye
+@end example
+
+On remarquera l'utilisation inhabituelle de guillemets ("") à la place
+des accolages usuelles (@{@}) pour le corps du constructeur. C'est qu'on veut
+que @code{$hits} soit remplacé par sa valeur mais pas @code{$name}, qui
+doit rester avec son "$" dans cette définition, ce qu'on otient en
+échappant le @code{$} avec une barre oblique @code{\}.
+
+
+@node modifier un objet (objdefine)
+@subsection modifier un objet (@code{objdefine})
+@findex objdefine (tclOO)
+
+Nous retrouvons la plupart des options de la commande
+@code{oo::define} avec la commande
+@code{oo::objdefine} sauf que le nom de la classe est
+remplacé par le nom de l'objet et que la modification
+ne s'applique qu'à l'objet et non à la classe.
+
+Voici tout ce qui est commun aux deux:
+
+@table @code
+@item method
+method methodName args script
+@item filter
+filter methodName ?methodName?
+@item forward
+forward methodName newName actualCmd ?args?
+@item renamemethod
+renamemathod oldName newName
+@item deletemethod
+deletemethod methodName ?methodName?
+@item export
+export methodName ?methodName?
+@item unexport
+unexport methodName ?methodName?
+@item mixin
+mixin className ?className?
+@item variable
+variable variableName1 variableName2...
+@end table
+
+Les options @code{constructor}, @code{destructor}, @code{self} et
+@code{superclass} ne peuvent être utilisées qu'avec @code{oo::define} et non pas @code{oo::objdefine}.
+
+
+@node changer de classe (objdefine class)
+@subsubsection changer la classe d'un objet (@code{objdefine class})
+@findex objdefine class (tclOO)
+
+La sous-commande @code{class} de @code{oo:objdefine} permet de changer
+la classe d'un objet. Ceci peut être utile quand on veut garder un
+objet, mais détruire sa classe par exemple. Le constructeur n'est pas
+rappelé quand un objet change de classe, mais toutes les anciennes
+méthodes et variables sont remplacées par les méthodes et les variables
+de la nouvelle classe.
+
+Voici un exemple toujours associé au jeu de rôle. Dans certains jeux,
+quand un personnage meurt, il va dans les limbes il perd ses capacités,
+mais conserve ses possessions. Nous allons mimer cela.
+
+@example
+oo::class create character @{
+  variable possessions name
+  constructor @{nm args@} @{set name $nm; set possessions $args@}
+  method get @{id@} @{return [set $id]@}
+@}
+
+# classe des caractères vivants
+oo::class create livingCharacter @{
+  superclass character
+  # passe le contrôle au constructeur de la superclasse
+  constructor @{args@} @{next @{*@}$args@}
+  method attackStrength @{@} @{return 8@}
+@}
+
+# classe des caractères morts
+oo::class create deadCharacter @{
+  superclass character
+   variable possessions
+   method attackStrength @{@} @{return 0@}
+   method takePossession @{@} @{
+     set taken [lindex $possessions 0]
+     set possessions [lrange $possessions 1 end]
+     return $taken
+   @}
+@}
+
+set char1 [livingCharacter new Siegfried Spear Tarnhelm]
+
+puts "[$char1 get name] possesses [$char1 get possessions]"
+@result{} Siegfried possesses Spear Tarnhelm
+
+puts "[$char1 get name] attacks with strength of \
+      [$char1 attackStrength]"
+@result{} Siegfried attacks with strength of  8
+
+puts "after dying..."
+oo::objdefine $char1 class deadCharacter
+
+puts "[$char1 get name] possesses [$char1 get possessions]"
+@result{} Siegfried possesses Spear Tarnhelm
+
+puts "[$char1 get name] attacks with strength of \
+      [$char1 attackStrength]"
+@result{} Siegfried attacks with strength of  0
+@end example
+
+
+
+@node mixin d'objet
+@subsubsection mélange propre à un objet (@code{mixin})
+@findex mixin (object mixin)
+
+Il peut être utile que les classes ajoutées par @code{mixin}
+soient particulières à un objet et non à la classe. Dans notre
+exemple de jeux de rôle, nous avions utilisé cette possibilité
+pour les équipements du personnage.
+
+Un objet va ainsi avoir deux listes de classes ajoutées par
+@code{mixin}: celles qui viennent de la classe et celles qui
+sont spécifiques à l'objet.
+
+Dans notre exemple, nous allons attribuer l'épée à la classe
+des guerriers (tous les guerriers en auront une). Par contre
+le caractère particulier que nous allons créer va obtenir une
+lance, qu'il sera donc seul à posséder.
+
+@example
+oo::class create sword @{
+  method defense @{attackStrength@} @{
+    puts "sword reduces attack by 2"
+    return [next [expr @{$attackStrength - 2@}]]
+  @}
+@}
+
+oo::class create spear @{
+  method defense @{attackStrength@} @{
+    puts "spear reduces attack by 2"
+    return [next [expr @{$attackStrength - 2@}]]
+  @}
+@}
+
+oo::class create warrior @{
+  mixin sword
+  constructor @{@} @{
+     variable State
+     array set State @{defense 4 attack 4 hitpoints 5@}
+  @}
+  method defense @{attackStrength@} @{
+    variable State
+    puts "Final Attack is: $attackStrength"
+    if @{$attackStrength > $State(defense)@} @{
+      return "Hit"
+    @} else @{
+      return "Missed"
+    @}
+  @}
+@}
+
+warrior create elmer
+puts [elmer defense 8]
+@result{} sword reduces attack by 2
+  Final Attack is: 6
+  Hit
+  
+oo::objdefine elmer mixin spear
+puts [elmer defense 8]
+@result{} spear reduces attack by 2
+  sword reduces attack by 2
+  Final Attack is: 4
+  Missed
+@end example
+
+
+@node Ajouter une méthode à un objet
+@subsubsection Ajouter une méthode à un objet
+
+L'ajout d'une méthode à un objet peut masquer une méthode pré-existante
+venant de la classe ou être entièrement nouvelle. Si la méthode recouvre
+une méthode venant de la classe, la méthode de l'objet sera d'abord
+exécutée, puis le contrôle sera passé à la méthode venant de la classe
+avec la commande @code{next} ou la chaîne de méthode (héritée) sera
+rompue en ternminant par un @code{return} simple.
+
+
+@node info class
+@subsubsection Examiner les classes avec @code{info class}
+@findex info class
+
+Tcl possède des capacités d'introspection avec la commande @code{info}
+qui lui permettent de s'adapter dynamiquement pendant l'exécution, ce
+qui permet d'écrire des routines génériques. Voici ici les informations
+qu'on peut retrouver sur les classes.
+
+@example
+info class subcommand className args
+@end example
+
+@ftable @code
+@item info class call class method
+(voir la doc)
+
+@item info class constructor class
+Retourne le constructeur en deux éléments, le premier est la liste des
+arguments, le second le corps du constructeur.
+
+@item info class definition class method
+Retroune deux éléments, le premier est la liste des arguments, le second
+le corps de la méthode.
+
+@item info class destructor class
+Retourne le corps du destructeur.
+
+@item info class filters class
+Retourne la liste des filtres appliquées à une classe
+
+@item info class forward class method
+Retourne la liste des mots vers laquelle le méthode @code{method}
+renvoie.
+
+@item info class instances class ?motif?
+Retourne la liste de toutes les instances de la classe @code{class},
+filtrée éventuellement par le @code{motif}.
+
+
+
+@item info class methods class ?option
+
+Lise les méthodes définie par la classe. Par défaut, elle les renvoie
+toutes, mais on peut filtrer avec @code{option} qui prende les valeurs
+qui suivent.
+
+@table @code
+@item -all
+@item -private
+@end table
+
+
+@item info class methodtype class method
+
+Retourne qu'elle le type de la méthode identifiée. Ce peut être une
+@code{method} ou un @code{forward}.
+
+@item info class mixins class
+Retourne la liste des mixins
+
+@item info class subclasses class ?motif?
+Retourne la liste des sous-classes directs, éventuellement filtrées.
+
+@item info class superclasses class
+Retourne la liste des superclasses
+
+@item info class variables class
+Retourne la liste des variable déclarée dans une classe
+
+@end ftable
+
+
+@node info object
+@subsection Examiner les objets avec @code{info object}
+@findex info object
+
+La forme générale est la suivante.
+
+@example
+info object subcommand objectName args
+@end example
+
+et voici les sous-commandes possibles.
+
+@ftable @code
+@item info object call obj meth
+Retourne une liste montrant la chaîne d'exécution des méthodes en tenent
+compte des éventuelles instruction @code{next}.
+
+@item info object class obj ?class?
+Si l'option @code{?class?} est omise, retourne la classe de l'objet. Si
+la classe est précisée, retourne si l'objet est une instance (ou une
+sous-instance) de cette classe.
+
+@item info object definition obj meth
+Retourne deux termes, le premier étant les arguments et l'autre le corps
+de la méthode.
+
+@item info object filters obj
+Retourne la liste des noms des méthodes utilisées comme filtres.
+
+@item info object forward obj meth
+Retourne la méthode renvoyée (à vérifier....)
+
+@item info object isa class category obj ?arg?
+Teste si l'objet donnée est membre d'une des catégorie reconnues par
+ISA et qui sont les suivantes.
+
+@ftable @code
+@item info object isa class obj
+Renvoie si @code{obj} est une classe (c'est-à-dire être un instance de
+@code{oo::class} ou une de ses sous-classes).
+
+@item info object isa metaclass obj
+Retourne si @code{obj} est une métaclasse (une métaclasse est une
+sous-classe de oo::class).
+
+@item info object isa mixin obj class
+Retourne si @code{class} a été mixé dans @code{obj}.
+
+@item info object isa object com
+Vérifie si @code{com} est réellement un objet (si c'est le cas, ce
+sera une instance de @code{oo::object} ou l'une de ses sous-classe).
+
+@item info object isa typeof obj class
+Vérifie si @code{obj} apparatient à cette classe ou l'une de ses descendante.
+@end ftable
+
+@item info object methods obj ?optio?
+Retourne le liste des méthodes de l'objet qui ont été exportées.
+L'option peut avoir l'une des valeurs suivantes.
+@itemize @minus
+@item all
+toutes les méthodes définie par la classe de l'objet seront aussi retournées.
+@item private
+les méthodes privées (c'est-à-dire non exportées et appelable seulement
+à traveers la commande @code{my}@footnote{on peut accéder aux méthodes
+privées par l'instruction
+@code{[info object namespace $objN]::my $methodename}})
+seront aussi retournée.
+@end itemize
+Si on utilise ces deux options, toutes les méthodes définies de
+l'objet seront retournées.
+
+@item info object methodtype obj meth
+Retourne le type de méthode appelée.
+
+@item info object mixins obj
+
+@item info object namespace Obj
+Retourne le nom de l'espace de noms privé de l'objet @code{Obj}.
+L'espace de noms contient les variables de l'objet et ses méthodes
+(toutes les commandes qui peuvent être invoquées par la commande
+@code{my} à l'intérieur de l'objet).
+
+@item info object variables obj
+Retourne la liste des variable d'objet déclarées, c'est-à dire celles
+qui sont dans l'espace de l'objet, comme les variable déclarées dans les
+méthodes déclarées directement dans l'objet.
+
+@item info object vars object ?motif?
+Retourne la liste des variables affectées avec éventuellement un
+filtre. Ce sont les variables qui sont dans l'instance de l'espace de
+noms de l'objet. (c'est les plus souvent ce qu'on cherche).
+
+@end ftable
+
+
+@node Tracer (trace)
+@section Tracer (@code{trace})
+
+@c https://www.tcl.tk/man/tcl8.4/TclCmd/trace.htm#M5
+
+La commande @code{trace} permet de monitorer les accès à une variable ou
+à une commande.
+(voir aussi ce chapitre @ref{trace}).
+
+
+@example
+trace option ?arg?
+@end example
+
+Les options sont les suivantes.
+
+@node trace add type name ops ?args?
+@subsection @code{trace add type name ops ?args?}
+
+Dans cette forme de de @code{trace add}, le @code{type} est
+@code{command} @code{execution} ou @code{variable} pour ajouter une
+action de traçage pour l'un de ces évènements.
+
+@c @node trace add command name ops ?args?
+@subsubsection trace add command name ops ?args?
+
+Voici les commande de traçage associées à une commande.
+
+@ftable @code
+@item trace add command name rename command
+Invoque la @code{command} chaque fois que la commande @code{name}
+est renommée. Renommer sur une chaîne vide n'est pas considéré comme un
+renommage, mais comme un effacement.
+
+@item trace add command name delete command
+Invoque la @code{command} chaque fois que la commande @code{name}
+est effacée. Une commande est effacée quand elle est renommée sur un
+chaîne vide ou quand l'interpréteur est effacée, mais il n'y aura plus
+de trave, car l'interpréteur n'est alors plus là pour l'exécuter.
+@end ftable
+
+@node trace add execution name ops command
+@subsection trace add execution name ops command
+
+Voici les commandes de traçage associées à une phase particulière de
+l'exécution de la commande @code{name}. 
+
+@ftable @code
+@item trace add execution name enter command
+Exécute la commande @code{command} chaque fois que le commande @code{name}
+est exécutée, juste avant que lexécution prenne place.
+
+@item trace add execution name leave command
+Exécute la commande @code{command} chaque fois que le commande @code{name}
+est exécutée en sortant de cette exécution.
+
+@item trace add execution name enterstep command
+Exécute la commande @code{command} chaque fois que le commande @code{name}
+est exécutée, au moment d'entrer dans la procédure, mais avant la
+première ligne d'exécution.
+
+@item trace add execution name leavestep command
+Exécute la commande @code{command} chaque fois que le commande @code{name}
+est exécutée, après la dernière ligne de sortie de la procédure.
+@end ftable
+
+
+@node trace add variable name ops command
+@subsection trace add variable name ops command
+
+Exécute la commande @code{command} chaque fois que la variable
+@code{name} est accédée par l'un des moyens donnés par @code{ops} et
+qui peut être @code{array}, @code{read}, @code{write} ou @code{unset}.
+
+@ftable @code
+@item trace add variable name array command
+Exécuter le commande @code{command} chaque fois que le variable
+@code{name} est accédée ou modifiée par la commande @code{array}.
+
+@item trace add variable name read command
+Exécuter le commande @code{command} chaque fois que le variable
+@code{name} est accédée par la commande @code{read}.
+
+@item trace add variable name write command
+Exécuter le commande @code{command} chaque fois que le variable
+@code{name} est modifiée par la commande @code{write}
+
+@item trace add variable name unset command
+Exécuter le commande @code{command} chaque fois que le variable
+@code{name} est effacée par la commande @code{write}
+@end ftable
+
+
+@node trace remove type name opList command
+@subsection trace remove type name opList command
+
+Dans cette forme, @code{trace remove} enlève les instructions de traçage.
+
+@ftable @code
+@item trace remove command name opList command
+Enlève l'instruction de traçage associé à une commande.
+
+@item trace remove execution name opList command
+Enlève l'instruction de traçage associé à une exécution.
+
+@item trace remove variable name opList command
+Enlève l'instruction de traçage associé à une variable.
+@end ftable
+
+@node trace info type name
+@subsection trace info type name
+
+@ftable @code
+@item trace info command name
+Retourne une liste des opérations de traçages liées à la commande @code{name}.
+
+@item trace info execution name
+Retourne une liste des opérations de traçages liées à l'exécution de la commande @code{name}.
+
+@item trace info variable name
+Retourne une liste des opérations de traçages liées à la variable @code{name}.
+@end ftable
+
+@node formes anciennes de trace
+@subsection Forme anciennes de @code{trace}
+
+Pour des raisons de compatibilité ascendante, les commandes suivantes
+sont maintenues.
+
+@example
+trace variable name ops command
+@end example
+
+Remplacé maintenant par l'instruction @code{trace add variable}
+
+
+@example
+trace vdelete name ops command
+@end example
+
+Remplacé maintenant par l'instruction @code{trace remove variable}
+
+@example
+trace vinfo name
+@end example
+
+Remplacé maintenant par l'instruction @code{trace info variable}
+
+
+
+@node Retrouver le nom qualifié d'une variable (my varname)
+@subsection Retrouver le nom qualifié d'une variable @code{my varname}
+@findex my varname
+
+Quand on utilise des commandes de traçage, il peut être utile d'utiliser
+la commande @code{my varname} qui permet d'obtenir le nom qualifié d'une
+variable.
+@footnote{@ref{La racine des objets}}
+
+@example
+my varname 'variableName'
+@end example
+
+Voici un exemple élémentaire.
+
+@example
+::oo::class create test @{
+  variable v1
+  constructor @{@} @{set v1 1@}
+  method show @{@} @{puts [my varname v1]@}
+@}
+@result{} ::test
+
+set t [test new]
+@result{} ::oo::Obj25
+
+$t show
+@result{} ::oo::Obj25::v1
+@end example
+
+Et un exemple qui utilise @code{my varname} dans des commandes de
+traçage @code{trace add}.
+
+
+@example
+oo::class create withTrace @{
+  variable var1 var2
+  constructor @{@} @{
+    set var1 2
+    set var2 2
+    trace add variable [my varname var1] write showVar
+    trace add variable [my varname var2] write \
+          [list [self] showVar]
+    puts "Full path for var1 is: [my varname var1]"
+  @}
+  method decrVar1 @{@} @{incr var1 -1@}
+  method decrVar2 @{@} @{incr var2 -2@}
+  method showVar @{name index operation@} @{
+    upvar $name vv
+    puts "Method shows new value for $name is $vv"
+  @}
+@}
+@result{}::withTrace
+
+proc showVar @{name index operation@} @{
+  upvar $name vv
+  puts "Global proc shows new value for $name is $vv"
+@}
+
+withTrace create test
+@result{} Full path for var1 is: ::oo::Obj22::var1
+@result{} ::test
+
+test decrVar1
+@result{} Global proc shows new value for var1 is 1
+@result{} 1
+
+test decrVar2
+@result{} Method shows new value for var2 is 0
+@result{} 0
+@end example
+
+
+@node Méthodes et variables de classes
+@section Méthodes et variables de classes.
+@cindex Variable de classe
+@cindex Variable statique
+@findex self variable (variable de classe)
+Dans certaines circonstances, il peut être utile de définir des
+variables qui seront propres à tous les objets d'une même classe et non
+propres à chaque objet. On parle de variable statique (au sens qu'elles
+ne sont pas renouvelées à la création de chaque objet) ou de variable de
+classe (au sens qu'elles caractérisent plus l'état de la classe que
+celui de l'objet). Elles seront caractérisées par les commandes
+@code{self variable}.
+
+@cindex Méthode de classe
+@cindex Méthode statique
+@findex self method (méthode de classe)
+Les méthodes qui sont dédiées au traitement de ces variables de classes
+seront aussi appelées des méthodes de classes ou méthodes
+statiques. Elles sont caractérisées par la commande @code{self method}.
+
+Dans l'exemple qui suit@footnote{Nous utilisons volontairement un sabir
+mélangeant le Franàais de l'Anglais pour distinguer les mots spécifiques
+à TclOO des autres}, nous construisons une classe nommée
+@code{precieux} qui limite volontairement le nombre d'objets crées
+dans cette classe. Il nous faut donc définir une variable qui ne sera
+plus attachée à l'un des objets, mais attachée à la classe elle-même
+pour conserver le nombre d'objets qui auront été crées.
+
+
+@example
+::oo::class create precieux @{
+  constructor @{@} @{puts "Création d'un objets précieux"@}
+  method affiche @{@} @{puts "ceci est un objet précieux"@}
+@}
+@result{} ::precieux
+@end example
+
+Nous définissons une variable de classe qui fait le compte les objets précieux
+qui auront été crées.
+
+@example
+::oo::define precieux self variable compte
+@end example
+
+Puis nous définissons deux méthodes de classe. La première méhtode de classe sert à
+définir (et donc ici à inialiser) la valeur du compteur
+
+@example
+::oo::define precieux self method regleCompteur @{@{val @{@}@}@} @{
+  if @{$val ne ""@} @{set compte $val@}
+  return $compte
+@}
+@end example
+
+La seconde méthode détourne la méthode de création d'un objet précieux
+pour l'intégrer à une méthode qui force la mise à jour du compteur à
+chaque création.
+
+@example
+::oo::define precieux self method creer @{@} @{
+  puts "Le compteur démarre à $compte"
+  if @{$compte > 0@} @{
+    incr compte -1
+    puts "On pourra encore créer $compteur objet précieux"
+    return [precieux new]
+  @} else @{
+    error "On ne peut plus créer d'objet précieux"
+  @}
+@}
+@end example
+
+Et voici maintenant comment on utilise cette classe.
+
+@example
+# 1°) définition de la limite des objets précieux
+precieux regleCompteur 2
+@result{} 2
+
+# 2°) créer les objets précieux
+set obj1 [precieux creer]
+@result{} Le compteur démarre à 2
+@result{} On pourra encore créer 1 objets précieux
+@result{} Création d'un objet précieux
+@result{} ::oo::Obj22
+
+$obj1 affiche
+ @result{} Ceci est un objet précieux
+
+set obj2 [precieux creer]
+@result{} Le compteur démarre à 1
+@result{} On pourra encore créer 0 objets précieux
+@result{} Création d'un objet précieux
+@result{} ::oo::Obj22
+  
+$obj2 affiche
+@result{} Ceci est un objet précieux
+
+# vérification qu'au troisième, on lève l'erreur
+set erreur [catch @{set obj3 [precieux creer]@} res]
+@result{} Le compteur démarre à 0
+@result{} 1
+
+if $erreur @{puts $res@}
+@result{} On ne peut plus créer d'objet précieux
+@end example
+
+Une variable de classe est une variable qui est visible par tous les
+objets de cette classe, mais qui n'est pas ré-initialisée à la création
+d'un objet de cette classe et garde donc a priori sa valeur
+indépendament d'eux, sauf si les objets changent cette variable comme
+ici à l'intérieur d'une des méthodes.
+
+
+@node Fabriquer une commande créant des variables de classe
+@section Fabriquer une commande créant des variables de classe
+@cindex Fabriquer une commande créant des variables de classe
+@findex classvar
+
+Nous allons montrer comment les possibilités d'instrospection de Tcl
+vous nous permettre de fabriquer une nouvelle commande @code{classvar}
+qui construira des variables de classe et donc étendra en quelque sorte
+le langage.  Cette commande sera placée dans l'espace de noms
+@code{::oo::Helpers} qui est un espace maintenu par défaut par TclOO.
+
+Quand la commande @code{classvar} sera invoquée à l'intérieur d'une
+classe, on récupèrera le nom de la classe en remontant d'un niveau
+avec le commande @code{uplevel 1 @{self class@}} pour que la commande
+@code{self} s'applique bien dans cette classe en création et non à
+l'espace de noms @code{::oo::Helpers} qui contient cette procédure.
+
+Quand nous avons déterminé le nom de la classe, la commande
+@code{info object namespace} peut être utilisée pour retrouver l'espace
+privé de la classe où on veut donc placer la prochaine variable de classe.
+
+De la même façon la commande @code{namespace current} doit être évaluée
+dans le scope de l'objet appelant et non dans le scope de la
+procédure @code{classvar} pour récupérer l'espace de noms de l'objet.
+
+Enfin, nous faisons une boucle sur les arguments pour lier les objets
+que nous créons à des variables dans l'espace privé de la classe en
+utilisant la commande @code{upvar}.
+
+@example
+proc ::oo::Helpers::classvar @{args@} @{
+  # récupérer l'espace de noms de la classe
+  set nsCl [info object namespace [uplevel 1 @{self class@}]]
+  # récupérer l'espace de noms de l'objet
+  set nsObj [uplevel 1 @{namespace current@}]
+
+  foreach v $args @{
+    uplevel "my variable $v"
+    upvar #0 $@{nsCl@}::$v $@{nsObj@}::$v
+  @}
+@}
+@end example
+
+
+Nous reprenons l'exemple des objets précieux que nous avions déjà
+traité en utilisant cette nouvelle commande @code{classvar} que nous
+venons de créer.
+
+@example
+oo::class create precieux @{
+  constructor @{@} @{
+    classvar nombre
+    if @{![info exists nombre]@} @{
+      set nombre 1
+    @}
+    if @{$nombre > 2@} @{
+      error "trop d'objets précieux"
+    @}
+    incr nombre
+  @}
+@}
+@result{} ::precieux
+@end example
+
+@example
+set anneauMagic ""
+foreach anneau @{diamant rubi amethiste emeraude or argent@} @{
+  if @{[expr @{rand()@}] > .5@} @{
+    set erreur [catch @{precieux create $anneau@} res]
+    if !$erreur @{
+      lappend anneauMagic $res
+    @} @{
+      puts "raté: $res"
+    @}
+  @}
+@}
+
+puts "Les objets précieux sont: $anneauMagic"
+@result{} Les objets précieux sont: ::diamant ::or
+@end example
+
+Nous venons de rajouter une commande, la commande @code{classvar}, qui
+permet de déclarer une variable de classe directement.
+
+
+@node Fabriquer une commande créant des méthodes de classe
+@section Fabriquer une commande créant des méthodes de classe
+@cindex Fabriquer une commande créant des méthodes de classe
+@findex classmethod
+
+Nous allons maintenant fabriquer une commande @code{classmethod} qui
+créera des méthodes de classes, qui permettent de manipuler les
+variables de classes vu précédemment (@code{classvar}).
+
+Nous allons mettre cette nouvelle commande dans l'espace
+@code{::oo::define} qui comme @code{::oo::Helpers} est aussi un espace
+géré par TclOO, mais qui a en plus l'avantage d'être visible dans le
+définition d'une classe et surtout en dehors du corps d'une méthode.
+
+@example
+proc ::oo::define::classmethod @{name @{args ""@} @{body ""@}@} @{
+  # créer le méthode sur la classe si les arguments sont présents
+  if @{[llength [info level 0]] == 4@} @{
+    uplevel 1 [list self method $name $args $body]
+  @}
+  # obtenir le nom de la classe
+  set cls [lindex [info level -1] 1]
+  # connecté à la classe "my"
+  uplevel forward $name [info object namespace $cls]::my $name
+@}
+@end example
+
+On ne repète pas le code pour obtenir la commande @code{classvar} vue
+dans la section précédent ni la classe @code{precieux}, mais nous lui
+ajoutons une méthode grâce à cette nouvelle commande.
+
+@example
+::oo::define precieux classmethod reduit @{@} @{
+  variable compte
+  puts "Il y en avait $compte"
+  incr compt -1
+  puts "Il y a maintenant $compte objet précieux"
+@}
+
+@end example

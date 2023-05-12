@@ -1,0 +1,981 @@
+@c -*- coding: utf-8-unix; mode: texinfo; mode: auto-fill; -*-
+@c typographie française :    «   »  … ’
+
+
+@node Syntaxe des expressions régulières
+@appendix Syntaxe des expressions régulières
+
+Cette annexe presente la syntaxe des expressions régulières de Tcl comme une
+référence systématique basée sur
+@url{https://www.tcl-lang.org/man/tcl/TclCmd/re_syntax.htm#M47, cette page internet}.
+@c traduction Française:
+@c http://wfr.tcl-lang.org/93
+
+Les expressions régulières sont un sujet complexe, qui demande du temps
+d'apprentissage. Cette page n'est pas la meilleure pour une introduction
+au sujet. Il vaut mieux rechercher d'abord des tutoriels introduisant
+peu à peu le sujet. Cette annexe est destinée à rassembler toutes les
+informations de manières synthétiques pour qu'un utilisateur déjà
+expérimenté puisse y retrouver une précision qui manquait sur ce sujet.
+
+@node Qu'est-ce qu'une expression régulière ?
+@section Qu'est-ce qu'une expression régulière ?
+@cindex expression régulière
+@cindex regexp
+@cindex re
+@cindex er
+@cindex expression rationnelle.
+
+Une expression régulière désigne une chaîne de caractère représentant un
+motif pour rechercher des expressions. Elle est plus générale et plus
+puissante que les motifs de recherche utilisés classiquement pour la
+recherche de fichiers et qu'on rencontre par exemple en Tcl avec la
+commande @code{glob}
+(@ref{Trouver et sélectionner des fichiers (glob)})
+ou la commande @code{match}
+(@ref{Faire correspondre un schéma}). 
+Ici les caractères génériques @code{*} et @code{?} seront aussi
+utilisés, mais avec une autre signification et d'autres codes vont
+s'ajouter rendant ce langage de reconnaissance beaucoup plus riche et
+puissant, mais aussi plus long à apprendre.
+
+
+@subsection Note sur le terme 'expression régulière'.
+
+La traduction de l'adjectif Anglais 'regular' pose parfois problème aux
+francophones. Sa traduction en 'régulier' sonne creux en Français
+moderne, car aujourd'hui, régulier fait immanquablement penser à une
+certaine uniformité ou monotonie. Or ce n'est pas du tout le cas de ce
+genre d'expression comme nous allons le voir. Les textes Français
+préfèrent donc parfois les termes 'expression rationnelle', qui donnent
+l'idée d'un raisonnement sous-tendu, ce qui est tout à fait approprié.
+
+En réalité, le terme 'régulier' a aussi eu en Français cette notion de
+conformité à des règles, qu'on retrouve encore dans l'expression
+'clergé régulier', le clergé qui suit des règles dans des couvents,
+opposé au 'clergé séculier', le clergé plongé dans le siècle et mélangé
+aux profanes.
+
+@c https://www.laculturegenerale.com/difference-clerge-regulier-clerge-seculier/
+
+Nous garderons ici le terme expression régulière, car il facilite les
+passages entre le Français et l'Anglais avec ses diminutifs comme
+@code{regexp}. Il faudra simplement se rappeler, qu'ici régulier veut
+dire suivant des règles.
+
+On abréviera le terme expression regulière par @code{regexp} ou même
+@code{er} (ndt. @code{re} en Anglais, car on sait qu'il faut toujours
+inverser l'ordre des lettres dans les abbréviations entre l'Anglais et
+le Français).
+
+
+@node Les différentes catégories d'expressions régulière
+@section Les différentes catégories d'expressions régulière
+@cindex ERB
+@cindex BER
+@cindex ERE
+@cindex ERA
+@cindex ARE
+
+La norme POSIX définie deux catégories d'expressions régulières :
+@itemize
+@item Les expressions régulières basiques (ERB)
+@item Les expression régulières étendues (ERE)
+@end itemize
+
+Les ERE sont en gros les expressions utilisées par @code{egrep},
+tandis que les ERB sont celles de l'implémentation
+traditionnelle. Cette implémentation Tcl ajoute ici une troisième catégorie
+qui sont les expressions régulières avancés (ERA). Les ERA sont des ERE
+qui ont été améliorées par Henry Spencer qui a implémenté ce paquet en
+s'inspirant de ce qui est fait en Perl5.
+
+Ce manuel décrit avant les les ERA. Les ERB existent pour
+préserver la compatibilité ascendante avec les vieux programmes. Elles
+seront discutées à la fin. Les ERE POSIX sont un sous-ensemble
+des ERA. Les fonctionalités qui ne sont pas présentes dans les
+ERA seront indiquées.
+
+@emph{(ndt. ces acronymes sont inversés en Anglais, @code{BER} et @code{ARE})}
+
+
+
+@node La syntaxe des expressions régulières
+@section La syntaxe des expressions régulières
+
+Une ERA est constituée d'une ou plusieurs branches, séparées
+alors par le signe « ou » @code{|}. Elle recherchera les expressions
+correspondant à l'une ou l'autre des branches.
+
+Une branche est constituée d'une concaténation d'atomes suivi de leur
+quantificateurs, le tout étant éventuellement complété par des
+contraintes. La reconnaissance se fait en séquence en commençant par le
+premier atome, suivi du second, etc… Une branche vide correspondra à la
+chaîne vide.
+
+@node Les atomes
+@section Les atomes
+@cindex (re)
+@cindex atom
+@findex .
+@findex ()
+@findex (?:)
+@cindex (?:re) 
+@cindex [chars] 
+@cindex \k 
+@cindex \c 
+@cindex @{ 
+
+@subsection Retour sur la définition des caractères
+
+Les atomes vont utiliser des reconnaissances de caractères de manière
+générique et donc en se basant parfois sur leur catégories. Commençons
+par rappeler un peu de vocabulaire sur les caractères et qui définissent
+certaines de leur catégories.
+
+@table @samp
+@cindex caractères alphabétiques
+@cindex majustcules / minuscules
+@cindex casse d'une lettre
+@item Les caractères alphabétiques
+sont les lettres utilisées dans nos alphabets. Les lettres ASCII,
+rencontrées en Anglais, mais aussi celles des autres langues et qui sont
+maintenant toujours présentes grâce à l'utilisation de l'ASCII. La
+plupart du temps, il existe deux formes, un forme majuscule et une forme
+minuscule. On appelle cette distinction la casse d'une lettre, qui est
+un terme typographique compris ici dans son acceptation simplifiée
+(@url{https://fr.wikipedia.org/wiki/Casse_(typographie), Casse sur
+Wikipedia})..
+
+@cindex numérique
+@item Les caractères numériques
+sont les chiffres de 0 à 9 qui compose donc
+les chiffres décimaux. Mais attention, il existe aussi les chiffres en
+hexadécimal ou octal qui contiennent aussi les premières lettre de l'alphabet.
+Les chiffres octal sont les chiffres de 0 à 7. Les chiffres hexadécimaux
+sont les chiffres de 0 à 9 ajouté avec les lettres de a à f et les
+lettres de A à F.
+
+@cindex alphanumérique
+@item Les caractères alphanumériques
+sont les caractères alphabétiques joints aux caractères numériques.
+
+@cindex mots
+@item Les caractères des mots
+sont les caractères alphanumériques avec en plus le caractères de
+soulignement @code{_}.
+
+@end table
+
+Le but n'est pas ici de passer en revue toutes les catégories possibles
+de caractères. Mais notons qu'il existe beaucoup de caractères qui ne
+sont pas des caractères alphanumériques.
+
+Certains d'entre eux auront des significations particulières dans une ER
+comme :
+@example
+\ *, + ?  ^ $
+@end example
+
+et d'autres pas :
+@example
+&, @@, £, #, ~.
+@end example
+
+
+@subsection  Constitution d'un atome
+
+Un atome d'une ER peut avoir l'une des forme suivantes :
+
+@multitable  @columnfractions .2 .8
+@item @code{x}
+@tab où @code{x} est un caractactère unique sans autre signification et
+il correspond donc à ce caractère.
+
+@item @code{.}
+@tab correspond à n'importe quel caractère unique.
+
+@item @code{(er)}
+@tab correspond à @code{er} (@code{er} est ici une autre expression
+régulière imbriquée). La partie reconnue est allouée à un registre
+numéroté, ce qui permettra de le réutiliser plus loin.
+
+@item @code{(?:re)}
+@tab comme précédemment, mais sans capturer le résultat dans un registre
+(on parle alors de parenthèses non capturantes).
+
+@item @code{()}
+@tab correspond à la chaîne vide, mais néanmoins archivée dans un
+registre numéroté.
+
+@item @code{(?:)}
+@tab correspond à la chaîne vide sans archivage dans un registre
+
+@item @code{[chars]}
+@tab une expression entre crochet, correspondant à n'importe quels des
+caractères inclus (@xref{Les expressions entre crochets}).
+
+@item @code{\c}
+@tab où @code{c} est un caractère alphanumérique (qui peut être suivi
+d'autres caractères) qui est un échappement pour les ERA
+uniquement (@ref{Les échappements}).
+
+@item @code{\k}
+@tab correspond à un caractère non-alphanumérique de code @code{k}, compris ici
+comme un caractère ordinaire. Par exemple @code{\\} correspond à la
+barre oblique.
+
+@item @code{@{}
+@tab quand l'accolade ouvrante est suivi d'un caractère autre qu'un
+chiffre, ceci correspond à l'accolade ouvrante. Quand elle est suivie
+d'un chiffre, c'est la début d'un quantificateur (@xref{Les quantificateurs}).
+
+@end multitable
+
+
+@node Les quantificateurs
+@section Les quantificateurs
+@cindex *
+@cindex +
+@cindex ?
+@cindex @{m@}
+@cindex @{m,@}
+@cindex @{,n@}
+@cindex @{m,n@}
+@cindex *?
+@cindex +?
+@cindex vorace
+
+Un atome quantifié est un atome suivi par un signe de
+quantification. Sans ce terme, un atome ne correspond qu'à une occurence
+de l'atome. Avec le quantificateur, il peut correspondre à plusieurs
+d'entre eux.
+
+@multitable  @columnfractions .2 .8
+@item @code{*}       @tab  une séquence de 0 ou plus de correspondances
+@item @code{+}       @tab  une séquence de 1 ou plus de correspondances
+@item @code{?}       @tab  une séquence de 0 ou 1 correspondance
+@item @code{@{m@}}   @tab  une séquence d'exactement @code{m} correspondance
+@item @code{@{m,@}}  @tab  une séquence de @code{m} ou plus de correspondances
+@item @code{@{0,n@}}  @tab  une séquence d'au plus @code{n} correspondances
+@item @code{@{m,n@}} @tab  une séquence de @code{m} jusqu'à @code{n} correspondances
+@end multitable
+
+Il existe aussi des combinaisons, qui sont des quantificateurs dits non
+voraces :
+
+@code{*?} @code{+?} @code{??} @code{@{m@}?} @code{@{m,@}?} @code{@{m,n@}?} 
+
+Ces dernières combinaisons préfèrent toujours le plus petit nombre de combinaisons
+possibles, d'où cette appellation de non-vorace (-- ndt. 'non greedy' en Anglais).
+
+Les formes qui utilisent @code{@{} et @code{@}} sont des limites. Les
+nombres @code{m} et @code{n} sont des nombres entiers positifs, dont les
+valeurs possibles sont entre 0 et 255 inclus.
+
+
+@node Les contraintes
+@section Les contraintes
+@cindex ^
+@cindex $
+@cindex (?=re)
+@cindex (?!re)
+
+Une contrainte ne correspond pas un caractère, mais définit une
+contrainte comme les suivantes. Attention, il faut utiliser l'option
+@code{-lineanchor} pour que ces contraintes soient reconnues.
+
+@multitable  @columnfractions .2 .8
+
+@item @code{^}
+@tab correspond au début de la ligne
+
+@item @code{$}
+@tab correspond à la fin de la ligne
+
+@item @code{(?=re)}
+@tab recherche de correspondance positive (pour les ERA seulement), correspond à tous
+les points où une correspondance de sous-chaîne débute.
+
+@item @code{(?!re)}
+@tab recherche de correspondance négative (pour les ERA seulement), correspond à tous
+les points où il n'y a pas de correspondance de sous-chaîne.
+
+@end multitable
+
+Les contraintes de recherche de correspondance ne peuvent pas contenir
+les références arrières (voir plus bas) et toutes les parenthèses qui les
+constituent sont considérées comme non capturantes.
+
+Une expression régulière ne peut pas se terminer par @code{\}.
+
+Les contraintes ne peuvent pas être suivie par des
+quantificateurs. D'autres contraintes sont décrites plus loin avec les
+échappements.
+
+
+@node Les expressions entre crochets
+@section Les expressions entre crochets
+@cindex []
+
+Un expression entre crochets et une liste de caractères entre
+@code{[ ]}.  Elle correspond normalement n'importe quel des caractères
+uniques de cette liste (avec les exceptions présentées plus bas). Si la
+liste débute avec @code{^}, la correspondance se fait avec tout
+caractère simple, qui n'est pas dans la liste qui suit.
+
+Si deux caractères de cette liste sont séparés par @code{-}, il s'agit
+de la définition d'une série de caractères contigus compris entre ces
+deux bornes (et incluant ces bornes). Par exemple @code{[0-9]} désigne
+tous les chiffres de @code{0} à @code{9}. Deux listes de ce types ne
+peuvent pas partager une même borne : l'expression @code{a-c-e} est
+illégale. Attention néanmoins car ces listes de caractères contigus
+peuvent ne pas être identiques d'une machine à l'autre et donc être
+source d'incompatibilités. Ces méthodes sont aussi difficile à appliquer
+pour des choses aussi simples que les caractères accentués, car il faut
+connaître leur placement dans les tables utf-8 (si c'est bien l'encodage
+qu'on utilise).
+
+Les crochets font aussi perdre leur spécificité à certains codes, qui
+deviennent alors de simple caractère litéral. Par exemple un crochet
+@code{]} ou un signe moins @code{-} intégrés dans une liste entre
+crochet redeviennent de simple caractère litéral. On peut aussi sinon
+les échapper avec la barre oblique @code{\} (pour les ERA
+uniquement). La logique peut aussi aider à déterminer si un code doit
+être compris litéralement ou non. Un signe @code{-} mis en dernière
+place d'une expression entre crochets ne peut plus définir une série et
+prend donc simplement sa signification litérale. Par contre, pour
+utiliser un signe moins litéral @code{-} comme la premier éléments d'une
+série contigüe, il faut utiliser la barre d'échappement @code{\} (pour
+les ERA uniquement). À ces exceptions près, les combinaisons utilisant
+@code{[}, les échappements et tous les autres caractères spéciaux, tous
+perdent leur signification particulière quand elles sont entre
+crochets.
+
+
+@node Les classes de caractères
+@section Les classes de caractères
+@cindex alpha
+@cindex upper
+@cindex lower
+@cindex digit
+@cindex xdigit
+@cindex alnum
+@cindex print
+@cindex blank
+@cindex space
+@cindex punct
+@cindex graph
+@cindex cntrl
+@cindex classes de caractères
+
+Quand il est inclus entre crochet, le nom d'un caractère entouré de
+@code{[:} et @code{:]} définit la liste de tous les caractères de cette
+classe (sans plus de notion de contiguïté ou non). Les classes standards
+sont les suivantes :
+
+@multitable  @columnfractions .2 .8
+@item alpha
+@tab une lettre.
+@item upper
+@tab une majuscule.
+@item lower
+@tab une minuscule.
+@item digit
+@tab un chiffre.
+@item xdigit
+@tab un chiffre hexadécimal.
+@item alnum
+@tab un caractère alphanumérique (une lettre ou un chiffre).
+@item print
+@tab une caractère imprimable (comme un caractère
+graphique mais incluant l'espace blanc).
+@item blank
+@tab une espace ou une tabulation.
+@item 
+@tab une caractère produisant un espace blanc dans le texte affiché.
+@item punct
+@tab un signe de ponctuation.
+@item graph
+@tab un caractère avec représentation visible (incluant les ponctuations
+et les caractèrs alphanumériques).
+@item cntrl
+@tab un caractère de contrôle.
+@end multitable
+
+Une machine peut spécifier d'autres classes localement, ce que nous ne
+donnons pas ici.
+
+Une classe de caractère ne peut pas être utilisée comme terme final
+d'une série de termes contigus.
+
+L'implémentation courrant de Tcl n'a qu'un seul contexte local défini,
+qui est l'unicode et qui supporte toutes les classes présentées plus haut.
+
+@example
+regexp @{([:lower:]*)@} AAbbCC res
+@result{} 1
+puts $res
+@result{}
+@end example
+
+
+
+@node Les échappements
+@section Les échappements
+
+Les échappements sont des caractères alphanumériques précédés de la
+barre oblique @code{\} et qui peuvent alors prendre une signification
+particulière autre que la valeur ordinaire de caractère
+alphanumérique. On utilise ici la vocable très particulier de caractère
+« échappé », qui voulait dire à l'origine que le caractère échappait à
+son interprétation normale pendant l'analyse du texte par l'ordinateur.
+
+Ces échappements (qui ne sont valables que pour les ERA) ont plusieurs
+variétés :
+@itemize
+@item les caractères échappés,
+@item les raccourcis échappés pour les classes,
+@item les contraintes échappées,
+@item les références arrières.
+@end itemize
+
+Une barre oblique @code{\} suivie d'un caractère alphanumérique, qui ne
+correspond pas à un échappement valable n'est pas légal pour les
+ERA. Pour les ERE, il n'y a pas de d’échappement : en dehors des expressions
+entre crochets, une barre oblique @code{\} suivi par un caractère
+alphanumérique signifie que ce caractère n'est qu'un caractère
+ordinaire. Entre crochets, la barre oblique @code{\} est un caractère ordinaire.
+(ceci fait partie des incompatibilités entre les ERE et les ERA).
+
+
+@node Les caractères échappés
+@subsection Les caractères échappés
+@findex \a
+@findex \b
+@findex \B
+@findex \e
+@findex \f
+@findex \n
+@findex \r
+@findex \t
+@findex U+wxyz
+
+Pour les ERA, il existe des échappements de caractères qui rendent
+plus facile la scpécification de caractères non imprimables :
+
+@multitable  @columnfractions .2 .8
+@item @code{\a}
+@tab Caractère pour une alarme (une sonnerie), comme en C
+
+@item @code{\b}
+@tab Caractère de retour arrière, commen C
+
+@item @code{\B}
+@tab Synonyme de @code{\} pour aider à réduire les doublements de barres
+obliques dans certaine application, qui doivent traiter plusieurs
+niveaux de barres obliques.
+
+@c @item @code{\cX}
+@c @tab Où @code{X} est n'importe quel caractère, dont la cinquième
+@c bits de bas niveau est la même que @code{X} et dont tous les autres sont
+@c à 0
+
+@item @code{\e}
+@tab Le caractère dont le nom de séquence est @code{ESC} ou si cela
+échoue, le caractère avec la valeur octale de 033.
+
+@item @code{\f}
+@tab saut de page, comme en C (ndt. ``formfeed'' en Anglais)
+
+@item @code{\n}
+@tab nouvelle ligne comme en C.
+
+@item @code{\r}
+@tab retour chariot, comme en C.
+
+@item @code{\t}
+@tab tabulation horizontale, comme en C.
+
+@item @code{\uwxyz}
+@tab (où @code{wxyz} est de un à quatre chiffre hexadécimal) le
+caractère Unicode @code{U+wxyz} dans l'ordre local des octets.
+
+@item @code{\Ustuvwxyz}
+@tab (où @code{stuvwxyz} est un nombre hexadécimal pouvant aller jusqu'à
+huit chiffres).
+Réservé pour les extensions Unicode allant jusqu'à 21 bits. Les chiffres
+sont lus jusqu'à ce que le premier caractère non hexadécimal soit
+rencontré. Si le maximum de huit caractères hexadécimal est dépassé, un
+dépassement est reporté avec la valeur maximale de U+10ffff.
+
+@item @code{\v}
+@tab tabulation verticale, comme en C, quand c'est disponible.
+
+@item @code{\xhh}
+@tab (ou @code{hh} est un nombre hexadécimal à deux chiffres)
+le caractère dont la valeur hexadecimale est @code{0xhh}.
+
+@item @code{\0}
+@tab La caractère dont la valeur est 0.
+
+@item @code{\xyz}
+@tab (où @code{xyz} sont exactement trois chiffres octaux and non une
+référence arrière (@ref{Les références arrières}), donne le caractère
+dont la valeur octale est 0xyz. Le premier chiffre doit être entre 0 et
+3, sinon, ceci est interprété comme un nombre octal sur deux chiffres.
+
+@item @code{\xy}
+@tab (où @code{xy} est exactement deux chiffres en octal et qui ne sont
+pas une référence arrière (@ref{Les références arrières}), donne le
+caractère dont la valeur octale est @code{0xy}. 
+@end multitable
+
+Un caractère obtenu par échappement est toujours un caractère
+ordinaire. Par exemple, @code{\135} donne le caractère unicode @code{]},
+mais il ne referme pas une expression entre crochets. Maintenant, il
+faut faire attention que certaines application ou l'interpréteur Tcl si
+l'expression régulière n'est pas entre accolades peuvent interpréter ces
+séquences avant d'interpréter l'expression régulière et donc leur
+redonner leur signification active. Ceci peut donc demander de doubler,
+trippler voir quatrupler les signes d'échappements de barre oblique
+@code{\}. 
+
+
+@node Raccourcis échappés pour les classes de caractères
+@subsection Raccourcis échappés pour les classes de caractères
+@c CLASS-SHORTHAND ESCAPES
+@cindex \d 
+@cindex \s 
+@cindex \w 
+@cindex \D 
+@cindex \S 
+@cindex \W 
+
+@emph{(Pour les ERA seulement)}.
+
+Pour certaines classes de caractères très utilisées, il existe des
+raccourcis sous forme de caractères échappés :
+
+@multitable  @columnfractions .2 .8
+@item @code{\d}
+@tab [[:digit:]]
+
+@item @code{\s}
+@tab [[:space:]]
+
+@item @code{\w}
+@tab [[:alnum:]_]
+
+@item @code{\D}
+@tab [^[:digit:]]
+
+@item @code{\S}
+@tab [^[:space:]]
+
+@item @code{\W}
+@tab [^[:alnum:]_]
+@end multitable
+
+Pour les raccourcis utilisant les minuscules, quand ils sont utilisés
+dans une expression entre crochets, ils perdent leur crochets extérieurs
+pour rendre la phrase intelligible.
+
+Par exemple 
+@example
+[a-c\d]
+@end example
+
+est équivalent à
+@example
+[a-c[:digit:]]
+@end example
+
+Mais il est illégal d'utiliser les raccourcis utilisant les majuscules à
+l'intérieur de crochets, car on aboutirait à des développements
+illégaux.
+
+@example
+[a-c\D]
+@end example
+
+se développerait en
+
+@example
+[a-c^[:digit:]
+@end example
+
+ce qui est une forme illégale !
+
+
+@node Les contraintes échappées
+@subsection Les contraintes échappées
+@findex \A 
+@findex \m 
+@findex \M 
+@findex \y 
+@findex \Y 
+@findex \Z 
+@findex \m 
+@findex \mnn 
+
+@emph{(Pour les ERA seulement).}
+
+Une containte échappée est une contrainte, qui correspond à la chaîne
+vide si certaines conditions spécifiques sont réalisées et qui est
+écrite avec la barre oblique d'un échappement :
+
+@multitable  @columnfractions .2 .8
+@item @code{\A}
+@tab correspond au début d'une chaîne (voir ci-dessous la différence
+avec @code{^}.
+
+@item @code{\m}
+@tab corresponds seulement au début d'un mot.
+
+@item @code{\M}
+@tab correspond seulement à la fin d'un mot.
+
+@item @code{\y}
+@tab correspond seulement au début ou à la fin d'un mot.
+
+@item @code{\Y}
+@tab correspond seulement au point qui n'est ni le début ni la fin d'un mot.
+
+@item @code{\Z}
+@tab corresond seulement à la fin d'une chaîne (voir plus bas la
+difference avec @code{$}).
+
+@item @code{\m}
+@tab où @code{m} est un chiffre non nul, est une référence arrière, non nul.
+
+@item @code{\mnn}
+@tab où @code{m} est un chiffre non nul, et @code{nn} sont d'autres
+chiffres et la valeur du nombre @code{mnn} n'est pas plus grand que le
+nombre de parenthèses fermantes capturées jusqu'ici ,donne une référence
+arrière voir plus bas.
+@end multitable
+
+Il existe une ancienne notation pour les débuts et fin de mots, qui est
+@code{[[:<:]]} et @code{[[:>:]]}. On en parle ici que pour référence, il
+vaut mieux utiliser maintenant ces codes @code{\m} et @code{\M}.
+
+
+@node Les références arrières
+@subsection Les références arrières
+
+@emph{(Pour les ERA seulement)}.
+
+Une référence arrière correspond à la sous expression entre parenthèses
+spécifiée par un nombre. Par exemple @code{([bc])\1} correspond à
+@code{bb} ou @code{cc} mais pas @code{bc}. La sous-expression doit
+précéder entièrement la référence arrière. Les sous expressions sont
+numérotées dans l'ordre des parenthèses ouvrantes. Les parenthèses non
+capturante ne définisse pas de sous expressions.
+
+Il y a une ambiguité historique entre les entrées octales de caractères
+et les références arrières, qui est résolue par l'heuristique indiquée
+auparavant. Un zéro préfixé indique toujours une séquence d'échappement
+octale. Un chiffre non nul, non suivi par un autre chiffre désigne
+toujours une référence arrière. Une séquence de plusieurs chiffres ne
+démarrant pas par zéro est pris pour une séquence arrière après une
+suite d'expression convenable (en particulier, le nombre est d'un ordre
+compatible pour une référence arrière) et sinon pris pour un chiffre
+octal.
+
+
+@node Metasyntaxe
+@section Metasyntaxe
+@c METASYNTAX
+
+Il existe une syntaxe supplémentaire à la syntaxe décrite ci-dessus. La
+catégorie de l'ER utilisée peut spécifiée par des moyens dépendant de
+l'application
+(@ref{Rechercher avec une expression régulière})
+ou être surchargé par une directive. Si une ER de
+n'importe quelle catégorie démarre avec @code{***:}, le reste de l'ER
+est une ERA. Si une ER de n'importe quelle catégorie démarre avec
+@code{***=}, le reste de l'expression est pris comme une chaîne
+litérale, tous les caractères étant considérés comme des caractères
+ordinaires.
+
+Une ERA peut débutter par des options incluses : une séquence
+@code{(?xyz)} (où @code{xyz} est un ou plusieurs caractères
+alphabétiques) spécifie des options affectant le reste de l'ER. Ceci
+supplémentent et peut surcharger n'importe quelle option spécifiée par
+l'application. Les lettres disponibles pour ces options sont :
+
+@multitable  @columnfractions .2 .8
+@item @code{b}
+@tab Le reste de l'ER est une ERB
+
+@item @code{c}
+@tab Reconnaissance sensible à la casse (choix par défaut)
+
+@item @code{e}
+@tab Le reste de l'ER est une ERE
+
+@item @code{i}
+@tab Reconnaissance indépendante de la casse (voir la section sur les correspondances)
+
+@item @code{m}
+@tab Synonyme historique de @code{n}
+
+@item @code{n}
+@tab Reconnaissance sensible au caractère de nouvelle ligne  (voir la section sur les correspondances)
+
+@item @code{p}
+@tab Reconnaissance sensible au nouvelle ligne partielle (voir la section sur les correspondances)
+
+@item @code{q}
+@tab Les reste de l'ER est une chaîne litérales (entre guillemets, ce
+qui se dit ``quoted'' en Anglais) faite que de caractères ordinaires
+
+@item @code{s}
+@tab Reconnaissance non sensible au caractère de nouvelle ligne (choix
+par défaut)
+
+@item @code{t}
+@tab Syntaxe liée (choix par défaut, voir ci-dessous)
+
+@item @code{w}
+@tab Reconnaissance inverse sensible au nouvelle ligne partielle (voir la section sur les correspondances)
+
+@item @code{x}
+@tab Syntaxe étendue (voir ci-dessous)
+@end multitable
+
+Les options incluses prennent effet à la parenthèse fermante @code{)}
+terminant la séquence. Elles ne sont disponibles qu'au démarrage de
+l'ERA, et elles ne peuvent pas être utilisée plus tard à l'intérieur.
+
+En addition de la syntaxe d'ER liée, dans laquelle tous les caractères
+sont significatifs, il y a une syntaxe étendue, disponible pour toutes
+les catégories d'ER avec l'indicateur @code{-expanded}, ou dans les ERA
+avec les options @code{x} incluses. Dans la syntaxe étendue, les
+caractère blancs sont ignorés et tous les caractèrs entre @code{#} et le
+caractère de nouvelle ligne qui suit (ou la fin de l'ER) sont ignorés,
+ce qui permet de faire des paragraphes et commenter une ER complexe. Il
+y a trois exceptions à cette règle de base :
+
+@itemize
+@item un espace blanc ou @code{#} précédé par @code{\} est retenu
+
+@item un espace blanc ou @code{#} entre crochets est retenu
+
+@item un espace blanc ou des commentaires sont illégales dans des
+symboles de caractères multiples commen @code{(?:} pour les ERA ou
+@code{\(} pour les ERB.
+@end itemize
+
+Les espaces blancs de la syntaxe étendue sont les blancs, les
+tabulations, les caractères de nouvelle ligne et plus généralement tout
+caractère appartenant à la classe des caractères espace.
+
+Au final, dans une ERA, en dehors des expressions entre crochets, la
+séquence @code{(?#ttt)} (où @code{ttt} est n'importe quel texte ne
+contenant pas une parenthèse fermante @code{)}) est un commentaire,
+complètement ignoré. Encore une fois, ceci n'est pas permis entre les
+caractères d'un symbole utilisant plusieurs caractères comme
+@code{(?:}. De tels commentaires sont plus un souvenir du passé qu'une
+fonctionalité vraiment utile et leur utilisation est obsolète. Utilisez
+la syntaxe étendue à la place.
+
+Aucune des extensions de metasyntaxe n'ait disponible si l'application
+(ou la directive initiale @code{***=} ) a spécifié que les entrées de
+l'utilisateur seront traitées comme des chaînes litérales plutôt que
+comme une ER.
+
+
+@node Correspondance
+@section Correspondance
+
+Si une ER trouve une correspondance pour plus d'une sous-chaîne dans une
+chaîne donnée, l'ER retournera celle qui a été trouvée en premier. Si
+l'ER peut trouver plus d'une correspondance à partir d'un même point, le
+choix dépendra de sa préférence, soit pour retourner la plus longue
+correspondance ou la plus courte.
+
+La plupart des atomes, et toutes les contraintes, n'ont aucune
+préférence. Une ER mise entre parenthèse a la même préférence que l'ER
+qui la contient (donc ce peut être aucune). Un atome quantifié avec
+@code{@{m@}} ou @code{@{m@}?} a la même préférence que l'atome lui même
+(donc ce peut être aucune).
+
+Un atome quantifié avec un autre quantificateur (incluant @code{@{m,n@}}
+où @code{m} et égal à @code{n}) préfère la correspondance la plus
+longue.
+
+Un atome quantifié avec un autre quantificateur non-vorace (ce qui
+inclue le cas @code{@{m,n@}?} avec @code{m} égale à @code{n}) préfère
+les correspondances les plus courtes.
+
+Une branche a la même préférence que le premier atome quantifié
+recontré. Une ER consistant en deux ou plusieurs branches connectée par
+l'opérateur ou @code{|} préfère la correspondance la plus longue.
+
+Les sous-expressions qui sont sujettes à des contraintes imposées pour
+faire correspondre l'ER entière préfère aussi la correspondance la plus
+courte ou la plus longue basées sur leur préférences en se basant sur la
+sous-expression démarrant la plus tôt, qui prend donc la précédance sur
+les autres. Notez qu'ainsi les sous expressions extrérieures ont la
+priorité sur les sous expressions qui peuvent les composer.
+
+Les quantificateurs @{1,1@} et @{1,1@}? peuvent être utilisés pour
+forcer une recherche de la plus plus longue correspondance ou
+respectivement une recherche de la plus courte, que ce soit sur une sous
+expression ou l'ER entière.
+
+NOTE: ceci veut dire que vous pouvez normalement rendre une ER non
+vorace de manière générale en mettant @{1,1@}? après l'un des premiers
+atomes non contraint ou ayant une expression entre parenthèse. On gagne
+à expérimenter le bon placement de cet operateur quand vous écrivez une
+ER, si vous utilisez ce niveau de complexité.
+
+Par exemple, cette expression régulière n'est pas vorace et elle
+rechercher la correspondance la plus courte, ce qui fera que @code{abc}
+sera trouvé le plus vite possible (le quantificateur ne change rien à
+cela) :
+
+@example
+ab@{1,1@}?c.*x.*cba
+@end example
+
+L'atome @code{a} n'a pas de préférence de voracité, nous en donnons une
+explicitement à @code{b} et les quantificateurs restants sont surchargés
+pour devenir non-vorace à cause ce quantificateur non-vorace qui précède.
+
+Les longueurs des correspondances sont mesurées en caractères, pas en
+éléments assemblés. Une chaîne vide est considérée plus longue que
+l'absence de correspondance. Par exemple, @code{bb*} correspond au trois
+caractères centraux de @code{abbbc}, @code{(week|wee)(night|knights)}
+correspond aux dix caractères de @code{weeknights}, quand  @code{(.*).*}
+recherche dans @code{abc}, la sous-expression entre parenthèses
+correspond aux trois caractères et quand @code{(a*)*} est mis en
+correspondance avec @code{bc} aussi bien l'ER que la sous-expression
+correspondent à la chaîne vide.
+
+Si une recherche indépendante de la casse est spécifiée, son effet est
+plutôt comme si toutes les distinctions de casse n'existaient plus dans
+l'alphabet. Quand un caractère alphabétique axiste dans plusieurs casses
+apparaît comme un caractère ordinaire en dehors d'une expression entre
+crochets, il est effectivement transformé en une expression entre
+crochets contenant les deux formes. Par exemple @code{x} devient
+@code{[xX]}. Quand il apparait à l'intérieur d'une expression entre
+crochet, tous les autres cas associés sont ajoutés à l'expression entre
+crochets. @code{[x]} devient @code{[xX]} et @code{[^x]} devient
+@code{[^xX]}. 
+
+Si une reconnaissance sensible au caractère de nouvelle ligne est
+spécifiée, @code{.} et les expressions entre crochets utilisant @code{^}
+ne correspondront jamais au caractère de nouvelle ligne (de telle façon
+que la correspondance ne passera jamais de nouvelle ligne sauf si l'ER
+le spécifie explicitement). @code{^} et @code{$} correspondront à la
+chaîne vide après et avant une nouvelle ligne respectivement, en plus de
+correspondre au début et à la fin d'une chaîne respectivement. ERA \A et
+\Z continuent de correspondre au début et à la fin d'une chaîne
+seulement.
+
+Si une correspondance au nouvelle ligne partielle est spécifiée, ceci
+affecte @code{.} et les expressions entre crochets comme pour les
+nouvelles lignes reconnues, mais pas @code{^} et @code{$}. 
+
+Si des reconnaissances inverses sensibles aux nouvelles lignes
+partielles sont spécifiées, ceci affete @code{^} et @code{$} comme pour
+les caractères de nouvelle ligne reconnus, mais pas @code{.} et les
+expressions entre crochets. Ce n'est pas très utile, mais ceci est donné
+par symétrie.
+
+
+@node Expression régulières basiques.
+@section Expression régulières basiques.
+
+Les ERB diffèrent des ERE sur plusieurs aspects. @code{|}, @code{+} et
+@code{?} sont des caractères ordinaires et il n'y a pas d'équivalent
+pour leur fonctionnalités. Les délimiteurs sont @code{\@{} et
+@code{\@}}, les caractères @code{@{} et @code{@}} sont des caractères
+ordinaires. Les parenthèses pour des sous-expressions emboitées sont
+@code{\(} et @code{\)}. Les caractères @code{(} et @code{)} étant des
+caractères ordinaires. @code{^} est un caractère ordinaire excepté au
+début d'une ER ou au début d'une sous-expression entre
+parenthèse. @code{$} est un caractère ordinaire, sauf à la fin d'une ER
+ou à la fin d'une sous-expression entre parenthèses et @code{*} est un
+caractère ordinaire s'il apparait au début d'une ER ou au début d'une
+sous-expression entre parenthèses (après un éventuel @code{^} au
+début). Finalement, les références arrière à un chiffre sont disponibles
+et @code{\<} et @code{\>} sont des synonymes pour @code{[[:<:]]} et
+@code{[[:>:]]} respectivement ; aucun autre échapppement n'est
+disponible. 
+
+
+@node Limites et compatibilités
+@section Limites et compatibilités
+@c LIMITS AND COMPATIBILITY
+
+Il n'y a pas de limite de longueur imposée à une ER. Les programmes
+destinés à être hautement portable ne devraient pas employer d'ER plus
+longue que 256 octets, car les implémentations conformes à la norme
+POSIX peuvent refuser de les traiter.
+
+Les seules fonctionalités des ERA qui sont vraiment incompatible avec
+les ERE conformes à la norme POSIX sont que @code{\} ne perd pas sa
+signification particulière dans une expression entre crochets. Toutes
+les autres fonctionalités des ERA utilise une syntaxe qui est illégale
+ou non définie pour les ERE POSIX ; la syntaxe @code{***} d'une
+directive est en dehors de la syntaxe POSIX aussi bien pour les ERE que
+les ERB.
+
+Beaucoup des extensions ERA sont empruntées de Perl, mais certaines sont
+été changées pour les rendre plus claires et quelque extensions de Perl
+ne sont pas présentes. Les incompatibilités incluent @code{\b},
+@code{\B}, le manque de traitement spécial des nouvelles lignes
+restantes, l'addition d'une expression entre crochets complémentaires
+pour les choses affectées par la reconnaissance sensible ou nouvelle
+ligne, les restrictions sur les parenthèses et les références arrière
+dans le contraintes et la sémantique des correspondances les plus
+longues ou les plus courtes (au lieu d'utiliser plutôt la première
+correspondance).
+
+Les règles de correspondance pour les ERs contenant à la fois des
+quantificateurs normaux et non-voraces ont changé depuis les premières
+versions beta-test de ce paquet. (Les nouvelles règles sont plus
+simples et plus propres, mais ne travaillent pas trop dur pour deviner
+les intentions réelles de l'utilisateur.)
+
+Le paquet original @code{regexp} de 1986 par Henry Spencer implémentait une
+première version des EREs d'aujourd'hui. Il y a quatre incompatibilités
+entre les regexp proches des EREs et les ERAs. Dans un ordre
+croissant d'importance :
+
+@itemize
+@item
+Dans les ERAs, la barre oblique @code{\} suivi d'un caractère
+alphanumérique est soit un échappement soit une erreur, alors que dans
+les EREs, c'était juste un autre moyen d'écrire l'alphanumérique. Ce ne
+devait pas être gênant, car il n'y a pas vraiment de raison d'écrire une
+séquence pareille dans une ERE.
+
+@item
+Une accolade ouvrante @code{@{} suivie d'un chiffre dans un ERA est le
+début d'un intervalle, alors que dans les EREs, l'accolade ouvrant
+@code{@{} a toujours été un caractère ordinaire. De telles séquences
+seront rares, et donneront souvent une erreur parce que les caractères
+suivants ne ressembleront pas à un intervalle valide.
+
+@item
+Dans les ERAs, la barre oblique @code{\} introduit un caractère spécial
+dans les crochets @code{[]}, donc une barre oblique littérale doit être
+redoublée @code{\\}. Une barre oblique redoublée fonctionne aussi dans
+une ERE, mais les programmeurs peuvent ne pas les mettre par défaut.
+
+@item
+Les ERAs rapportent la correspondance la plus longue ou la plus courte,
+plutôt que la première trouvée. Ceci peut affecter quelque ERE qui
+aurait été écrites dans l'hypothèse où la première correspondance serait
+rapportée. (La rédaction soigneuse des RREs pour optimiser l'ordre de
+recherche pour une comparaison rapide est obsolète (les ERAs examinent
+toutes les correspondances possible en parallèle, et leurs performances
+sont largement insensible à leur complexité) mais les cas où l'ordre de
+recherche a été exploité pour trouver delibérément une correspondance
+qui n'est pas la plus longue/plus courte devront être réécrits.)
+@end itemize

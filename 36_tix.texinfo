@@ -1,0 +1,17 @@
+@c -*- mode: texinfo; coding: utf-8-unix; mode: auto-fill; -*-
+
+@node Les mégawidgets de tix
+@section Les megawidgets de tix.
+
+Si l'extension est installée, on doit avoir le
+@url{/usr/share/doc/tix/TixBook.pdf, TixBook} et le
+@url{/usr/share/doc/tix/TixUser.pdf, TixUserBook}.
+
+
+@subsection Connaitre les options possibles d'un sous-widget
+
+@example
+.lawyers subwidget decr configure
+@end example
+
+

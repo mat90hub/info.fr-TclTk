@@ -1,0 +1,596 @@
+@c -*- coding: utf-8-unix; mode: texinfo; -*-
+@c typographie française :    «   » … ’
+
+@node Travailler avec des dictionnaires
+@chapter Travailler avec des dictionnaires.
+@c https://www.tcl-lang.org/man/tcl/TclCmd/dict.htm
+@findex dict
+@cindex dictionnaire
+
+@node création
+@section Création de dictionnaire.
+@cindex création de dictionnaire
+
+Il y a plusieurs possibilités de création d'un dictionnaire.  La plus
+simples est d'écrire une liste de paires entre accolades.
+
+@example
+set dico @{k1 v1 k2 v2 k3 v3@}
+@result{} k1 v1 k2 v2 k3 v3
+@end example
+
+@findex dict get
+Nous récupérons une élément par @code{dict get}.
+
+@example
+dict get $dico k2
+@result{} v2
+@end example
+
+Cette méthode resté élémentaire car les accolades ne permettent aucune
+substitution pendant cette déclaration.
+
+@findex dict create
+L'autre méthode de déclaration utilise la commande @code{dict create}
+qui renvoie le dictionnaire en résultat.
+
+@example
+unset dico ;# on peut libérer un dictionnaire comme une variable
+set dico [dict create k1 v1 k2 v2 k3 v3]
+@result{} k1 v1 k2 v2 k3 v3
+@end example
+
+@findex dict set (création)
+Enfin, nous pouvons aussi construitre le dictionnaire élément par élémnet avec
+la commande @code{dict set}.
+
+@example
+% set dico @{@} ; # vide et s'assure de l'existence du dictionnaire
+% dict set dico k1 v1
+k1 v1
+@end example
+
+Dans cette méthode, le dictionnaire est en paramètre.
+
+@node modifier les couples
+@section Ajout, modification et effacement de couples.
+
+@findex dict set (affectation)
+L'ajout d'un couple clé/valeur ou la modification d'une valeur se font
+avec la même commande @code{dict set}
+
+@example
+dict set dico k1 vA
+@result{} k1 vA
+
+dict set dico k2 v2
+@result{} k1 vA k2 v2
+@end example
+
+@findex dict unset dico
+La suppression se fera avec la commande @code{dict unset}.
+
+@example
+dict unset dico k2
+@result{} k1 vA
+@end example
+
+@findex dict lappend dico clé val ?val?
+On peut utiliser la commande @code{dict lappend} pour ajouter des
+éléments à une valeur déjà remplie (si l'élément est vide, la commande
+est équivalent à la commande @code{set}).
+
+@example
+% dict lappend dico k5 v5
+k1 v1 k2 v2 k5 v5
+
+% dict lappend dico k5 v5a v5b
+k1 v1 k2 v2 k5 @{v5 v5a v5b@}
+@end example
+
+@findex dict exists
+Enfin, on peut avoir besoin de vérifier si une clé existe, ce
+qui se fait avec @code{dict exists}.
+
+@example
+if @{![dict exists $ballon motif]]@} @{dict set ballon rayures@}
+@end example
+
+
+@node ordonner ou filtrer
+@section ordonner ou filtrer sur les clés.
+
+La liste des clés s'obtient par la commande @code{dict keys}.
+
+@example
+puts [dict keys $le_dico]    ;# -> c1 c3 c4
+puts [dict keys $le_dico *3] ;# -> c3
+@end example
+
+@findex dict size
+On pourrait donc avec la liste des clés, compter le nombre d'éléments,
+mais la commande @code{dict size} permet de le faire plus directment.
+
+@example
+dict size $le_dico
+@end example
+
+@cindex dictionnaire classé avec lsort -stride 2
+Cette fonction peut permettre d'accéder aux éléments d'un dictionnaire
+selon un classement. Mais il y a plus rapide.  À la différence d'un
+vecteur (@code{array}), un dictionnaire reste une chaîne de caractères,
+qui permet d'utiliser les fonctions réservées aux listes de chaînes de
+caractères comme la fonction @code{lsort}.
+
+@findex lsort -stride
+La fonction @code{lsort} possède en particulier l'option @code{-stride}
+qui permet de grouper les éléments de la liste, donc ici par deux avec
+@code{-stride 2}. Ensuite, l'option @code{-index} permet d'indiquer sur
+quel élément le classement doit s'appliquer (sachant que l'index
+commence à zéro). On peut aussi faire fait le classement en
+@code{-ascii} (choix par défaut) ou en @code{-integer} ou même en
+@code{-real}.
+
+@table @code
+@item lsort -stride 2  @{raisins 50 bananes 110 cerises 25@}
+ donnera : @code{> bananes 110 cerises 25 raisins 50}
+ Les items sont classés dans l'ordre alphabétique des indexes qui sont ici les
+ noms de fruits.
+
+@item lsort -stride 2 -index 1 -integer @{raisins 50 bananes 110 cerises 25@}
+ donnerai : @code{cerises 25 raisins 50 bananes 110}
+ Les items sont classés dans l'ordre des quantités entières.
+
+@item lsort -stride 2 -index 1 -integer -decreasing @{raisins 50 bananes 110 cerises 25@}
+ donnerai : @code{banane 110 raisin 50 cerises 25}
+ Classement selon les quantités entières, mais en ordre descendant...
+@end table
+
+@findex dict filter
+@cindex dictionnaire filtré avec dict filter
+Enfin, le filtrage des éléments peut se faire au niveau des clés ou des
+valeurs par la commande @code{dict filter}, qu'on comprendra mieux sur
+l'exemple qui suit.
+@c https://wiki.tcl-lang.org/page/dict+filter
+
+@example
+# création d'un dictionnaire
+set typeFich [dict create .jpg "image" .jpeg "image" .html "texte" \
+                     .txt "texte" .mp3 "son" .gif "image" .mp4 "video"]
+
+# filtre sur les valeurs
+set typeImg [dict filter $typeFich value @{ima*@}]
+@result{} .jpg image .jpeg image .gif image
+
+# filtre sur les clés
+set typeJpeg [dict filter $typeFich key @{.jp*@}]
+@result{} .jpg image .jpeg image
+
+# filtre sur les deux à la fois
+set typeVideo [dict filter $typeFich script @{key value@} @{
+                    expr @{$key eq "mp4" || $value eq "video"@}@}]
+@result{} .mp4 video                    
+@end example
+
+
+@node utilisation comme paramètre de procédure
+@section Passer un dictionnaire en paramètre d'une procédure.
+
+Si une procédure doit accéder à un dictionnaire sans le modifier, on le
+passe par valeur (c'est-à-dire une copie), ce qui garantit de ne pas
+modifier la copie originale du dictionnaire. Un tableau ne peut être
+passé que par son adresse (son nom). Il y donc toujours le risque de
+modifier l'original.
+
+@example
+proc get_val_dico @{dico k@} @{return [dict get $dico $k]@}
+proc get_val_array @{arrayName k@} @{upvar $arrayName array; return $array($k)@}
+
+puts [get_val_dico $le_dico c3]     ;# -> v3n
+puts [get_val_array le_tableau c3]  ;# -> v3
+@end example
+
+
+@node vérification d'existence
+@section Vérifier si un dictionnaire existe.
+
+Par défaut l'ajout d'un élement à un dictionnaire va le créer s'il n'existait pas
+avant. On peut parfois avoir besoin de vérifier si un dictionnaire existe.
+Voici une fonction qui permet de le faire.
+
+@example
+proc isdict value @{
+    expr @{![catch @{dict size $value@}]@}
+@}
+isdict $le_dico
+> 1
+@end example
+
+Cette procédure utilise la commande @code{catch} qui intercepte les
+erreurs et la sous-commande @code{dict size} qui doit pouvoir retourner
+un résultat dès qu'un vecteur existe.
+
+
+@node les sous-commandes de 'dict'
+@section Les sous-commandes de @code{dict}
+@findex dict
+
+Ces commandes sont toutes de la forme @code{dict func}. Mais certaines
+utilisent ensuite le nom de la variable dictionnaire (@code{dico}),
+d'autres la référence à son contenu (@code{$dico}). Les premières
+agissent sur le dictionnaire, les secondes renvoient la valeur utile.
+
+
+@subsection Les commandes utilisant la variable @code{dict func dico ...}
+
+@ftable @code
+
+@item dict append dico key str
+ajouter la chaîne str à la valeur associée à la clé key.
+
+@item dict incr dico key ?i
+Les valeurs doivent être des entiers, incrémente la valeur
+correspondant à la clé de 1 ou de i s'il est donné.
+
+@item dict lappend dico key val
+ajoute des paires clé/valeur
+
+@item dict set dico key val
+créer, entrer ou modifier une valeur associée à une clé
+
+@item dict unset dico key
+supprimer une clé et sa valeur
+
+@item dict update dico key val ?key ?val @{@}
+copie les contenus correspondant aux clés sélectionnées dans les
+variables @code{val}, exécute le script en utilisant ces variables et
+recopies ensuite les valeurs obtenues à leur place dans le dictionnaire.
+
+@example
+% set d @{c1 val1 c2 val2@}
+c1 val1 c2 val2
+% dict update d c1 x @{
+    append x _suite
+  @}
+value1new
+% set d
+c1 val1_suite c2 val2
+@end example
+
+On peut appliquer la méthode sur plusieurs valeurs à la fois.
+
+@findex dict with dico
+Cette sous-commande va distribuer le contenu du dictionnaire dans des
+variables, qui porteront le nom des clés du dictionnaire.
+
+@example
+set info [dict create prénom Jean nom Santerre]
+@result{} prénom Jean nom Santerre
+
+dict with info @{puts "$@{prénom@} $nom"@}
+@result{} Jean Santerre
+@end example
+
+On remarquera que la variable @code{prénom} a due être mise entre
+accolades à cause de la lettre accentuée, qui n'appertient pas aux
+caractères ASCII.
+
+@end ftable
+
+
+@subsection Les commandes utilisant le contenu @code{dict func $dico ...}
+
+@table @code
+@findex dict exists
+@item dict exists $dico key
+retourne si une clé existe dans un dictionnaire (existant).
+
+@findex dict filter
+@item dict filter $dico filter
+filtre un dictionnaire.
+
+@findex dict get
+@item dict get $dico key
+retrouve la valeur associée à une clé.
+
+@findex dict info
+@item dict info $dico
+fonction avancée qui retourne des information sur la structure interne
+du dictionnaire (la table de hachage)
+
+@findex dict keys
+@item dict keys $dico
+obtient la liste des clés du dictionnaire.
+
+@findex dict merge
+@item dict merge $dico1 $dico2
+fusionne des dictionnaires
+
+@findex dict remove
+@item dict remove $dico key
+enlève les clés listées (ne plante pas si la clé
+n'existe pas ou qu'aucune n'est donnée).
+
+@findex dict replace
+@item dict replace $dico key val
+remplace les valeurs de certaines clés. Elle ajoute le couple clé/valeur
+si la clé n'existait pas.
+
+@findex dict size
+@item dict size $dico
+donne le nombre d'éléments du dictionnaire.
+
+@findex dict values
+@item dict values $dico ?motif?
+retourne la liste des valeurs, éventuellement filtrée
+par le motif.
+
+@end table
+
+
+@subsection Autres formes
+@table @code
+@findex dict create
+@item set dico [dict create ...]
+création d'un dictionnaire.
+
+@findex dict for
+@item dict for @{key val@} $dico @{ @}
+itération sur certaines valeur du dictionnaire
+à la façon de @code{foreach}.
+
+@findex dict map
+@item dict map @{key val@} $dico @{ @}
+itération à la façon de @code{lmap}.
+
+@findex dict with
+@item dict with dico ?clé? @{ @}
+exécute le script pour chaque clé listée ou pour toutes, si aucune n'est
+nommée.
+
+@end table
+
+
+@node techniques d'itération
+@section Techniques d'itération sur un dictionnaire
+
+Ne jamais oublier de penser aux listes en Tcl.  Voici un exemple on on
+ajoute terme à terme les éléments d'un deuxième dictionnaire au premier
+(mais il faut que les deux dictionnaires aient le même nombre de termes
+et soient ordonnés de manière identique).
+
+Voici un exemple pour somme les valeurs de deux dictionnaires identiques (sans vérifications particulière).
+
+@example
+set dico1 [dict create a 1 b 2 c 3]
+@result{} a 1 b 2 c 3
+set dico2 [dict create a 10 b 11 b 12]
+@result{} a 10 b 11 c 12
+
+foreach @{k1 v1@} $dico1 @{$k2 $v2@} $dico2 @{
+   dict set res $k1 [expr $v1 + $v2]
+@}
+set res
+@result{} a 11 b 13 c 15
+@end example
+
+Cela reste beaucoup plus léger et lisible que de passer par les
+fonctions @code{dict get}? Néanmoins, cette boucle est assez peu solide
+à cause des conditions, car elle suppose que les deux dictionnaires sont
+restés ordonnés comme on le voulait (ce qui est le cas s'ils viennent
+d'être construits et ne sont passés par aucun traitement avant).
+
+@example
+foreach k1 [dict keys $dico1] k2 [dict keys $dico2] @{
+   dict set res $k1 [expr [dict get $dico1 $k1] + [dict get $dico2 $k2]]
+@}
+set res
+@result{} a 11 b 13 c 15
+@end example
+
+
+Il existe cependant aussi une commande spécialement conçue pour itérer
+sur les dictionnaires: @code{dict for}. Par contre, elle ne permet pas
+d'itérer sur deux dictionnaires comme nous venons de le faire. On
+obtient donc un résultat entre les deux.
+
+@example
+dict for @{k1 v1@} $dico1 @{
+   dict set res $k1 [expr $v1 + [dict get $dico2 $k1]]
+@}
+set res
+@result{} a 11 b 13 c 15
+@end example
+
+Mais cette boucle est plus sûre, car nous avons bien spécifié que nous
+voulions ajouter les valeurs ayant les mêmes clefs. La première
+forme utilisait une double itération sur deux listes, en se reposait sur
+le fait que les deux listes restaient ordonnées comme on l'attendait ...
+
+
+Voici un autre exemple montrant le gestion d'un répertoire d'employés va
+nour permettre d'introduire une autre sous-fonction de @code{dict} qui
+est @code{dict with} et qui peut s'averer très utile.
+
+@findex dict for
+@findex dict with
+@findex dict size
+@example 
+# premier employé
+dict set employeeInfo 12345-A forenames "Joe"
+dict set employeeInfo 12345-A surname   "Schmoe"
+dict set employeeInfo 12345-A street "147 Short Street"
+dict set employeeInfo 12345-A city   "Springfield"
+dict set employeeInfo 12345-A phone  "555-1234"
+# deuxième employé
+dict set employeeInfo 12345-A forenames "Joe"
+dict set employeeInfo 12345-A surname   "Schmoe"
+dict set employeeInfo 12345-A street "147 Short Street"
+dict set employeeInfo 12345-A city   "Springfield"
+dict set employeeInfo 12345-A phone  "555-1234"
+
+# le nombre d'employés
+puts "nombre d'employés enregistrés : [dict size $employeeInfo]"
+
+set i 0
+dict for @{id info@} $employeeInfo @{
+  puts "Employé n° [incr i]: $id"
+  dict with info @{
+    puts "  nom: $forenames $surname"
+    puts "  adresse: $street, $city"
+    puts "  téléphone: $phone''
+  @}
+@}
+@end example
+
+Dans cet example, nous avons itéré avec deux variables @code{id} et @code{info}. La première se réfère à l'une des clés du dictionnaire, tandis que la seconde....
+
+
+@node dicttool
+@section Étendre les fonctionalités avec @code{tcllib::dicttool}
+@findex dicttool
+
+
+Ce package donne des fonctionalités étendues aux dictionnaires.
+Il faut avoir @code{Tcllib} installé sur son système et ensuite,
+le paquet se charge avec :
+
+@example
+package require dicttool
+@end example
+
+Les commandes du paquet sont alors directement utilisables.
+
+La documentation se trouve normalement en local
+(/usr/share/doc/tcllib/html/dicttool.html), je donne ici un résumé avec
+néanmoins des examples d'utilisation qui manquent dans cette
+documentation.
+
+
+
+@node dict is_dict
+@subsection Vérifier si on a un dictionnaire @code{dict is_dict}
+@findex dict is_dict (dicttool)
+
+La commande @code{dict is_dict} permet de vérifier si une variable est un dictionnaire,
+tout en utilisant pour cela la représentation interne Tcl (et éviant donc les effets
+de chatoiement si la variable est réellement un dictionnaire).
+
+@example
+set dico [dict create id 01 val abc]
+set lst [list 1 2 3]
+dict is_dict $dico
+@result{} 1
+dict is_dict $lst
+@result{} 0
+@end example
+
+
+@node ladd
+@subsection Ajouter si le code n'existe pas déja: @code{ladd}
+@findex ladd (dicttool)
+
+Cette fonction n'ajoute le couple clé/valeur que si la clé n'existe pas
+déjà avec les mêmes valeurs (clé _et_ valeur).
+
+@example
+set dico [dict create id 01 val abc]
+ladd dico val2 dce
+@result{} id 01 val abc val2 dce
+ladd dico val2 dce
+@result{} id 01 val abc val2 dce
+puts $dico
+@end example
+
+On a répété deux fois l'addition d'un coule clé/valeur,
+mais il n'a été ajouté qu'une fois.
+
+Attention néanmoins, si la valeur était différente
+on aurait eu tout de même une concaténation, mais
+uniquement la valeur et au final, on perd même
+la structure de dictionnaire !
+
+@example
+ladd dico val2 fgh
+@result{} id 01 val abc val2 dce fgh
+dict is_dict $dico
+@result{} 0
+@end example
+
+
+@node ldelete
+@subsection Enlever un champ @code{ldelete}
+@findex ldelete (dicttool)
+
+On peut enlever un couple clé/valeur avec le commande
+@code{ldelete}. 
+
+@example
+set dico [dict create id 01 val abc val2 def val3 ghi]
+@result{} id 01 val abc val2 def val3 ghi
+ldelete dico val3 ghi
+@result{} id 01 val abc val2 def
+@end example
+
+Mais attention, il faut bien donner un couple clé/valeur au risque de
+perdre la structure de dictionnaire.
+
+@example
+set dico [dict create id 01 val abc val2 def val3 ghi]
+@result{} id 01 val abc val2 def val3 ghi
+ldelete dico val3 ekf
+@result{} id 01 val abc val2 def ghi
+dict is_dict $dico
+@result{} 0
+@end example
+
+En fait la commande enlève toutes les valeurs qu'on lui donne en
+argument, sans se plaindre, si l'un des arguments donné n'est ni
+une clé ni un valeur. On pourrait ainsi imaginer effacer deux valeurs
+par erreur et toujours conserver une structure de dictionnaire, puisque
+le nombre d'éléments de la liste reste paire.
+
+@example
+set dico [dict create id 01 val abc val2 def val3 ghi]
+@result{} id 01 val abc val2 def val3 ghi
+ldelete dico def ghi
+@result{} id 01 val abc val2 val3
+dict is_dict $dico
+@result{} 1
+@end example
+
+
+@node dict getnull
+@subsection obtenir un élément sans erreur avec @code{dict getnull}
+@findex dict getnull (dicttool)
+
+Normalement avant d'utiliser la fonction @code{dict get}, il faut toujours
+vérifier avec @code{dict exists} si la code qu'on entre en argument existe
+pour éviter une erreur. Cette fonction @code{dict get} se contente de
+renvoyer un chaîne nulle et ne lève pas d'erreur.
+
+@example
+set dico [dict create id 01 val abc val2 def val3 ghi]
+@result{} id 01 val abc val2 def val3 ghi
+dict get $dico val2
+@result{} def
+dict exists $dico val2
+@result{} 1
+dict get $dico val4
+@result{} key "val4" not known in dictionary
+dict exists $dico val4
+@result{} 0
+dict getnull $dico val2
+@result{} def
+dict getnull $dico val4
+@result{}
+@end example
+
+
+@node autre
+@subsection autres commandes
+@findex dict print (dicttool)
+@findex dict remerge (dicttool)
+
+Il y comme autre commande un @code{dict print} et un un @code{remerge}.
+Voir la documentation officielle pour plus de détails.

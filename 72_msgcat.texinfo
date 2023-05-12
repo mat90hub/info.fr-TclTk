@@ -1,0 +1,389 @@
+@c -*- coding: utf-8-unix; mode: texinfo; mode: auto-fill; -*-
+@c typographie française :    «   »  … ’
+
+@c https://runebook.dev/fr/docs/tcl_tk/tclcmd/msgcat.htm
+@c http://wfr.tcl-lang.org/msgcat
+@c https://wiki.tcl-lang.org/page/msgcat
+@c https://www.tcl-lang.org/man/tcl/TclCmd/msgcat.htm#M15
+
+
+@node Internationalisation et localisation
+@appendix Internationalisation et localisation
+@findex msgcat
+
+L'extension @code{msgcat} permet de personnaliser la langue
+d'interface. Elle contient beaucoup de commandes qui permettent beaucoup
+de flexibilité. Peu à peu avec les révisions de Tcl, ceci a convergé
+vers une utilisation très simple si on respecte certaines contraintes,
+qui sont finalement très souvent réalisées:
+
+@itemize @minus
+@item les textes d'origine sont en Anglais
+@item la traduction se fait vers la langue par défaut
+@end itemize
+
+Ensuite, la pratique a conduit à rassembler tous les catalogues de
+traduction dans un sous répertoire @code{.msgs} avec un fichier par
+langue, comme par exemple @code{fr_fr.msg} pour le catalogue des
+traductions en Français de France, ou plus simplement @code{fr.msg} si
+on en veut pas faire de différence entre les Francophones.
+
+Nous allons commencer par présenter cette utilisation, qui est la plus
+simple, mais en même temps la plus évoluée puis nous présenteront
+ensuite les autres commandes, aujourd'hui moins utilisées.
+
+L'extension doit avoir été installée sur votre ordinateur et se charge
+ensuite avec le commande usuelle.
+
+@example
+package require msgcat
+@end example
+
+
+@node Définir un fichier de traduction
+@section Définir un fichier de traduction
+
+Les fichiers de traductions sont des fichiers texte avec l'extension
+@file{.msg} et comme nom le nom de la locale. Par exemple pour le
+Français de France, le fichier sera @file{./msgs/fr_fr.msg}. Pour un
+fichier pour du Français indifférencié, on prendre simplement
+@file{./msgs/fr.msg}.
+
+Ce fichier sera sensuite constitué de commande du type :
+
+@example
+::msgcat::mcflset New Nouveau
+::msgcat::mcflset "missing file" "fichier manquant"
+@end example
+
+Le fichier sera ensuite chargé dans le script utilisant ces
+traductions avec une instruction qui charge le dossier complet. Cette
+instruction retrouve le répertoire du script en cours pour y ajouter le
+sous répertoire @file{msg}.
+
+@findex msgcat::mcload
+@example
+::msgcat::mcload [file join [file dirname [info script]] msgs]
+@end example
+
+@findex msgcat::mc
+Dans le script, toutes les chaînes texte devant être traduite seront
+maintenant des commandes @code{::msgcat::mc}.
+
+@example
+tk_messageBox -type ok -message [::msgcat::mc "missing file"]
+@end example
+
+Comme cette commande est souvent utilisée, on peut la déclarer pour
+racourcir son appel à @code{mc}.
+
+@example
+namespace import msgcat::mc
+@end example
+
+La commande @code{msgcat::mc} accepte aussi des paramètres, qui
+correspondront à des étiquettes dans la phrases à traduire. Cet exemple
+permet de comprendre.
+
+@example
+if @{[catch @{open $File r@} Err@} @{
+  puts stderr [mc "Accessing File Error '%s': %s" $File $Err]
+@}
+@end example
+
+On définira alors la traduction de la manière suivante.
+
+@example
+msgcat::mcset fr "Accessing File Error '%s': %s" \
+                 "Erreur d'accès au fichier '%s': %s"
+@end example
+
+
+Pour entrer une série de traductions, on peut aussi utiliser la commande
+@code{msgcat::mcflmset} qui entre une liste sous forme de couples.
+
+@example
+::msgcat::mcflmset @{\
+    "Work on-going!" "En travaux !"\
+	"Delete this tuple?" "Effacer ce tuple?"\
+	"Error on date entered!" "Erreur sur la date entrée !"\
+	"Entry corrected for" "Entrée corrigée pour"\
+	"Entry error for" "Erreur d'entrée pour"\
+	"No record found!" "Pas d'enregistrement trouvé !"@}
+@end example
+
+
+
+@node Travailler avec des espaces de noms
+@section Travailler avec des espaces de noms
+
+Si rien n'est préciser, @code{msgcat} recherche les chaînes à traduire
+dans l'espace de nom courant. Quand on veut traduire des chaînes qui
+sont à l'intérieur d'espaces de noms, le fichier de traduction doit
+donc reproduire ces espaces de noms et leur empilement :
+
+@example
+namespace eval coddict @{
+  namespace eval description @{
+     ::msgcat::mcflset "Working account" "Comptes travaux"
+  @}
+@}  
+@end example
+
+
+@node Utiliser des étiquettes
+@section Utiliser des étiquettes
+
+Une technique possible est de remplacer tous les textes du langage
+source par des étiquettes.
+
+@example
+if @{[catch @{open $File r@} Err@} @{
+  puts stderr [mc errFile '%s': %s $File $Err]
+@}
+@end example
+
+
+@example
+msgcat::mcset fr errFile "Erreur d'accès au fichier '%s': %s"
+msgcat::mcset en errFile "Accessing File Error '%s': %s"
+msgcat::mcset @{@} errFile "Accessing File Error '%s': %s"
+@end example
+
+Les paramètres peuvent changer de place entre une langue et une
+autre. L'utilisation de paramères positionnels pour les étiquettes
+devient alors très utile. Ceci se fait sur le modèle de la commande 
+@code{format}.
+
+@example
+format "We produced %1\$d units in location %2\$s" $num $city
+format "In location %2\$s we produced %1\$d units" $num $city
+@end example
+
+Avec @code{msgcat::mc} cela donne simplement. On remarquera que cette
+commande reconnait aussi les formats : @code{$d} pour numérique et
+@code{$s} pour une chaîne (ndt. 'string').
+
+@example
+msgcat::mc @{produced %1$d at %2$s@} $num $city
+@end example
+
+
+
+@node Définir la localisation
+@section Définir une traduction
+
+La localisation par défaut est toujours celle du système. On la
+retrouve avec la commande suivante.
+
+@example
+::msgcat::mclocale
+@end example
+
+Cette localisation peut être changée en donnant un paramètre.
+
+@example
+::msgcat::mclocale fr
+@end example
+
+Les localisations peut être plus complète comme @code{fr_fr}.
+
+On peut aussi revenir sur la localisation du système avec la variable
+d'environnement @code{$env(LANG)}.
+
+@example
+::msgcat::mclocale $env(LANG)
+@result{}fr_FR.UTF-8
+@end example
+
+
+
+@node Définir une traduction pour une localisation
+@section Définir une traduction pour une localisation
+@findex mgscat::mc
+@findex msgcat::mcset
+
+La commande @code{msgcat::mcset} était la commande d'origine aujourd'hui
+remplacée par @code{msgcat::mcflset}. Elle traduit une chaîne écrite
+dans la langue par défaut (choisir l'Anglais comme langue par défaut est
+toujours la meilleure solution). C'était donc typiquement pour inclure
+ces phrases dans les fichiers script et non dans un fichier séparé dédié
+à une localisation.
+
+@example
+msgcat::mcset fr "New" "Nouveau"
+@end example
+
+Ensuite, on utilisera la commande @code{msgcat::mc} pour traduire les
+chaînes.
+
+@example
+msgcat::mc New
+@result{}Nouveau
+@end example
+
+Et comme avant, si la traduction n'existe pas, la commande
+@code{msgcat::mc} renvoie simplement la forme non traduite dans le
+langage source.
+
+@example
+msgcat::mc What?
+@result{}What?
+@end example
+
+
+@node Quand la traduction est manquante
+@section Quand la traduction est manquante
+@findex msgcat::mcunknown
+
+Si une traduction est manquante, le comportement par défaut de
+@code{msgcat::mc} est de donner la première chaîne (dans la langue par
+défaut). Ceci est effectuée par la commande @code{msgcat::mcunknown} qui
+peut donc être redéfinie pour changer ce comportement. Elle prend comme
+paramètre la localisation et la chaîne à traduire. Si on veut pouvoir
+revenir en arrière, il faut penser à sauvegarder une version de la
+fonction d'origine en utilisant la commande @code{rename}, voyez sur
+cet exemple.
+
+
+@example
+rename ::msgcat::mcunknown SavedMcunknown
+
+proc ::msgcat::mcunknown @{dom s@} @{
+  return "pas de traduction $dom pour '$s'"
+@}
+
+::msgcat::mc zorg
+@result{}pas de traduction fr_fr pour 'zorg'
+
+# pour revenir au comportement d'origine
+rename ::msgcat::mcunknown @{@}
+rename SavedMcunknown ::msgcat::mcunknown
+@end example
+
+
+
+@node Vérifier si une traduction existe
+@section Vérifier si une traduction existe
+@findex msgcat::mcexist
+
+La commande @code{msgcat::mcexist} permet de vérifier si une traduction
+existe. La forme complète est la suivante.
+
+@example
+::msgcat::mcexist ?-exactnamespace? ?-exactlocale? src
+@end example
+
+L'option @code{-exactnamespace} permet de préciser qu'on ne veut
+chercher que dans l'espace de nom actuel. L'option @code{-exactlocale}
+permet de restreindre aussi uniquement à la local préférée.
+
+
+@node Connaître la traduction la plus longue
+@section Connaître la traduction la plus longue
+@findex msgcat::mcmax
+
+Les traductions peuvent avoir des longueurs différente et il peut donc
+être utile de récupérer la longueur maximale d'une liste de chaîne en
+fonction de la locale pour adapter l'interface graphique (typiquement la
+longueur des boutons). La commande @code{msgcat::mcmax} permet de
+récuperer ainsi cette longueur.
+
+@example
+msgcat::mcset fr New Nouveau
+@result{}Nouveau
+msgcat::mcset fr File Fichier
+@result{}Fichier
+msgcat::mclocale fr_fr
+@result{}fr_fr
+msgcat::mcmax File New
+@result{}7
+@end example
+
+
+@node Configurer le paquet
+@section Configurer la paquet
+@findex msgcat::mcpackageconfig
+
+La commande suivante permet de régler certains comportement par défaut
+du paquet.
+
+@example
+::msgcat::mcpackageconfig set option value
+@end example
+
+Les options possibles sont :
+
+@table @code
+@item mcfolder
+Cette option définit le dossier par défaut des fichiers de traduction
+chargés par la commande @code{msgcat::mcload}.
+
+@item loadcmd
+Il s'agit de la fonction qui est appelée avant qu'un dossier de fichiers
+de traduction ne soit chargé.
+
+@item unknowncmd
+Ceci permet de définir la fonction à lancer si la traduction n'existe
+pas.
+@end table
+
+Pour plus de détail, voir le lien
+@url{https://runebook.dev/fr/docs/tcl_tk/tclcmd/msgcat.htm}.
+
+
+@node Récapitulation des commandes de 'msgcat'
+@section Récapitulation des commandes de @code{msgcat}
+@findex msgcat
+
+Voici la liste des commandes disponibles.
+
+@table @code
+
+@item mcflset
+définit une traduction dans un fichier de traduction
+
+@item mcflmset
+définit une traduction donnée par une liste de couples.
+
+@item mc
+donner la traduction d'une variable selon la localisation en cours
+
+@item mcload
+chargement d'un catalogue de traduction
+
+@item mclocale
+définir la localisation
+
+@item mcset
+définition d'une traduction, sur un exemple
+
+@item mcmset
+définition de traductions données par une liste de couples.
+
+@item mcunknown
+fonction appelée si une traduction est absente
+
+@item mcexists
+vérifie si une variable a une traduction
+
+@item mcpreferences
+retrouve la liste des variables de localisation
+
+@item mcloadedlocales loaded/clear
+liste les variables de localisation chargées ou efface toutes les
+variables qui ne sont pas dans @code{mcpreferences}.
+
+@item mcmax
+donne la longueur maximale des traductions
+
+@item mcpackagelocale
+obtient ou change la localisation
+
+@item mcforgetpackage
+efface toutes les données de traduction de la mémoire vive.
+
+@item mcpackageconfig
+change les options par défaut du paquet
+
+@end table

@@ -1,0 +1,212 @@
+-*- mode: org; coding: utf-8-unix; fill-column: 100; mode: auto-fill;  -*-
+# typographie française :    «   » … ’
+
+#+STARTUP: showall
+#+STARTUP: hidestars
+#+STARTUP: inlineimages
+#+TAGS: @obsolète @reprendre @faire
+
+╔═════════════════════════════════════════════╗
+║ Notes prises sur Tcl & Tk                   ║
+╚═════════════════════════════════════════════╝
+
+Ce fichier contient des notes venant principalement d'une traduction du livre de Clif Flynt 'Tcl/Tk a developer guide'.
+Il s'agit d'un fichier info, qui en appelle d'autre. En gros j'ai choisi un fichier par chapitre en fonction
+des traductions que je faisais (un peu dans le désordre). Le fichier maître est montcl.texinfo.
+
+
+* compilation et installation du fichier info
+
+  Un fichier [[./Makefile][Makefile]] maintient à jour la compilation de l'ensemble et son installation.
+  
+  Le répertoire /usr/local/share/info/ contient déjà le fichier [[/usr/local/share/info/dir.gz][dir]] ayant le lien vers ce fichier info, sinon
+  voir le source du fichier montcl.texinfo
+
+
+* à faire
+
+** TODO [66%] repenser la structure général du fichier info
+  - [X] clarifier le vocabulaire (commande, procédure, fonction)
+  - [X] revoir la premier chapitre et mieux distinguer les chaînes et les listes
+  - [ ] revoir les commmandes de recherche et de substitution dans les chaînes
+  
+
+** TODO [100%] Mieux expliquer les niveaux
+   https://wiki.tcl-lang.org/page/level
+  - [X] La commande return
+  - [X] la commande namespace eval et ses autres formes
+  - [X] la commande proc et les niveaux
+  - [X] les proc imbriquées ?
+
+
+** [40%] compléter les chapitres manquants pour Tk
+   - [X] les cadres
+   - [X] les étiquettes
+   - [X] les boutons @code{button}
+   - [X] les zones d'entrée @menu{entry}
+   - [X] les cadres d'étiquette @meny{labelframe}
+   - [ ] les boutons radio @code{radiobutton}
+   - [ ] les cases à cocher @code{checkbutton}
+   - [ ] les menus @code{menu}
+   - [ ] les bouton menus @code{menubutton}
+   - [ ] les menus à option @code{tk_optionMenu}
+   - [ ] les popup @code{tk_popup}
+   - [ ] les boites liste @code{listbox}
+   - [ ] les ascenceurs @code{scrollbar}
+   - [ ] les curseurs de mise à l'échelle @code{scale}
+   - [ ] le widget text @code{tex}
+   - [ ] les polices de caractères @code{font}
+   - [ ] le widget canvas @code{canvas}
+   - [ ] les images et bitmaps
+   - [ ] les fenêtres du premier niveau @code{topleve}
+   - [X] les dialogues standards @code{tk_dialog}
+   - [X] les dialogues messages code{message} @code{tk_messageBox}
+   - [X] les dialogues pour choisir une couleur @code{tk_chooseColor}
+   - [X] les dialogues pour les fichier @code{tk_getOpenFile}
+   - [ ] les dialogues pour les fichier @code{tk_getSaveFile}
+   - [X] les dialogues pour changer une police de caractère
+   - [X] les panneaux glissants @code{pannedwindow} 
+   - [X] les onglets @code{notebook}
+   - [ ] les boites spin @code{spinbox}
+   - [ ] les boites combo
+   - [ ] la bibliothèque tix
+
+** TODO [80%] les placements des widgets
+   - [X] la commande place
+   - [X] la command pack
+   - [X] la command grid
+   - [ ] grid columnconfigure, grid rowconfigure  [[http://wfr.tcl-lang.org/grid]]
+   - [X] cget, configure
+
+** divers 
+   - [ ] les ballons d'aide
+
+** TODO [%] interaction avec la boucles des évènements
+   - [ ] la commande @code{after}
+   - [ ] la commande @code{busy}
+
+** liéer un widget avec un évènement
+   - [ ] la commande @code{bind}
+   - [ ] la commande @code{focus}
+
+** les images
+   - [ ] le programme unix bitmap
+   - [ ] intégrer des images dans du code @code{static unsigned char x[] =..}
+
+** TODO [82%] vérifier que toutes les commandes tcl sont couvertes
+   - [X] after
+   - [X] args
+   - [X] append
+   - [X] apply
+   - [X] array
+   - [ ] bell (https://www.tcl.tk/man/tcl8.6/TkCmd/bell.htm)
+   - [X] bgerror
+   - [ ] bitmap
+   - [ ] bind
+   - [X] bindtags
+   - [X] break
+   - [X] dict
+   - [X] catch
+   - [ ] canvas
+   - [X] cd
+   - [ ] clock
+   - [X] close
+   - [X] concat
+   - [X] continue
+   - [ ] couroutine
+   - [X] deletemethod
+   - [X] eval
+   - [ ] event
+   - [X] eof
+   - [X] error
+   - [X] exec
+   - [X] expr
+   - [X] fconfigure
+   - [X] file
+   - [X] fileevent  (http://wfr.tcl-lang.org/115 / https://wiki.tcl-lang.org/page/fileevent)
+   - [X] flush
+   - [ ] focus
+   - [X] for
+   - [X] foreach
+   - [X] format
+   - [X] frame
+   - [X] gets
+   - [X] glob
+   - [X] global
+   - [ ] grab  (chap 14.8.1) http://wfr.tcl-lang.org/182
+   - [X] if/else/elseif
+   - [ ] image
+   - [X] in
+   - [X] incr
+   - [X] info
+   - [X] interp ([[http://wfr.tcl-lang.org/70][interp]])
+   - [X] join
+   - [ ] keysym
+   - [X] lappend
+   - [X] lassign
+   - [ ] load
+   - [ ] ::tcl::mathfunc
+   - [X] mathop
+   - [X] mixin
+   - [X] my
+   - [X] myclass
+   - [X] les tests logiques
+   - [X] list
+   - [X] lindex
+   - [X] lmap
+   - [X] lrange
+   - [X] lrepeat
+   - [X] lreplace
+   - [X] lsearch
+   - [X] lset
+   - [X] lsort
+   - [X] module
+   - [X] namespace
+   - [X] my
+   - [X] next
+   - [X] ni
+   - [X] open
+   - [X] package
+   - [X] parray
+   - [X] pkg_mkIndex
+   - [X] proc
+   - [X] puts
+   - [X] pwd
+   - [X] regexp
+   - [X] read
+   - [X] regsub
+   - [X] return
+   - [X] scan
+   - [ ] safe [[https://www.tcl.tk/software/plugin/safetcl.html][safe sur Xchange]] [[https://wiki.tcl-lang.org/page/Safe+Interps][safe sur Tcler's]]
+   - [ ] seek
+   - [X] set
+   - [ ] slave
+   - [X] socket
+   - [X] source
+   - [X] split
+   - [ } starkit
+   - [X] stderr
+   - [X] stdin
+   - [X] stdout
+   - [X] string
+   - [X] subst
+   - [X] superclass
+   - [X] switch
+   - [X] tailcall  ([[/fr.wikipedia.org/wiki/Récursion_terminale][recursion terminale]])
+   - [X] tclvar ([[https://www.tcl-lang.org/man/tcl8.6/TclCmd/tclvars.htm][tclvar]])
+   - [X] tdbc
+   - [X] throw
+   - [ ] time
+   - [ ] tkwait
+   - [X] tm (module)
+   - [X] trace
+   - [X] try
+   - [ ] safe
+   - [ ] unload
+   - [X] unset
+   - [X] uplevel
+   - [X] upvar
+   - [X] update
+   - [X] variable
+   - [X] vwait
+   - [X] while

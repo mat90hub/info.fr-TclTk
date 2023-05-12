@@ -1,0 +1,541 @@
+@c -*- coding: utf-8-unix; mode: texinfo; mode: auto-fill; -*-
+@c typographie française :    «   » … ’
+
+@node Travailler avec des vecteurs associatifs
+@chapter Travailler avec des vecteurs associatifs.
+@cindex vecteur
+@findex array
+
+Les vecteurs associatifs sont des tableaux donnant des contenus
+indicés. En interne, ils se basent sur la construction des
+dictionnaires, tout en permettant les notations raccourcies
+@code{valeur(indice)} comme @code{puts $a($i)}. En Tcl, il n'y a pas de
+restriction sur le choix de l'indice ou sur les valeurs stockées, qui
+peuvent donc être hétéroclites. Il n'y a pas non plus de réservation de
+mémoire à prévoir. Par contre, ils ont certaines limitations avec les
+procédures (voir plus loin le chapitre sur les procédures
+@footnote{@ref{Les procédures et les vecteurs associatifs}}).
+
+Comme l'a montré l'introduction
+@footnote{@ref{Vecteurs associatifs}},
+un vecteur associatif se crée de manière intuitive sans
+pré-déclaration avec des commandes du type.
+
+@example
+set ballon(couleur) rouge
+@result{} rouge
+set ballon(rayon) 5cm
+@result{} 5cm
+@end example
+
+On peut ensuite vérifier le résultat avec la commande @code{parray} qui
+renvoie un affichage en mode texte du contenu du vecteur.
+
+@example
+parray ballon
+@result{} ballon(couleur) = rouge
+@result{} ballon(rayon)   = 5cm
+@end example
+
+
+Nous maintenant passer en revue les commandes des vecteurs associatifs.
+
+@node parray
+@section @code{parray}
+@findex parray
+
+La commande @code{parray} donne un affichage pratique sous
+format texte d'un vecteur associatif.
+
+@example
+set ballon(couleur) rouge
+@result{} rouge
+set ballon(rayon) 5cm
+@result{} 5cm
+parray ballon
+@result{} ballon(couleur) = rouge
+@result{} ballon(rayon)   = 5cm
+@end example
+
+Cette commande accepte l'ajout d'un motif qui sélectionne les indices.
+
+@example
+parray 'vecteur' 'motif'
+@end example
+
+
+
+@node array set
+@section @code{array set}
+@findex array set
+
+La commande @code{array set} permet de convertir un dictionnaire
+un vecteur associatif.
+
+@example
+array set ballon1 [list couleur rouge rayon 5cm]
+parray ballon1
+@result{} ballon1(couleur) = rouge
+@result{} ballon1(rayon)   = 5cm
+array set ballon2 @{couleur vert rayon 3cm@}
+@result{} ballon1(couleur) = vert
+@result{} ballon1(rayon)   = 3cm
+@end example
+
+La liste peut être donnée sous ses trois formes:
+
+@enumerate 
+@item Les crochets exécutant la commande list
+
+@item Les guillemets double @code{""} permettant les substitutions
+
+@item les crochets, donnant un liste figée
+@end enumerate
+
+On rappelle que le caractère @code{\} permet d'introduire des retours à
+la ligne à l'intérieur d'une chaîne avec des guillemets @code{""} ou
+d'une commande avec des crochets et qui devrait ici être normalement sur
+une seule ligne.
+
+@anchor{exemple d'une série de tableaux}
+Voici par exemple la technique pour remplir une série de tableaux dont
+les noms sont dans une liste.
+
+@example
+set tabLst [list tab1 tab2 tab3]
+@result{} tab1 tab2 tab3
+foreach tab $tabLst @{
+  array set $tab [list col1 val[string range $tab end end]1 \
+                       col2 val[string range $tab end end]2 \
+                       col3 val[string range $tab end end]3]                      
+@}
+
+foreach tab $tabLst @{parray $tab@}
+@result{} tab1(col1) = val11
+@result{} tab1(col2) = val12
+@result{} tab1(col3) = val13
+@result{} tab2(col1) = val21
+@result{} tab2(col2) = val22
+@result{} tab2(col3) = val23
+@result{} tab3(col1) = val31
+@result{} tab3(col2) = val32
+@result{} tab3(col3) = val33
+@end example
+
+
+
+@node array unset
+@section @code{array unset}
+@findex array unset
+
+La commande @code{array unset} supprime des composantes d'un vecteur
+pour les indices correspondant au motif donné, avec les règles qu'utilise
+la commande @code{glob}
+@footnote{@ref{Trouver et sélectionner des fichiers (glob)}}.
+
+@example
+array unset 'vecteur' 'motif'
+@end example
+
+Si le motif est un nom unique d'indice, cela revient à utiliser la commande
+@code{unset}.
+
+@example
+unset 'vecteur(indice)'
+@end example
+
+@example
+array set vect [list 1 un 2 deux 11 onze]
+parray vect
+@result{} vect(1)  = un
+@result{} vect(11) = onze
+@result{} vect(2)  = deux
+
+array unset vect 1*
+parray vect
+@result{} vect(2) = deux
+
+unset vect(2)
+parray vect
+@result{}
+@end example
+
+
+
+@node array get
+@section array get
+findex array get
+
+La commande @code{array get} permet de récupérer des valeurs d'un
+vecteur sous forme d'un dictionnaire.
+
+@example
+array get nomVecteur ?motif?
+@end example
+
+Si le motif n'est pas spécifié, alors toutes les valeurs sont
+retournées, sinon le filtre s'applique aux noms du vecteur avec les
+mêmes règles que la commande 
+@code{glob}@footnote{@ref{Trouver et sélectionner des fichiers (glob)}}.
+Si le nom du vecteur ne correspond pas à un vecteur existant ou qu'il
+n'a aucun contenu, la commande retourne une liste vide.
+
+@example
+array set ballons @{rouge 4cm vert 5cm@}
+array get ballons
+@result{} vert 5cm rouge 4cm
+@end example
+
+On peut ensuite repasser ce dictionnaire de nouveau dans un vecteur
+associatif avec la commande @code{array set}.
+
+@example
+array set ballon1 [array get ballons r*]
+parray ballon1
+@result{} ballon1(rouge) = 4cm
+@end example
+
+@findex lsort -stride 2
+La sortie d'un vecteur selon cette méthode n'est pas classée, mais on
+peut le faire avec la commande @code{lsort -stride 2}. 
+
+@example
+set ballons(bleu) 10cm
+set ballons(jaune) 8cm
+lsort -decreasing -stride 2 [array get ballons]
+@result{} vert 5cm rouge 4cm jaune 8cm bleu 10cm
+lsort -increasing -stride 2 [array get ballons]
+@result{} bleu 10cm jaune 8cm rouge 4cm vert 5cm
+@end example
+
+
+Reprenons le problème d'une série de tableaux dont les noms sont stockés
+dans une liste (@ref{exemple d'une série de tableaux}). Imaginons que
+nous voulions récupérer toutes les deuxièmes colonnes de ces tableaux,
+il faut alors écrire quelque chose comme ceci.
+
+@example
+foreach tab $tabLst @{puts [dict get [array get $tab col2] col2]@}
+@result{} val12
+@result{} val22
+@result{} val32
+@end example
+
+On voit ici qu'on retombe finalement dans les techniques propres aux
+dictionnaires. Mais comme ici l'extraction est simple, on peut aussi
+utiliser la commande de list @code{lindex}.
+
+@example
+foreach tab $tabLst @{puts [lindex [array get $tab col2] 1]@}
+@result{} val12
+@result{} val22
+@result{} val32
+@end example
+
+
+
+@node array names
+@section @code{array names}
+@findex array names
+
+La commande @code{array names} donne l'ensemble des indices
+du vecteur associatif.
+
+@example
+set ballon(couleur) rouge
+set ballon(rayon)   5cm
+array names ballon
+@result{} rayon couleur
+@end example
+
+On remarquera que les indices ne gardent pas spécialement
+l'ordre dans lequel ils ont été entrés.
+
+Cette commande va être utile pour itérer sur les membres
+d'un vecteur.
+
+@example
+% foreach i [array names ballon] @{
+%   puts "ballon($i) = $ballon($i)"
+% @}
+@end example
+
+
+@node array size
+@section @code{array size}
+@findex array size
+
+La commande @code{array size} donne le nombre de membre
+d'un vecteur associatif.
+
+@example
+set ballon(couleur) rouge
+@result{} rouge
+set ballon(rayon) 5cm
+@result{} 5cm
+array size ballon
+@result{} 2
+@end example
+
+
+@node array exists
+@section @code{array exists}
+@findex array exists
+
+La commande @code{arry exist} va confirme l'existence ou
+non d'un vecteur.
+
+Cette commande est de la forme
+
+@example
+array exits arrayName
+@end example
+
+Elle renvoie 1 si le vecteur existe, 0 s'il n'existe pas.
+
+
+@node Passer par un dictionnaire
+@section Passer par un dictionnaire
+
+Certaines fonctionalités peuvent être retrouvées en passant par un
+dictionnaire. Par exemple pour savoir si un nom a été utilisé comme
+indice du vecteur, on peut utiliser cette commande.
+
+@example
+if [dict exists [array get ARRAY] $NOM] @{ ....@}
+@end example
+
+Mais on peut aussi utiliser cette formulation.
+
+@example
+if @{$NOM in [array names ARRAY]@} @{ ... @}
+@end example
+
+
+Pour retrouver les valeurs des vecteur on peut utiliser
+
+@example
+dict value [array get COLFMT]
+@end example
+
+
+
+@node plus de dimensions
+@section Simuler des vecteurs à plusieurs dimensions.
+@cindex multi-dimensions
+
+Si les indices du tableau ne contiennent pas de virgule
+(@kbd{,}) on peut simuler un vecteur à deux dimensions
+de la façon suivante.
+
+@example
+% set a(1,1) 11
+% set a(2,1) 21
+% set a(1,2) 12
+% set a(2,2) 22
+% lsort [array names]
+1,1 1,2 2,1 2,2
+@end example
+
+On isole ensuite les parties de l'indice qui nous conviennent
+avec des opération sur les chaînes comme par example
+@code{string first , $indice} qui retrouve la position de
+la virgule dans la chaîne de l'indice.
+
+Il est rarement intéressant de nommer un à un tous les composants d'un
+tableau à deux dimensions. Ces tableaux se construisent soit à partir
+d'une double boucle.
+
+@example
+set colLst [list colA colB colC]
+set lgnLst [list lgn1 lgn2 lgn3]
+
+foreach c $colLst @{
+  foreach l $lgnLst @{
+    set tab($c,$l) [string range $c end end][string range $l end end]
+  @}
+@}
+
+parray tab
+@result{} tab(colA,lgn1) = A1
+@result{} tab(colA,lgn2) = A2
+@result{} tab(colA,lgn3) = A3
+@result{} tab(colB,lgn1) = B1
+@result{} tab(colB,lgn2) = B2
+@result{} tab(colB,lgn3) = B3
+@end example
+
+et on peut de la même façon construire la liste des indices de ce tableau avec des
+commandes @code{lmap} imbriquées.
+
+@example
+set ind [lmap c $colLst @{lmap l $lgnLst @{join "$c $l" ,@}@}]
+@result{} @{colA,lgn1 colA,lgn2 colA,lgn3@} \
+          @{colB,lgn1 colB,lgn2 colB,lgn3@} \
+          @{colB,lgn1 colB,lgn2 colB,lgn3@}
+@end example
+
+(le résultat a été scindé en plusieurs lignes pour plus de clarté, mais
+il n'apparaitra pas comme cela).
+
+et il suffit de rajouter une commande @code{join} pour obtenir une liste
+linéaire de tous les indices:
+
+@example
+set ind [join [lmap c $colLst @{lmap l $lgnLst @{join "$c $l" ,@}@}]]
+@result{} colA,lgn1 colA,lgn2 colA,lgn3 \
+          colB,lgn1 colB,lgn2 colB,lgn3 \
+          colB,lgn1 colB,lgn2 colB,lgn3
+@end example
+
+Cette liste peut être utile pour faire des remplissages qui ne tiennent 
+pas compte de la structure à deux dimensions de la table, par exemple la
+boucle d'initialisaton de tous les terme à 0 devient alors toute simple.
+
+@example
+foreach i $ind @{
+  set tab($i) 0
+@}
+@end example
+
+Si on a beaucoup de boucles de ce type, la 'linéarisation' des deux
+indices de la table peut être une manœuvre utile.
+
+Sinon, voir aussi l'example @ref{exemple d'une série de tableaux}.
+
+
+@c @node recheche de valeurs
+@c @subsection recherche de valeurs dans un vecteur associatif.
+
+@c @example
+@c @end example
+
+
+@node Double substitution avec les vecteurs
+@section Double substitution avec les vecteurs
+@cindex Double substitution avec les vecteurs
+
+Prenons l'exemple d'une allocation de variables construites dans une boucle.
+
+@example
+set idLst @{1 2 3 4 5@}
+foreach id $idLst @{
+   set var$id [expr $id * $id]
+@}
+@end example
+
+Nous pouvons ensuite récupérer ces variables crées dans une boucle une à une.
+
+@example
+puts $var1
+@result{} 1
+puts $var2
+@result{} 4
+puts $var3
+@result{} 9
+@end example
+
+mais pas il est moins simple de les récupérer dans une boucle.
+
+@example
+foreach id $idLst @{
+   puts $var$id
+@}
+@result{} can't read "var": no such variable 
+@end example
+
+Cet solution simpliste ne fonctionne pas, car Tcl n'effectue qu'une
+seule passe de substitution, or on aurait voulu ici d'abord substituer
+$id pour obtenir $var1 $var2 ... et ensuite substituer $var1 ...
+
+Pour faire face à ce type de situation, une bonne solution est d'utiliser
+les vecteurs associatifs.
+
+@example
+foreach id $idLst @{
+  set var($id) [expr $id * $id]
+@}
+
+foreach id $idLst @{
+  puts $var($id)
+@}
+@end example
+
+
+@node Double substitution avec 'subst'
+@section Double substitution avec @code{subst}
+@cindex Double substitution avec subst
+@findex subst
+
+La méthode précédente utilisant les vecteurs pour les cas de doubles
+substitutions est la plupart du temps le meilleurs choix à
+faire. Néanmoins, il existe tout de même en Tcl une commande permettant
+cette double substitution: @code{subst}.  Cette commande fait une
+première substitution (même à l'intérieur des accolades) et passe
+ensuite la main à Tcl qui évalue l'instruction résultante.
+
+Maintenant l'exemple précédent ne fonctionnerait toujours pas avec cette
+commande, car il n'y a pas moyen de distinguer quelle substitution il
+faut faire en premier et l'utilisation d'un vecteur associatif reste le
+meilleur moyen. Mais voici un autre exemple où nous empilons de
+référence.
+
+@example
+set a 5
+@result{} 5
+set b a
+@result{} a
+@end example
+
+Voici les méthodes pour accéder à la valeur de @code{a} à partir de b.
+
+@example
+set $b
+@result{} 5
+
+subst $$b
+@result{} 5
+
+# la commande puts ne marcherait pas
+puts $$b
+@result{} $a
+@end example
+
+
+Voici un autre exemple qui peut être utile dans le traitement du html.
+
+@example
+set html @{<html><head>$title</head></html>@}
+@result{} <html><head>$title</head></html>
+set title "Hello World!"
+@result{} Hello World!
+set output [subst -nocommands $html]
+@result{} <html><head>Hello, World!</head></html>
+@end example
+
+
+En réalité, des options permettent de régler plus finement les
+substitution à faire ou ne pas faire.
+
+@example
+subst ?-nobackslashes? ?-nocommands? ?-novariables? 'string'
+@end example
+
+
+@example
+set a 44
+@result{} 44
+subst @{xyz @{$a@}@}
+@result{} xyz @{44@}
+@end example
+
+La variable déréférencée @code{$a} a été substituée malgré les
+accolades.
+
+La commande @code{subst} permet donc des substitutions supplémentaires
+pour des instructions tcl. Elle a plus d'option que la commande
+@code{eval}, qui elle aussi effectue une substitution. Mais il s'agit
+alors uniquement de la substitution d'une instruction exécutable.
+(@ref{La commande 'eval'}).
+
+

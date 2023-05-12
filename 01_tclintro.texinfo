@@ -1,0 +1,1116 @@
+@c -*- coding: utf-8-unix; mode: texinfo; mode: auto-fill -*-
+@c typographie française :    «   » … ’
+
+@node Les fondamentaux du langage Tcl
+@chapter Les fondamentaux du langage Tcl
+
+
+@node Un langage de position
+@section Un langage de position
+@cindex Langage de position
+
+Le langage Tcl a une syntaxe simple@footnote{Il existe un synthèse de
+toute la grammaire de Tcl en douze règles
+@xref{dodecalogue}},
+qui facilite son apprentissage. Le sens d’une instruction est donné
+avant tout par la position des termes et non par les mots utilisés eux
+mêmes.
+
+Tcl laisse une très grande liberté dans le nommage des variables ou des
+procédures.  Il est ainsi assez courant dans les scripts écrits par des
+utilisateurs expérimentés de rencontrer le même nom utilisé pour une
+variable et pour une procédure@footnote{Par contre, l’exigence d’unicité
+demeure@w{}: deux objets du même type --- comme deux variables ou deux
+procédures --- ne peuvent pas avoir le même nom ou sinon le dernier
+défini écrase la définition du premier}.
+
+Comme en Lisp, le premier mot d’une chaîne d’instructions est toujours
+considéré comme une commande et les termes suivants, comme des
+paramètres ou des arguments (on parlera parfois de sous-commande pour
+les cas les plus évolués). Par contre, Tcl ne demande pas de regrouper
+ses instructions à l’intérieur de paranthèses imbriquées comme en Lisp
+mais utilise soit le saut de ligne, soit le point virgule (;) pour
+marquer une fin d’instruction --- comme le fait Python.
+
+
+@node L’importance des commandes
+@section L’importance des commandes.
+
+La position de la commande en première place d’une instruction est un
+concept très fort en Tcl. Tcl se rapproche ainsi des langages
+fonctionnels et il permet de programmer selon cette approche, bien qu’il
+n’est pas été conçu spécifiquement pour cela.
+
+Ces commandes sont toujours du même type (nous verrons qu’on peut en
+créer d’autre avec la commande @code{proc}): il n’y a pas de distinction
+entre procédure et fonction par exemple. Toutes les procédures renvoient
+une valeur, qui est par défaut le résultat de sa dernière instruction.
+
+Une grande liberté est donc donnée à chacun pour proposer de nouvelles
+commandes qui étendent le langage et il y a au final une grande
+richesse. La commande @code{proc} qui définit une nouvelle procédure est
+elle même une commande, dont il existe d’ailleurs des variantes (comme
+@code{lproc}).
+
+Il faudra toujours garder en mémoire ce fonctionnement par commande dans
+le déchiffrage des instructions Tcl.
+
+
+@node Calculer en Tcl
+@section Calculer en Tcl
+@findex expr
+
+Une conséquence immédiate de cette règle de position de la commande en
+première ligne est que l’écriture des expressions arithmétiques sera en
+fait l’interpréation d’une expressione@w{}: il faut utiliser une
+commande, ici la commande @code{expr} en début d’instruction pour que
+les termes suivants soient interprétés comme une expression arithmétique
+à exécuter. Une simple addition devient alors quelque chose comme@w{}:
+
+@cindex opération arithmétique
+@findex expr
+@example
+expr 3 + 2
+@end example
+
+La commande @code{expr} s’applique d’abord à une chaîne de caractères
+@code{2 + 2}. La commande reconnait que cette chaîne est une expression
+arithmétique, fait le tri entre ce qui peut être interprété comme un
+opérateur et ce qui doit être intérprété comme un nombre et fait ensuite
+l’opération. Tcl n’utilise que de chaîne de caractères, qu’il convertit
+en nombre si besoin, mais en arrière plan.
+
+Tcl reconnait tous les formats numériques classiques (@code{4},
+@code{4.1}, @code{4e2} ..) sont tous reconnus reconnus.
+
+@example
+set a 5e3
+5e3
+expr $a + 1
+5001.0
+@end example
+
+Nous reverrons plus loin les fonctions @code{puts} et @code{append} qui
+permet d’ajouter un élément à une chaîne de caractères. On peut mélanger
+les expressions numériques avec des expressions s’appliquant à des
+chaînes.
+
+@example
+set b 3
+puts $b
+@result{} 3
+append b 4
+@result{} 34
+expr $b / 4
+@result{} 8
+expr $b / 4.0
+@result{} 8.5
+@end example
+
+La première division est une division entière, car elle ne fait
+intervenir que des entiers. En divisant par @code{4.0}, j’introduis un
+flottant (en notation décimale), ce qui donne un résultat plus proche de
+nos attentes usuelles ☺.
+
+Tcl n’est pas un langage typé, parceque toutes les variables sont prises
+par défaut comme des chaînes de caractères. Mais quand la chaîne est
+dans un format numérique reconnu et que la fonction est adaptée à une
+manipulation numérique, la variable est remplacée par sa valeur
+numérique.
+
+
+@node Les caractères spéciaux de Tcl
+@section Les caractères spéciaux de Tcl
+@cindex caractères spéciaux
+
+Il existe tout de même des caractères spéciaux, qui ont des
+significations particulières. La pluplat de ces règles se retrouve
+dans le dodécalogue
+@footnote{@ref{dodecalogue}}.
+
+@itemize
+@kindex SPC
+@item
+l’espace termine un mot.
+
+@kindex ;
+@item
+le point virgule (;) termine une instruction (sauf si en commentaire).
+
+@kindex RL
+@item
+le retour à la ligne termine une instruction (sauf si échappé,
+voir ci dessous).
+
+
+@kindex \
+@item
+La barre oblique inverséee (\) ('antislash' en Anglais) est le caractère
+d’échappement.  Elle signifie que le caractère directement accolé va
+être substitué.  On retrouve les règles utilisées
+dans un shell Bash. Un cas particulier important est le retour à la
+ligne qui perd se signification de fin d’instruction quand il est accolé
+à cette barre oblique et devient alors une signe de continuation. Ceci
+permet d’interrompre une instruction longue pour l’écrire sur plusieurs
+lignes. Dans les chaînes de texte, on utilise aussi souvent @code{\n}
+qui insère un retour à la ligne. (pour les autres cas: @ref{dodecalogue}).
+
+@kindex #
+@item
+Le caractère dièse (#) placé en début d’instruction (sans compter les
+espaces) signifie que toute la ligne est un commentaire. Il peut donc
+être en début de ligne ou après un point virgule (;). Attention, les
+caractères qui vont par paires doivent être équilibrés dans les
+commentaires : il faut assimiler le caractère @code{#} au nom d’une
+fonction qui voudrait dire 'ne rien faire' (voir plus loins les
+procédures Tcl@footnote{Diviser le script en procédures}).
+
+@kindex $
+@item
+le signe dollard ($) Le signe dollard collé devant un mot signifie que
+ce mot est une variable et renvoie alors le contenu de la variable, (on
+peut parler de déréférencement, toute les variables Tcl se comporte
+comme des pointeurs).
+
+@kindex ()
+@item
+les paranthèses () déterminent les indices des vecteurs
+associatifs@footnote{Vecteurs associatifs} ou regroupe des expressions
+arithmétiques ou logiques.
+
+@kindex ::
+@item
+les doubles doubles-points (::) servent à construire les chemins vers
+les espaces de nom (@ref{Isoler dans des espaces de noms}).
+
+@kindex . et :
+@item
+le point (.) et le double point seul (:) interrompent une substitution.
+Dans l’exemple ci-dessous, on utilise le point pour faire une notation indicée
+se rapprochant de ce qu’on peut faire avec des vecteurs associatifs.
+@example
+foreach P @{A B C@} X @{10 20 30@} @{
+  set $P.X $X
+  set $P.Y [expr 2*$X + 1]
+@}
+foreach P @{A B C@} @{
+  puts "$P: [set P.X] , [set $P.Y]''
+@}
+@result{} A: 10 , 21
+@result{} A: 20 , 41
+@result{} A: 30 , 61
+@end example
+Les vecteurs associatifs seraient plus pratiques à utiliser pour ce cas
+simple. Par contre quand on peut utiliser des mofifs
+@footnote{@ref{Trouver et sélectionner des fichiers (glob)}}, comme par exemple avec les
+commandes qui concernent les indices des vecteurs associatifs (comme 
+@code{array get}@footnote{@ref{array get}} ou
+@code{array unset}@footnote{@ref{array unset}})
+cette notation peut être utile.
+@end itemize
+
+Nous verrons plus loin les caractères servant aux regroupements de mots
+(@code{@{@}} et @code{""}).
+
+
+@node Variables & valeurs
+@section Variables & valeurs
+@cindex Variables & valeurs
+
+La distinction entre le nom d’une variable et sa valeur est point clé en
+Tcl. Par économie, on simplifiera ces termes en variable & valeur et on
+pourrait aussi utiliser la notion de contenant & contenu.
+
+@cindex pointeur
+@cindex indirection
+@cindex déréférencement
+Des langages comme le C possèdent la notion de variable, valeur et de
+pointeur. Les pointeurs permettent de référencer un contenant (une
+adresse mémoire) et son contenu par déréférencement ou indirection. Tcl
+n’emploie pas le terme de pointeur, mais en Tcl, toutes les variables
+se comportent déjà comme des pointeurs.
+
+En effet, chaque fois qu’on crée un variable @code{a} (le contenant), sa
+valeur (le contenu) est toujours désignée par le préfixe d’indirection
+@code{$} (@code{$a}). Cette possibilité de désigner soit le contenant,
+soit le contenu d’une même variable couvre la majorité des besoins
+usuels d’un pointeur.
+
+Nous verrons ainsi que les commandes s’appliquent tantôt aux noms des
+variables tantôt à leur valeur par le simple ajout de ce caractère
+@code{$} d’indirection.
+
+
+@node Initialiser une variable ('set')
+@section Initialiser une variable (@code{set})
+@findex set
+@cindex initialiser une variable
+
+Les variables n’ont pas besoin d’être déclarées et aucune vérification
+n’est faite à ce niveau. Quasiment n’importe quel mot peut devenir une
+variable.
+
+Utilisée en introduction d’une portion de code, la commande
+d’initialisation de valeur @code{set} peut permettre de rajouter de la
+clareté en retrouvant les habitudes des langages forçant les
+déclarations préliminaires de variables, mais ce seront jamais de
+véritables déclarations, car aucune vérification n’est faite ensuite
+pour garantir que le code qui suite n’utilisera que ces variables
+initialisées.
+
+Cette commande associe donc simplement un nom de variable à son contenu
+de la manière suivante pour la variable nommée ici @code{a}.
+
+@example
+set a 5
+@end example
+
+Si le contenu n’est pas donné, la commande @code{set} renvoie alors le
+contenu actuel de la variable.@footnote{Avant que le signe d’indirection
+@code{$} ne soit introduit dans le langage, il fallait d’ailleurs
+toujours utiliser cette forme par accéder à la valeur d’une variable
+comme avec l’expression @code{puts "la valeur est: [set a]"}}
+
+@example
+set a
+@result{} 5
+@end example
+
+En réalité, cette commande @code{set} sans argument était utilisée avant
+l’introduction du signe @code{$} comme signe de déréférencement. Et on
+peut imbriquer les commandes @code{set} pour faire aussi des références
+de références.
+
+@example
+set i 42
+@result{} 42
+set ip i
+@result{} i
+set ipp ip
+@result{} ip
+set ippp ipp
+@result{} ipp
+puts "hello, [set [set [set [set ippp]]]]"
+@result{} hello, 42
+@end example
+
+On peut alors comparer la commande @code{set} avec l’astérisque @code{*} en
+C, qui permet de nommer les pointeurs (références) sur une variable.
+
+Enfin, cette commande @code{set} ne donnant pas de valeur
+d’initialisation ne doit pas être prise pour une commande de
+déclaration: elle retourne un message d’erreur si la variable n’existe
+pas.
+
+@example
+set b
+@result{} can’t read "b": no such variable
+@end example
+
+
+@node Vérifier si une variable existe avec 'info exists'
+@section Vérifier si une variable existe avec @code{info exists}.
+@findex info exists
+
+La méthode adéquate pour savoir si une variable existe est la commande
+@code{info exist} qui est simple à utiliser.
+
+@example
+info exist b
+@result{} 0
+info exist a
+@result{} 1
+@end example
+
+Cette commande qui retourne 0 ou 1 (l’équivalent d’un bouléen en Tcl)
+peut être intégrée dans un test logique comme nous le verrons plus
+loin@footnote{@ref{Les expressions logiques}}. Elle fait partie d’une
+série des commandes d’introspection, qui sont une des caractéristiques
+clé de Tcl@ref{Introspection avec la commande 'info'}.
+
+
+@node Montrer le contenu d’une variable avec 'puts'.
+@section Montrer le contenu d’une variable avec @code{puts}.
+@findex puts
+
+La commande @code{puts} affiche basiquement une chaîne de caractère sur
+la sortie par défaut. Cette sortie est par défaut la console sur
+laquelle on exécute le script, mais nous verrons qu’on peut aussi le faire
+dans un fichier @ref{Lire un fichier et y écrire}.
+
+@example
+puts "ceci est une chaîne de caractères"
+@result{} ceci est une chaîne de caractères
+@end example
+
+Comme les variables sont des chaînes, cette commande peut donc servir
+à visualiser la contenu d’une variable en la préfiant avec @code{$}.
+
+@example
+puts $a
+@result{} 5
+@end example
+
+Cette commande possède l'option @code{-nonewline} qui permet d'empêcher
+d'insérer le saut de ligne qui termine l'affichage de la chaîne de
+caractère. On l'utilise typiquement pour concaténer des sorties, qui
+sinon seraient affichées sur plusieurs lignes.
+
+@example
+puts -nonewline a; puts -nonewline b; puts c
+@result{} abc
+@end example
+
+
+
+@node Effacer une variable ('unset')
+@section Effacer une variable (@code{unset})
+
+@findex unset
+La commande @code{unset} est la commande inverse qui permet de libérer
+un nom de variable. Il n'y a pas vraiment de risque de fuite de mémoire
+en Tcl. Cette action sert surtout à ne pas ré-utiliser plus tard une
+variable, dont on aurait oublié la signification et le contenu.
+
+@example
+set a 5
+@result{} 5
+unset a
+@result{}
+puts $a
+@result{} can't read "a": no such variable
+@end example
+
+Dans les versions récentes de Tcl, on peut utiliser l'option
+@code{-nocomplain} qui fera que la commande @code{unset} ne renverra pas
+de message d'erreur si on essaye de supprimer une variable qui n'existe
+pas.
+
+@example
+unset z
+@result{} can't unset "z": no such variable
+unset -nocomplain z
+@result{}
+@end example
+
+On peut aussi supprimer plusieurs variable en même temps.
+
+@example
+unset -nocomplain -- a b c
+@end example
+
+Le signe @code{--} sert à signifier la fin des options, au cas où une
+variable aurait le même nom qu'une option.
+
+
+@node Les noms de variables
+@section  Les noms de variables
+@cindex Les noms de variables
+
+Tcl permet une grande liberté dans les noms de variables. On peut
+utiliser des caractères sortant de l’ASCII comme les caractères
+accentués.
+
+@example
+set forêt 12
+@result{} 12
+puts $forêt
+@result{} 12
+@end example
+
+Maintenant, Tcl dépend pour cela du comportement de la fonction C
+@code{isalnum} pour la reconnaissance de caractère. Donc l’exemple
+précédent peut dépendre de la plateforme, du shell utilisé et même de la
+localisation délcarée dans le système. S’il y a une difficulté et que le
+caractère accentués n’est pas reconnu correctement et que la lecture
+butte sur ce caractère, on peut toujours utiliser les accolades, ce qui
+est alors une méthode plus universelle.
+
+@example
+puts $@{forêt@}
+@result{} 12
+@end example
+
+On peut utiliser des caractères numériques comme noms de variables et
+aboutir à ce genre de charabia (déconseillé):
+
+@example
+set 23 4
+puts $23
+@result{} 4
+expr $23 + 2
+@result{} 6
+@end example
+
+On peut aussi introduire des espaces dans le nom d’une commande. Il faut
+simplement utiliser ensuite des accolades pour s’y référer.
+
+@example
+set @{set variable name@} 2
+@result{} 2
+puts $@{set variable name@}
+@result{} 2
+@end example
+
+Les accolades ont neutralisée l’expression qui aurait sinon une commande
+et c’est donc ici simplement un nom de variable.
+
+Nous avons aussi vu que le point dans un nom de variable stoppe la
+subtitution.
+
+@example
+set a var
+@result{} var
+set $a.b 2
+@result{} 2
+puts $a.b
+@result{} var.b
+@end example
+
+pour retrouver la valeur de la variable @code{var.b} en passant par la
+variable @code{a}, il faut utiliser @code{set} qui donne la valeur d’une
+variable.
+
+@example
+set $a.b
+@result{} 2
+@end example
+
+On peut bien sûr rajouter la commande @code{puts}, si on a besoin de
+passer par une commande de type interface, mais cela ne rajoute pas
+grand chose ici.
+
+@example
+puts [set $a.b]
+@result{} 2
+@end example
+
+
+
+@node Regroupement substitutions et exécution
+@section Regroupement Substitutions et Exécution.
+
+@cindex substitutions
+@kindex @{@}
+@kindex []
+@kindex ""
+
+Tcl regroupe les variables pour construire progressivement des
+expressions complexes en utilisant trois couples de caractères
+spéciaux.
+
+@table @code
+@item accolades: @{@}
+Les mots entre accolades forment un ensemble qui sera interprété comme un seul mot.
+
+@item double guillemets: ""
+Les mots entre guillemets seront aussi regroupés pour être considérés
+comme un seul mot, mais auparavant les mots commençant par @code{$}
+seront remplacés par la valeur de la variables qu’ils représentent.
+
+@item crochets: []
+Les mots entre crochet seront interprétés comme une phrase Tcl à exécuter. Le
+premier mot sera donc interprété comme une commande et la phrase sera remplacée
+par le résultat de cette commande.
+@end table
+
+Notons que l’apostrophe simple (') n’a pas de signification particulière en Tcl et
+qu’elle est donc considérée comme un caractère comme les autres, ce qui peut être
+contraire à des habitudes prises avec d’autres langages de script (comme le
+shell bash par exemple, qui donne un signification aux symboles ’ et ` ).
+
+
+@node Les opérateurs
+@section les opérateurs
+
+@cindex opérateurs
+
+Les expressions arithmétitiques ou logiques utilisent des opérateurs
+classiques qu’on retrouvent dans beaucoup de langages de programmation.
+
+
+@node Les opérateurs de calculs arithmétiques
+@subsection Les opérateurs de calculs arithmétiques
+@cindex opérateurs arithmétiques
+
+@ftable @code
+@item - +
+la sous-traction et l’addition
+
+@item * /
+la multiplication et la division
+
+@item %
+le modulo ou reste de la division euclidienne
+
+@item **
+la mise en exposant
+@end ftable
+
+
+@node Les opérations binaires
+@subsection Les opérations binaires
+@cindex opérations binaires
+
+Ils servent pour les opérations de bas niveau sur les bits.
+
+@ftable @code
+@item &
+un 'et' binaire
+
+@item |
+un 'ou' binaire
+
+@item ~
+négation
+
+@item ^
+ou exclusif
+
+@item << >>
+décalage de bit à gauche (multiplie par deux) ou à droite (divise par
+deux)
+@end ftable
+
+
+@node Les opérateurs pour les tests logiques
+@subsection Les opérateurs pour les tests logiques
+@cindex opérateurs pour les tests logiques
+
+Ils servent à construire les opérations logiques
+
+@ftable @code
+@item ==
+égalité
+
+@item !=
+inégalité
+
+@item > <
+supérieur, inférieur
+
+@item >=  =<
+supérieur ou égal, inférieur ou égal
+@end ftable
+
+
+@c @node Les opérateurs booléens
+@ftable @code
+@item &&
+le 'et' logiques
+
+@item !
+la négation
+
+@item ||
+le 'ou' logique
+
+@item x?y:z
+le si-alors-sinon comme en language C (voir plus loin)
+
+@end ftable
+
+Attention, les expressions logiques ne s’imbriquent pas bien avec les
+accolades.
+
+On n’écrira pas
+@example
+if @{$a == $b@} || @{$a == $c@} @{ ...@} 
+@end example
+
+mais on écrira
+
+@example
+if @{$a == $b || $a == $c@} @{ ...@} 
+@end example
+
+Le signe 'ou logique' (@code{||}) rassemble les tronçons d'expressions
+logiques en une seule et c'est cette dernière qui est testée et non pas
+les tronçons un à un avec ensuite un 'ou logique'.
+
+
+@node Les opérateurs sur les chaînes de caractères
+@subsection Les opérateurs sur les chaînes de caractères
+@cindex opérateurs sur les chaînes de caractères
+
+On évite d’utiliser les opérateurs numériques sur des chaînes de
+caractères. Bien que cela soit souvent possible, l’expression n’est
+alors pas très optimisée à cause des traductions de type qu’elle
+sous-entend en tâche de fond. Il vaut mieux utiliser des opérateurs de
+chaînes comme ceux qui suivent (ou les différentes sous fonctions de la
+commande @code{string} comme @code{string equal} ou @code{string length},
+comme nous le verrons plus loin).
+
+@table @code
+@item chaine1 chaine2
+concatène les deux chaînes en une seule
+
+@item chaine1 eq chaine2
+test d’égalité
+
+@item chaine1 ne chaine2
+test d’inégalité
+@end table
+
+
+@node Les expressions logiques
+@section Les expressions logiques
+@cindex expressions logiques
+
+Les expressions logiques sont un sous ensembles des expressions
+arithmétiques.  Elles apparaissent donc comme agument d’une commande
+@code{expr} oubien après une expression de test logique, que nous allons
+voir juste après (les @code{if/else} et @code{switch}). Ces expressions
+ont un résultat numérique qui est soit @code{0}, qui signifie faux (mais
+qu’on peut aussi l’écrire @code{false} ou @code{f}) soit une autre
+valeur non-nulle (le plus souvent néanmoins le @code{1}) qui représente
+le vrai (ou encore @code{true} ou @code{t}).@footnote{il faudra faire
+attention car certaines fonctions retournent aussi parfois un @code{-1}
+pour indiquer une erreur, qu’il faudra ensuite traduire en vrai ou faux
+selon le contexte.}.
+
+
+@node if/else/elseif
+@subsection if/else/elseif
+@findex if
+@findex else
+
+
+La construction obéit aux constructions en blocs.
+
+@example
+if @{condition@} @{
+  ...
+@} else @{
+  ...
+@}
+@end example
+
+Le terme @code{else} n’est pas obligatoire et on l’oublie souvent. La
+saut à la ligne après l’accolade qui ouvre le bloc d’instruction est une
+pratique courante pour clarifier le code.
+
+@example
+if @{(subCond1 || subCond2 ) && subCond3@} @{
+  ...
+@} @{
+  ...
+@}
+@end example
+
+@findex elseif
+On peut aussi avoir à empiler plusieur @code{if} et il existe alors
+@code{elseif}.
+
+@example
+if @{cond1@} @{
+  ...
+@} elseif @{cond2@} @{
+  ...
+@} else @{
+  ...
+@}
+@end example
+
+
+@node test en une ligne
+@subsection alternative de test en une ligne
+@findex expr x?y:z
+
+La test logique classique @code{if cond @{expr1@} else @{expr2@}} peut être
+synthétisée en une expression arithmétique.
+
+@example
+expr cond? expr1 : expr2
+@end example
+
+Cette forme permet d’être synthétique, ce qui peut avoir un avantage
+dans certains cas. Mais attention aux espaces, bien tester l’expression avant de l’utiliser.
+
+@example
+set a 5
+set b 5
+puts [expr $a>$b?"a le plus grand":"b le plus grand"]
+@end example
+
+
+@node switch
+@subsection switch
+@findex switch
+
+Quand on a plusieurs cas à décider, le @code{switch} est une bonne
+solution.
+
+@example
+switch variable @{
+  choix1 @{
+         ...
+  @}
+  choix2 @{
+         ...
+  @}
+  default @{
+         ...
+  @}
+@}
+@end example
+
+Le dernier choix est le choix par défaut (optionnel), qui s’applique si aucun des autres choix ne convient.
+
+La commande @code{switch} a des options qui se mettent alors avant la
+variable. Pour être sûr qu’il n’y ait pas de confusion, on peut terminer
+la série des options par @code{--}.
+
+@example
+switch option -- variable @{ ...
+@end example
+
+Les options sont les suivantes.
+
+@table @code
+@item -exact
+La variable doit correspondre exactement
+
+@item -nocase
+La comparaison est insensible à la casse
+
+@item -glob
+La variable correspond avec les règles de correspondance globale (comme
+pour les fichiers).
+
+@item -regexp
+La variable correspond avec une expression régulière.
+
+@item --
+La dernière option qui sert à fermer la définition de l’option pour ne
+pas confondre avec la variable qui suit.
+@end table
+
+@c https://www.tcl.tk/man/tcl/TclCmd/switch.html
+
+La commande @code{switch} a des règles particulières pour les
+commentaires qui ne doivent pas être sur les lignes où se trouvent les
+choix mais les suivantes (si besoin).
+
+Si on veut regrouper plusieurs choix, il suffit de remplacer le corps du
+premier choix par @code{-}. Si ce cas se réalise, c’est le corps
+correspondant au choix suivant qui est exécuté.
+
+@example
+set a 1
+switch $a 1 - 2 @{format 1@} 3 @{format 3@} default @{format 9@}
+@result{} 1
+@end example
+
+
+
+@node Les boucles
+@section Les boucles de récursion
+
+Comme les autres langage, Tcl a aussi ses boucles de répétition.
+
+@node Les boucles 'for'
+@subsection boucle @code{for}
+@findex for
+
+elles se construisent avec une variable (qu’on qualifie parfois de muette).
+
+@example
+for @{set i 0@} @{$i<end@} @{incr i@} @{
+  ...
+@}
+@end example
+
+
+@node Les boucles 'while'
+@subsection boucle @code{while}
+@findex while
+
+Il s’agit de la boucle tant que
+
+@example
+set x 0
+while @{$x < 5@} @{
+  set x [expr $x + $x +1]
+  puts "X: $x"
+@}
+@end example
+
+@findex until
+Il n'y a pas d'expression @code{until} en tcl pour faire une boucle ou
+le test est à la fin comme dans l'expression suivante.
+
+@example
+do @{ .... @} until @{test@}
+@end example
+
+Il existe des solutions pour écrire à la place.
+
+@example
+do @{ .... @} while @{test@}
+@end example
+
+Mais il faut développer alors une commande @code{do} qui n'existe pas.
+
+Ces boucles permettent de toujours faire une première boucle, ce qui
+peut être intéressant pour y faire des initialisations et avoir un code
+plus compact. Mais ici, on peut utiliser ce genre de boucles très simples,
+qui reviennent au même.
+
+@example
+while 1  @{
+  ....
+  if @{test@} break
+@} 
+@end example
+
+
+
+@node Les boucles 'foreach'
+@subsection boucle @code{foreach}
+@findex foreach
+
+Nous le reverrons ensuite avec les listes, il s’agit de boucler sur une liste de termes prédéfinis.
+
+@example
+set total 0
+foreach num @{1 2 3 4@} @{
+  set total [expr $total + $num]
+@}
+puts "le total est $total"
+@}
+@end example
+
+On peut aussi utiliser plusieurs indices en même temps.
+
+@example
+foreach x @{1 2 3@} y @{un deux trois@} @{puts "$x = $y"@}
+@result{} 1 = un
+@result{} 2 = deux
+@result{} 3 = trois
+@end example
+
+Mais nous verrons plus loin que cette méthode doit être reservée aux cas
+simples comme celui ci, car tout repose sur le fait que l’ordre est
+conservé et correspond à ce que l’on attend.
+
+Si la liste est formée de couples, on peut aussi faire ainsi.
+
+@example
+foreach @{key value@} @{un choux deux carotte trois fenouille@} @{
+   puts "$key : $value"
+@}
+@result{} un : choux
+@result{} deux : carotte
+@result{} trois : fenouille
+@end example
+
+Une remarque générale pour éviter une erreur courante. On peut utiliser
+les boucles pour construire une variable.
+
+@example
+# boucle pouvant aboutir à une erreur
+foreach  l $element @{
+  set resultat [lappend resultat $l]
+@}
+puts $resultat
+@end example
+
+Mais si pour une raison ou une autre, on ne passe jamais dans la boucle,
+on a alors le message d’erreur.
+@example
+can't read "resulat": no such variable
+@end example
+
+La bonne façon de s’en prémunir est de déclarer la variable à construire
+avant la boucle. Ceci a deux avantages: être sûr que la variable n’avait
+pas une autre valeur de départ que celle prévue et lui donner réellement
+une valeur de départ.
+
+@example
+# boucle renforcée
+set resultat @{@}
+foreach  l $element @{
+  set resultat [lappend resultat $l]
+@}
+puts $resultat
+@end example
+
+
+
+
+@node L’interruption de boucle 'continue'
+@subsection L’interruption de boucle @code{continue}
+
+La commande @code{continnue} interromp l’exécution d’une boucle pour
+passer à l’itération suivante.
+
+@example
+set a 5
+set res @{@}
+while @{$a > 0@} @{
+  incr a -1
+  if @{$a == 2@} continue
+  lappend res $a
+@}
+set res
+@result{} 4 3 1 0
+set a
+@result{} 0
+@end example
+
+La variable d’itération (ici @code{a}) va jusqu’à sa valeur finale, mais
+une boucle a été sautée (celle correspondant à @code{a == 2}).
+
+@node L’interruption de boucle 'break'
+@subsection L’interruption de boucle @code{break}
+
+La commande @code{break} interromp complètement l’exécution d’une boucle
+et ressort vers l’instruction qui suit.
+
+@example
+set a 5
+set res @{@}
+while @{$a > 0@} @{
+  incr a -1
+  if @{$a == 2@} break
+  lappend res $a
+@}
+set res
+@result{} 4 3
+set a
+@result{} 2
+@end example
+
+La boucle n’est pas allée jusqu’au bout et s’est interrompue à la valeur
+@code{2}.
+
+
+@node Agrégation des variables
+@section Agrégation des variables.
+@cindex variables agrégées
+
+Le langage ne permettrait pas d’aller bien loin s’il ne proposait pas
+les variables agrégées qui sont construites à partir des variables
+'scalaires' que nous avons vu. Voici une présentation courte des trois
+principales et nous reviendrons ensuite plus en détail dessus.
+
+@c @itemize @bullet
+@c @item les chaînes
+
+@c @item les listes
+
+@c @item les vecteurs associatifs
+
+@c @item les dictionnaires
+@c @end itemize
+
+@node Listes
+@subsection Les listes.
+@cindex liste
+@findex list
+
+Les listes peuvent se construire avec le commande @code{list} ou tout simplement en écrivant
+la liste comme des mots entre accolades.
+
+@example
+set maListe [list a b c]
+puts $maListe
+@result{} a b c
+set monAutreListe @{a b c@}
+puts $monAutreListe
+@result{} a b c
+@end example
+
+Une liste est un groupe de mot, comme une chaîne. On peut donc traiter un groupe de mots
+comme une chaîne ou une liste, tout dépendra des fonctionalités qu’on voudra obtenir.
+
+Beaucoup des fonctions de liste portent un nom identique à une fonction de chaînes 
+avec simplement le préfixe @code{l} devant (voir plus loin).
+
+
+@node Dictionnaires
+@subsection Dictionnaires
+@cindex dictionnaire
+@findex dict
+
+Les dictionnaires correspondent à des listes de couples clés-valeurs.
+
+@example
+set mondico [dict create k1 v1 k2 v2 k3 v3]
+@result{} k1 v1 k2 v2 k3 v3
+@end example
+
+Les dictionnaires vont être utiles quand l’accès séquentiel des listes
+ne suffit plus. La commande @code{dict get} permet d’accéder directement
+à un élément référencé par sa clé.
+
+@findex dict get
+@example
+dict get $mondico k2
+@result{} v2
+@end example
+
+@findex dict set
+@findex dict unset
+On peut aussi modifier, ajouter ou retirer un membre. En continuant sur
+l’example précédant.
+
+@example
+dict set mondico k4 v4
+@result{} k1 v1 k2 v2 k3 v3 k4 v4
+dict set mondico k3 v3n
+@result{} k1 v1 k2 v2 k3 v3n k4 v4
+dict unset mondico k2
+@result{} k1 v1 k3 v3n k4 v4
+@end example
+
+À noter que l’ordre des couples n’est pas pris en compte.
+@code{@{k1 v1 k2 v2 k3 v3@}} et @code{@{k1 v1 k3 v3 k2 v2@}}
+correspondent au même dictionnaire.
+
+Nous reviendrons sur les dictionnaires de manière plus approfondie plus
+loin.
+
+
+@node Vecteurs associatifs
+@subsection Les vecteurs associatifs.
+@cindex vecteurs associatifs
+@cindex tableaux associatifs
+
+Les vecteurs associatifs (ou tableaux associatifs) correspondent à ce
+qu’on retrouve couramment dans les autres languages, avec ici aucune
+restriction particulière sur le nom de l’indice utilisé. Ils se
+construisent en faisant suivre le nom de la variable par une paire de
+parenthèses (donc sans espace devant la paranthèse ouvrante). On accède
+ensuite aux éléments comme à des variables scalaires en utilisant cette
+notation.
+
+@example
+set monVecteur(un)    "premier élément"
+set monVecteur(deux)  "deuxième élément"
+puts $monVecteur(un)
+@result{} premier élément
+@end example
+
+@findex parray
+La commande @code{parray} permet de visualiser le contenu d’un
+vecteur sous le shell.
+
+@findex parray
+@example
+parray monVecteur
+@result{} monVecteur(deux) = deuxième élément
+@result{} monVecteur(un)   = premier élément
+@end example
+
+(notez l’absence de substitution avec @code{$}: l’argument de la commande
+@code{parray} est le nom du vecteur lui même et non son contenu).
+
+@findex array set
+On peut aussi remplir plus rapidement un vecteur grâce à des listes et
+à la commande @code{array set}:
+
+@example
+array set monVecteur [list un "premier élément" deux "deuxième élément"]
+@end example

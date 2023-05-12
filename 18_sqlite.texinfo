@@ -1,0 +1,269 @@
+@c -*- mode: texinfo; coding: utf-8-unix; mode: auto-fill; -*-
+
+@node Interface direct à sqlite3
+@chapter Interface direct à sqlite3
+
+
+@section Ouverture d'une connexion
+
+Il est possible d'avoir un accès direct à SQLite en Tcl.  SQlite est une
+base de données légère, ne nécessitant pas de configuration et utilisant
+le langage normé SQL.
+
+Il faut charger le paquet @code{sqlite3}
+(@code{package require sqlite3}) et ensuite créer une commande
+qui permettra d'accéder à la base de donnée de la manière suivante.
+
+@example
+sqlite3 db 'fichier' ?option?
+@end example
+
+Cette instruction crée une comande @code{db} lié au fichier donné en
+argument. Si ce nom de fichier est @code{:memory:} alors la base de
+données est uniquement en mémoire vive. Si le nom du fichier est absent,
+alors la commande est exécuté dans un fichier vide, qui sera effacé
+quand la connection se ferme.
+
+Il y a des options possible et qui sont les suivantes.
+@table @code
+@item -create BOOLEAN
+Si à vrai, alors la base de données est crée si elle n'existait pas. Si
+à faux, alors une tentative de se connecter à une base inexistante lève
+une erreur. La valeur par défaut est vrai.
+
+@item -nomutex BOOLEAN
+si à vrai, les mutextes sont désactivés pour cette connection. Cela peut
+améliorer les performances pour une application à un seul thread.
+
+@item -readonly BOOLEAN
+Si vrai, la base est ouverte en lecture seule, sinon elle est ouverte en
+lecteur & écriture si les permissions du systèmes le permettent. Par
+défaut, cette option est à faux.
+
+@item -uri BOOLEAN
+Si vrai, alors le nom de fichier est interprété comme une URI, sinon
+comme un nom de fichier litéral. La valeur par défaut est faux.
+
+@item -vfs VFSNAME
+utilise un système virtuel de fichier.
+
+@end table
+
+
+@section Exécuter des opérations SQL
+
+Quand cette commande @code{db} est crée, la connexion à la base de
+données est ouverte et on peut exécuter n'importe quel code SQL avec sa
+sous-commande @code{eval}. Voici comment créer une première table.
+
+@example
+db eval @{CREATE TABLE t1(a TEXT, b INTEGER)@}
+@end example
+
+Puis comment la remplir.
+
+@example
+db eval @{
+  INSERT INTO t1 VALUES('un',1);
+  INSERT INTO t1 VALUES('deux',2);
+  INSERT INTO t1 VALUES(NULL,3);
+@}
+@end example
+
+On peut ensuite récupérer les données avec des commandes comme celles-ci.
+
+@example
+puts [db eval @{SELECT * FROM t1]@}
+@result{} un 1 deux 2 @{@} 3
+@end example
+
+
+@section Récupérer les données dans des variables
+
+Il est commun de vouloir extraire une valeur unique, qui se ferait ainsi.
+
+@example
+set value [lindex [db eval @{SELECT b from t1 WHERE a='un'@}] 0]
+@result{} 1
+@end example
+
+@findex db onecolumn
+Il a donc été prévue une commande spéciale : @code{onecolumn}.
+
+@example
+set value [db onecolumn @{SELECT b FROM t1 WHERE a='un'@}]
+@result{} 1
+@end example
+
+Si on ajoute un script à la fin de la méthode @code{eval}, alors il est
+exécuté pour chaque enregistrement récupéré.
+
+@example
+db eval @{SELECT * FROM t1@} @{
+  puts a=$a
+  puts b=$b
+@}
+@result{} a=un
+@result{} b=1
+@result{} a=deux
+@result{} b=2
+@result{} a=
+@result{} b=3
+@end example
+
+Les noms de variables sont les noms des champs, qu'on peut aussi
+modifier en SQL.
+
+@example
+db eval @{SELECT a AS x, b AS y FROM t1@} @{
+  puts x=$x
+  puts y=$y
+@}
+@result{} x=un
+@result{} y=1
+@result{} x=deux
+@result{} y=2
+@result{} x=
+@result{} y=3
+@end example
+
+On peut se contenter de ne lire que la première ligne en interrompant la boucle
+par @code{break}.
+
+@example
+db eval @{SELECT * FROM t1@} break
+puts $a
+@result{} un
+puts $b
+@result{} 1
+@end example
+
+Si on met une variable entre l'expression SQL et le script, cette
+variable sera comprise comme un vecteur associatif avec une valeur
+particulière @code{*} qui contient les noms de colonnes. 
+
+@example
+db eval @{SELECT * FROM t1@} v @{parray v@}
+@result{} v(*) = a b
+@result{} v(a) = un
+@result{} v(b) = 1
+@result{} v(*) = a b
+@result{} v(a) = deux
+@result{} v(b) = 2
+@result{} v(*) = a b
+@result{} v(a) = 
+@result{} v(b) = 3
+@end example
+
+
+@section Enchâsser des variables Tcl dans du SQL
+
+On peut enchâsser une variable Tcl à l'intérieur d'une expression SQL
+transmise à SQLite.
+
+@example
+set a1 'quatre'
+@result{} quatre
+set b1 4
+@result{} 4
+db eval @{INSERT INTO t1 VALUES($a1, $b1)@}
+puts [db eval @{select * from t1@}]
+@result{} un 1 deux 2 @{@} 3 'quatre' 4
+@end example
+
+On notera que les valeurs des variables @code{a1} et @code{b1} ont été
+passées par accolades et que c'est donc bien SQLite lui même qui a fait
+la substitution.
+
+On peut faire la substitution dans Tcl, mais il faut alors veiller aux
+guillemets simples.
+
+@example
+set qa1 [string map @{' ''@} $a1]
+@result{} ''quatre''
+set qb1 [string map @{' ''@} $b1]
+@result{} 4
+db eval "INSERT INTO t1 VALUES ('$qa1', '$qb1')"
+@end example
+
+La première méthode qui laisse SQLite trouver la valeur des variables
+Tcl est de loin la plus rapide et la plus efficace, surtout quand la
+base de données croît.
+
+
+@section Étendre SQL avec des fonctions Tcl
+
+On peut écrire des fonctions Tcl qui seront ensuite intégrées aux
+fonctions disponibles dans le langage SQL. Voici l'exemple de la racine
+carrée, qui peut manquer. On définit d'abord une procédure Tcl, puis on
+en fait une fonction SQL.
+
+@example
+proc sql_sqrt @{x@} @{return [expr sqrt($x)]@}
+db function sqrt sql_sqrt
+@end example
+
+On utilise maintenant cette fonction de la manière suivante.
+
+@example
+db eval @{CREATE TABLE t2 AS SELECT sqrt(b) FROM t1@}
+puts [db eval @{select * from t2@}]
+@result{} 1.0 1.4142135623730951 1.7320508075688772 2.0
+@end example
+
+On peut écrire des procédures plus complexes et en particulier
+récursives, car SQLite est réentrant.
+
+Voici un autre example qui créé une nouvelle fonction SQL pour SQLite
+évaluant une instruction Tcl arbitraire.
+
+@example
+proc sql_eval @{code@} @{uplevel #0 $code@}
+dg function eval sql_eval
+@end example
+
+
+@section Intégrer des procédures Tcl dans des déclencheurs
+
+On peut aussi intégrer des procédures Tcl dans des déclencheurs SQL.
+
+@example
+db function check_ok_to_delete check_ok_to_delete
+db eval @{
+   CREATE TRIGGER r1 BEFORE DELETE ON t2 FOR EACH ROW BEGIN
+     SELECT check_ok_to_delete(old.rowid, old.b);
+   END;
+@}
+@end example
+
+Voici un autre exemple développant une procédure de vérification
+d'authorisation avant de modifier la base de données.
+
+@example
+proc authorizer1 @{op a1 a2 a3@} @{
+  if @{$op=="SQLITE_SELECT"@} @{
+    return SQLITE_OK
+  @} elseif @{$op=="SQLITE_READ"@} @{
+    if @{$a1=="USER" && $a2=="PASSWD"@} @{
+     return SQLITE_IGNORE
+    @}
+    return SQLITE OK
+  @} else @{
+    return SQLITE_DENY
+  @}
+@}
+@end example
+
+
+@section Interface
+
+Si une opération est longue, le programme peut utiliser un retour
+d'appel donnant une information de progression et utiliser soit une
+barre de progression ou une procédure de gel de l'écran pour éviter un
+gel de l'interface.
+
+Il y a aussi la commande @code{busy} de Tcl.
+
+Les commandes @code{trace} peuvent aussi aider à la mise au point.
+
+(à continuer...)

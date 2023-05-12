@@ -1,0 +1,727 @@
+@c -*- mode: texinfo; coding: utf-8-unix; mode: auto-fill; -*-
+
+
+@node Les mégawidgets pour les dialogues standards
+@section Les mégawidgets pour les dialogues standards
+
+Tk offre certaines boites de dialogues standards qui sont des
+mégawidgets, c'est-à-dire un ensemble de widgets mis dans un ensemble
+cohérent et se comportant lui même comme un 'gros' widget.
+
+Sous linux, ces mégawidgets sont implémentés sous forme de scripts
+dans le répertoire @file{TK_LIBRARY} (par exemple
+@file{/usr/share/tcltk/tk8.6} sous mon installation).
+
+
+@node tk_choose_color
+@subsection @code{tk_chooseColor}
+@findex tk_chooseColor
+
+La commande @code{tk_chooseColor} permet à l'utilisateur d'ouvrir une
+fenre de dialogue pour sélectionner
+une couleur. Cette commande renvoie ensuite le code RGB de la couleur sélectionnée.
+
+@example
+set newColor [tk_chooseColor]
+@end example
+
+
+@node tk_getOpenFile
+@subsection @code{tk_getOpenFile}
+@findex tk_getOpenFile
+
+La commande @code{tk_getOpenFile} ouvre une boite de dialogue pour
+sélectionner un fichier existant. Si l'utilisateur sélectionne un
+fichier qui n'existe pas, une boite de dialogue de traitement d'erreur
+apparaît en reprenant le focus. Puis permet à l'utilisateur de
+recommencer jusqu'à ce que le choix soit correct.
+
+La forme de cette commande est la suivante.
+
+@example
+tk_getOpenFile ?option?
+@end example
+
+Les options possibles sont:
+
+@table @code
+
+@item -defaultextention ext
+La chaîne @code{ext} sera ajoutée au nom de fichier entrée par
+l'utilisateur. La valeur par défaut est la chaîne vide.
+(cette option est ignorée sur les Macintosh)
+
+@item -filetypes patternList
+La liste sera à créer un zone de saisie du type d'un menu à bouton qui
+permet une pré-selection de type de fichier dans une liste pré-définie.
+Si les types ne sont pas supportés par la plateforme, cette option est
+ignorée.
+
+@item -initialdir path
+Le répertoire @code{path} est pré-sélectionné dans la zone de saisie du
+répertoire.
+
+@item -initialfile filename
+Le fichier @code{filename} est pré-sélectionné par défaut.
+
+@item -parent windowName
+La fenêtre @code{windowName} est le parent de la fenêtre de dialogue qui
+s'ouvre. La fenêtre de dialogue s'ouvrira en se plaçant sur la fenêtre
+parent, mais elle peut aussi être déplacée par le gestionnaire de
+fenêtre..
+
+@item -title titleString
+Cette option donne le titre de la fenêtre (si c'est applicable dans le
+gestionnaire de fenêtre du système).
+
+@end table
+
+Voici une example pour gérer du code @code{C}.
+
+@example
+set typeList @{
+  @{ @{Include Files@} @{.h@} @}
+  @{ @{Object Files@} @{.o@} @}
+  @{ @{Source Files@} @{.c@} @}
+  @{ @{All Files@} @{.*@} @}
+@}
+tk_getOpenFile -initialdir . -filetypes $typeList
+@end example
+
+@float
+@ @ @ @ @image{./images/31tk_03fil,,,,.png}
+@end float
+
+
+@node tk_getSaveFile
+@subsection @code{tk_getSaveFile}
+@findex tk_getSaveFile
+
+Cette commande ouvre une boite de dialogue pour un fichier
+presélectionné et si ce fichier existe, une boite de dialogue s'ouvre
+pour confirmer l'écrasement de l'ancien fichier. La fenêtre a une
+apparence identique à celle ouverte par la commande
+@code{tk_getOpenfile}. Les options sont les mêmes.
+
+@example
+tk_getSaveFile ?option?
+@end example
+
+
+@node tk_messageBox
+@subsection @code{tk_messageBox}
+@findex tk_messageBox
+
+La commande @code{tk_messageBox} ouvre une boite de dialogue qui peut
+avoir plusieurs types prédéfinis. La fenêtre gardera la focus tant que
+l'interaction avec l'utilisateur n'est pas terminée.
+
+@example
+tk_messageBox ?option?
+@end example
+
+les options sont les suivantes.
+
+@table @code
+
+@item -message
+Le message à afficher dans la boite de dialogue.
+
+@item -title
+Le titre à afficher sur la fenêtre (si le système le permet).
+
+@item -type
+Le type de boite de dialogue à afficher. Les types possibles sont les
+suivants.
+
+@table @code
+@item abortretryignore
+Affiche trois boutons: annuler, recommencer et ignorer.
+
+@item ok
+Affiche uniquement le bouton @code{Ok}.
+
+@item okcancel
+Affiche les deux boutons @code{Ok} et @code{Cancel}.
+
+@item retrycancel
+Affiche les deux boutons @code{Retry} et @code{Cancel}.
+
+@item yesno
+Affiche les deux boutons @code{Yes} et @code{No}.
+
+@item yesnocancel
+Affiche les trois boutons @code{Yes}, @code{No} et @code{Cancel}.
+
+@end table
+@end table
+
+
+@example
+set clicked \
+ [tk_messageBox -message "Continue Examples ?" -type yesno]
+@end example
+
+@float
+@ @ @ @ @image{./images/31tk_04dia,,,,.png}
+@end float
+
+
+@node tk_dialog
+@subsection @code{tk_dialog}
+@findex tk_dialog
+
+La commande @code{tk_dialog} affiche une boite de dialogue avec un texte
+et des boutons. Quand un bouton est cliqué, la boite de dialogue
+retourne la position du bouton cliqué, le premier bouton à gauche ayant
+la position 0, puis 1 ...
+
+Si l'utilisateur détruit le fenêtre avant de faire une sélection (petite
+croix de fermeture de fenêtre souvent en haut à droite), la valeur
+retournée par la commande est -1.
+
+Cette fenêtre sera modale : elle recouvrira les autres fenêtres et
+aucune action ne sera possible tant qu'un choix n'aura pas été fait.
+
+@example
+tk_dialog win title text bitmap default string1 ?...stringN?
+@end example
+
+@table @code
+
+@item win
+nom de l'objet boite de dialogue
+
+@item title
+titre de la fenêtre, si le système en tient compte
+
+@item text
+texte à afficher dans la boite de dialogue
+
+@item bitmap
+si ce champs n'est pas vide, icône qui s'affiche dans le boite de
+dialogue. Ce doit être le nom d'un objet bimap ou d'un fichier bitmap
+(cela ne marche pas avec un nom d'object image).
+
+@item default
+une entier qui donne le choix du bouton par défaut, la numérotation des
+bouton commençant à 0.
+
+@item string*
+les chaînes à placer dans les boutons.
+
+@end table
+
+On peut ainsi franciser les boites de message vu plus haut.
+
+@example
+set clicked \
+ [tk_dialog .box "confirmation" "Continuer les exemples ?" \
+   questhead 0 "Oui" "Non"]
+@end example
+
+@float
+@ @ @ @ @image{./images/31tk_05dia,,,,.png}
+@end float
+
+
+@node tk_popup
+@subsection @code{tk_popup}
+@findex tk_popup
+
+La commande @code{tk_popup} produit une fenêtre popup à un endroit
+défini sur l'écran (qui peut donc être en dehors de la fenêtre
+principale). Ce menu qui apparaît ne sera pas modal.
+
+@example
+tk_popup menu x y ?entry?
+@end example
+
+avec
+
+@table @code
+@item menu
+un objet menu qui aura été défini à l'avance.
+
+@item x y
+les coordonnées sur l'écran
+
+@item ?entry?
+un entier qui défini une position par défaut dans le menu
+
+@end table
+
+@example
+proc question @{@} @{
+  global var;
+  # enlever un menu précédent éventuel
+  # utilise catch dans le cas où il n'y en a pas
+  catch @{destroy .m@}
+  # créer un menu pour le popup
+  menu .m
+  .m add command -font @{helvetica 14@} \
+   -label @{Ce dialogue est d'Abbott & Costello's \
+     "Who's on First" routine@} \
+   -command @{tk_messageBox -type ok -message "Correct"@}
+  .m add command -font @{helvetica 14@} \
+   -label @{Ce dialogue est de Guerre et Paix@} \
+   -command @{tk_messageBox -type ok -message "Faux"@}
+  .m add command -font @{Helvetica 14@} \
+   -label "Ce dialogue est de Monty Python" \
+   -command @{tk_messageBox -type ok -message "Faux"@}
+
+  # Retrouver la position et la taille de la fenêtre
+  # avec winfo qui donne la géométrie par
+  #  WIDTHxHEIGHT+XPOS+YPOS
+  scan [winfo geometry .] "%dx%d+%d+%d" \
+                          width height xpos ypos
+
+  # placer la pop en bas à droite de la fenêtre
+  tk_popup .m [expr $xpos + ($width/2) + 50] \
+              [expr $ypos + $height - 40] 1
+@}
+
+# on crée maintenant une fenêtre avec le texte
+text .t -height 12 -width 75 -font @{helvetica 14@}
+grid .t
+
+set dialog @{
+"C: Tell me the names of the ballplayers on this team.\n"
+"A: We have Who on first, What's on second,"
+"I Don't know is on third.\n"
+"C: That's what I want to find out.\n"
+"I want you to tell me the names of the fellows"
+"on the team.\n"
+"A: I'm telling you. Who's on first, "
+"What's on second, I Don't\n"
+"Know is on third -\,-\n"
+"C: You know the fellows' names?\n"
+"A: Yes.\n"
+"C: Well, then who's playin' first.\n"
+"A: Yes.\n"
+@}
+
+foreach line $dialog @{
+  .t insert end $line
+@}
+
+# lier le bouton droit à la question à poser
+bind .t <Button-1> question
+
+@end example
+
+
+@node fontchooser
+@subsection @code{fontchooser}
+@findex fontchooser
+
+La fenêtre de sélection d'un police est moins direct à utiliser que les
+autres mégawidgets. Tcl voulans être trans-plateforme, il doit se plier
+aux particularités du système Os-X (Macintosh) dans lequel cette fenêtre
+de sélection d'une police n'est pas modale.
+
+On affiche la fenêtre de sélection avec la commande.
+
+@example
+tk fontchooser show
+@end example
+
+Cette fenêtre n'est donc pas modale. On peut soit la fermer avec les
+possibilités offerte par cette fenêtre, soit le faire avec la commande.
+
+@example
+tk fontchooser hide
+@end example
+
+Ces commandes ne renvoient pas de résultat, comme nous ont habitués les
+autres megawidget. Il faut prévoir la récupération des données par une
+pré-configuration de ce mégawidget.
+
+@example
+tk fontchooser configure ?option?
+@end example
+
+Les options peuvent être:
+
+@table @code
+@item -parent
+La fenêtre parent de la fenêtre de sélection de police de caractère. Si
+cette fenêtre est fermée, la fenêtre de selection de caractères l'est
+aussi.
+
+@item -title
+titre de la fenêtre de dialogue pour sélectionner une police, si le
+système le permet.
+
+@item -font
+spécifie quelle police de caractère doit être sélectionnée par
+défaut. Ce peut être un champs vide si aucune police ne doit être
+préselectionnée. Les polices peuvent être spécifiée par leur nom qu'on
+trouve dans la page de manuel @code{font}.
+
+@item -command
+le préfixe de commande à retourner quand une police a été sélectionnée
+(voir l'exemple qui suit).
+
+@item -visible
+Option en lecture seule, qui donne un boléen indiquant si la fenêtre de
+sélection de police est actuellement visible
+@end table
+
+Ce megawidget définit aussi deux évènements qu'on peut lier (avec
+@code{bind}) a des scripts.
+
+@table @code
+@item <<TkFontchooserVisibility>>
+envoyé à la fenêtre parent chauqe fois que la boite de dialogue change.
+
+@item <<TkFontchooserFontChanged>>
+envoyé à la fenêtre parent chaque fois que la fenêtre est visible et que
+la sélection d'une police change.
+@end table
+
+
+Pour renvoyer la police sélectionnée on peut par example écrire.
+
+@example
+tk fontchooser configure -command puts
+tk fonchooser show
+@end example
+
+Le préfixe puts affichera la police sélectionnée sur la console (mais
+n'en fera pas usage !).
+
+Voici un autre example plus intéressant : définir la police par défaut
+pour toute l'application.
+
+@example
+tk fontchooser configure -command @{option add *font@}
+tk fontchooser show
+@end example
+
+C'est une peu plus utile, mais ici, uniquement les fenêtres qui seront
+ouvertes après le choix de police verront leurs polices l'adopter.
+
+Pour changer le police d'une fenêtre précise, il faut récupérer le tag
+de la fenêtre.
+
+Construisont d'abord une fenêtre contenant du texte.
+
+@example
+text .t1 -width 20 -height 4 -borderwidth 1 -relief solid
+pack .t1
+.t1 insert end "Text Widget"
+.t1 configure -font @{Courrier 20@}
+@end example
+
+@float
+@ @ @ @ @image{./images/31tk_06fon,,,,.png}
+@end float
+
+
+Puis nous configurons le megawidget pour qu'il capture la police de
+cette fenêtre (pour en faire son choix par défaut quand on ouvre la
+fenêtre) et propose comme commande de modifier la police de caractère de
+cette zone de texte.
+
+@example
+tk fontchooser configure -font [.t1 cget -font] \
+                         -command @{.t1 configure -font@}
+tk fontchooser show
+@end example
+
+@float
+@ @ @ @ @image{./images/31tk_07fon,,,,.png}
+@end float
+
+On peut peut appliquer le nouvelle police avec @code{apply} (ce qui
+applique sans fermer la fenêtre) ou appliquer en fermant la fenêtre avec
+@code{ok}. Cet exemple souffre encore d'imperfection. Par exemple, si
+nous ré-ouvrons le sélectionneur de police une deuxième fois, il n'aura
+pas été mis à jour pour sélectionner par défaut le police actuelle de la
+zone de texte, mais il sera resté sur la sélection que nous avions fait
+au moment de la commande de configuration.
+
+Il faudrait donc relancer une commande de configuration du sélecteur de
+police à chaque ré-appel.
+
+Voici l'example complet en qui permet de modifier indépendamment la
+police de deux cadres montrés dans une même fenêtre.
+
+
+@example
+proc fontchooserDemo @{@} @{ wm title . "Font Chooser Demo" tk
+  fontchooser configure -parent .  button .b -command fontchooserToggle
+  -takefocus 0 fontchooserVisibility .b bind
+  . <<TkFontchooserVisibility>> \ [list fontchooserVisibility .b]
+         
+  foreach w @{.t1 .t2@} @{
+    text $w -width 20 -height 4 -borderwidth 1 -relief solid
+    bind $w <FocusIn> [list fontchooserFocus $w]
+    $w insert end "Text Widget $w"
+  @}
+  
+  .t1 configure -font @{Courier 14@}
+  .t2 configure -font @{Times 16@}
+  pack .b .t1 .t2; focus .t1
+@}
+
+proc fontchooserToggle @{@} @{
+  tk fontchooser [ \
+    expr @{[tk fontchooser configure -visible] ? "hide" : "show"@}
+  ]
+@}
+
+proc fontchooserVisibility @{w@} @{
+  $w configure -text [expr @{
+        [tk fontchooser configure -visible] ?
+        "Hide Font Dialog" : "Show Font Dialog"@}]
+@}
+
+proc fontchooserFocus @{w@} @{
+  tk fontchooser configure -font [$w cget -font] \
+         -command [list fontchooserFontSelection $w]
+@}
+
+proc fontchooserFontSelection @{w font args@} @{
+  $w configure -font [font actual $font]
+@}
+
+fontchooserDemo
+@end example
+
+Le bouton qui ouvre le sélectionneur de police se trouve dans la fenêtre
+principale et il sert simplement à inverser la visibilité ou non de la
+fenêtre de sélection des polices par la procédure
+@code{fontchooserToggle}.
+
+La fenêtre principale est aussi liée à
+l'apparition de la fenêtre de sélection de police (évènement
+@code{<<TkFontchooserVisibility>>} pour mettre à jour le titre du bouton
+servant à faire apparaitre ou disparaitre cette fenêtre de sélection.
+
+Mais le plus important est que chaque zone de texte à son évènement
+@code{<FocusIn>} lié à la procédure @code{fontchooserFocus} qui effectue
+deux actions@tie{}: d'une part elle récupère la police de la zone pour
+configurer le propriété @code{-font} du megawidget @code{fontchooser} et
+d'autre part, elle associe à son option @code{-command} la précommande
+@code{fontchooserFonSelection $w} qui en ajoutant le nom de la fonte
+qui sera sélectionnée, se chargera de configurer la propriété
+@code{-font} de cet objet @code{w}.
+
+
+@c --------------------------------------------------------
+
+
+@node Principes généraux des mégawidgets
+@section Principes généraux des mégawidgets
+
+Voici quelques réflexions sur la création d'un mégawidget.
+
+Les mégawidgets peuvent avoir leur propre fenêtre ou s'intégrer à une
+zone de fenêtre existante. La seconde est plus générale, car on peut
+toujours construire simplement une fenêtre dans laquelle on intègrera le
+nouveau widget.
+
+Ensuite, l'exécution d'une fenêtre peut être modale (empêchant toute
+autre action, tant que la décision n'est pas prise sur ce widget) ou
+non, la seconde solution étant plus générale.
+
+Dans les mégawidgets standards, la pratique est que la création du
+mégawidget renvoie un pseudo (@code{handle}) qui peut être affecté à une
+variable et qui permet ensuite d'utiliser l'objet construit. Puis vient
+le besoin de configurer les paramètres du megawidget après sa
+création, ce qui pourrait s'imaginer ainsi.
+
+@example
+set megaHandle [megaCreate -option value]
+myMegaConfigureProc $megaHandle -newOption -newValue
+@end example
+
+Cette technique demande de se rappeler du nom de la procédure de
+création et du nom de la procédure de re-configuration après
+création. Nous allons ici proposer une technique de création de
+mégawidgets, qui simplifie la mémorisation en utilisant le pseudo du
+mégawidget comme nom une nouvelle procédure permettant la configuration
+à l'aide d'une sous-procédure (en nous inspirant des techniques de la
+programmation objet).
+
+@example
+set mega [newMegaWidget -option value]
+$mega configure -newOption newValue
+@end example
+
+Pour être vraiment réutilisable, un mégawidget doit être
+paramétrable. On doit pouvoir proposer des valeurs par défaut, qui
+soient ensuite modifiables soit au moment de la création soit plus
+tard. Pour nous rapprocher du vocabulaire déjà utilisé dans des
+contextes similaire, on utilisera une sous-commande nommée
+@code{configure}. Nous verrons que l'utilisation de l'option
+@code{-class} des cadres (@code{frame}), renforce l'efficacité de la
+gestion des paramètres des mégawidgets.
+
+L'accès aux sous-objets d'un mégawidget peut se faire par la notation
+pointée, mais cela suppose de connaître la structure interne du
+widget. Pour conserver les qualités d'instrospection de Tcl, nous
+prévoyons une comande d'information retournant la liste des
+sous-éléments.  On peut ainsi configurer un sous-widget, comme dans
+l'example ci-dessous, pour le texte d'un bouton qui serait dans le
+megawidget crée précédemment.
+
+@example
+set bouton [$myMegaWidget subwidget buttonOk]
+$bouton configure -text "A-Ok"
+@end example
+
+On prévoit aussi de passer une liste mélangeant les commandes et les
+configurations des sous-éléments dans la commande du megawidget crée, ce
+qui donnerait quelque chose comme l'exemple suivant.
+
+@example
+set myBigWidget [megawidget .bigwidget -option value]
+$myBigWidget widgetcmd maintTitle configure -text "Big Widget"
+@end example
+
+On peut aussi prévoir d'utiliser une option @code{-subwidget} qui
+donnerait l'accès au sous-éléments.
+
+@example
+$myWegaWidget configure -subwidget buttonOk -text "A-Ok"
+@end example
+
+Plus on reste près de conventions de nommage utilisées par Tk, plus
+la réutilisation du widget sera simplifiée par le plus grand nombre.
+
+Ces principes sont rendus possibles grâce à trois fonctionnalités 
+de Tcl que nous détaillons ci-après.
+
+
+@node La commande 'rename'
+@subsection La commande @code{rename}
+@findex rename (tk)
+
+Quand nous créons un mégawidget, nous créons d'abord un cadre pour
+contenir les composants graphiques. Puis nous renommons ce cadre, pour
+que le nom original puisse être réutilisé pour les créations suivantes.
+
+Le principe sera donc le suivant :
+
+@example
+# création du cadre qui contiendra les éléments graphiques 
+frame .megawidget
+
+# ... construction des éléments graphiques et affichage
+
+# renommage de le procédure ayant créé le cadre
+rename .megawidget megaWidgetFrame
+
+# utilisation de cet ancien nom pour créer une procédure
+proc .megawidget @{...@} @{...@}
+@end example
+
+Les objets graphiques Tk comme les @code{frame} sont en réalité des
+commandes et il y aurait donc une collision de nom si une autre
+procédure avait le même nom.
+
+
+@node La commande 'option'
+@subsection La commande @code{option}
+@findex option (commande)
+
+La commande @code{option} permet au programmeur d'interagir avec
+la base de données des options de Tk.
+
+Ainsi on précise une nouvelle option en l'ajoutant avec ce genre de commande.
+@example
+option add pattern value ?priority?
+@end example
+
+@code{pattern} est alors remplacé par un chemin du type
+@code{application.widget.optionName}.
+
+Les principes de nommage sont les suivants:
+
+@itemize @bullet
+
+@item
+l'utilisation du caractère * pour remplacer n'importe quel champs
+
+@item
+un champs commençant par une majuscule pour nommer tous les
+réprésentants d'une classe.
+
+@end itemize
+
+Par exemple, l'expression @code{*Button.background} désignera l'arrière plan
+de tous les boutons.
+
+Nous avons utilisé ceci pour régler la police par défaut de tous les
+widgets, pour les rendre plus lisibles sur les écrans à haute définition.
+
+@cindex modifier la police de tous les widgets
+@example
+font create myDefaultFont -family "DejaVu Sans" -size 20
+option add *font myDefaultFont
+@end example
+
+Les règles de priorité permettent de remplacer une
+propriété pré-existante comme le montre cet exemple.
+
+@example
+# donnons un fond blanc à toutes les étiquettes.
+option add *Label*background white
+
+# les étiquettes nommées alerte auront un fond noir
+option add *alert*background black
+option add *alert*foreground white
+pack [label .l -text "normal colors"]
+pack [label .alert -text "ALERT Inverted"]
+@end example
+
+@float
+@ @ @ @ @image{./images/31tk_01opt,,,,.png}
+@end float
+
+Le filtre appliqué aux étiquettes noires est plus précis que le filtre
+donnant un fond planc à toutes les étiquettes et il aura donc la
+priorité. Sinon, on utilisera l'option de priorité (voir la
+documentation en ligne).
+
+Cette méthode simplifie la gestion, mais accélère aussi l'affichage
+graphique de fenêtre.
+
+
+@node L'option '-class'
+@subsection L'option @code{-class}
+@findex option -class
+
+L'interpréteur peut assigner une option @code{-class} à tout nouveau
+cadre (@code{frame}) ou aux fenêtres du plus haut niveau
+@code{Toplevel}. Cette information se retrouve ensuite avec la commande
+@code{winfo class widgetName}.
+
+Cette option @code{-class} permet de regrouper plusieurs cadres (@code{frame})
+ou fenêtres du premier niveau dans une même famille à laquelle on
+pourra appliquer des changements génériques de propriétés avec la commande
+@code{option add} que nous venons de voir.
+
+@example
+# un mégawidget simple etiquette/zone de saisie
+proc LabelEntry @{frameName labelText varName@} @{
+  frame $frameName -class Labelentry
+  pack [label $frameName.l -text  $labelText] -side left
+  pack [entry $frameName.e -textvar $varName] -side left
+  return $frameName
+@}
+# définissons une fonte large pour tous les megawidgets
+option add *Labelentry*font @{Times 24 bold@}
+pack [LabelEntry .le "Entrez votre nom :" name]
+@end example
+
+@float
+@ @ @ @ @image{./images/31tk_02ent,,,,.png}
+@end float
+
+Nous avons utilisé le nom de défini par l'option @code{-class} dans le
+commande @code{option add}, ce qui a permis d'affiner le filtrage.
+

@@ -1,0 +1,1208 @@
+@c -*- coding: utf-8-unix; mode: texinfo; mode: auto-fill -*-
+@c typographie française :    «   » … ’
+
+@node Travailler avec des chaînes
+@chapter Travailler avec des chaînes
+
+Les variables de Tcl (chaînes, listes, vecteurs associatif et
+dictionaires) sont toutes des chaînes de caractères. Il n'y pas de type
+numériques par exemple. Mais quand on veut faire une opération sur des
+chaînes numériques, la commande @code{expr} se charge de transformer les
+chaîne en variable numérique pour faire les opérations demandées.
+
+Ces chaînes sont la base sur laquelle se développera ensuite les variables
+'agrégées' que sont les listes, les dictionnaires et les vecteurs
+associatifs.
+
+
+@node Mettre en forme une chaîne (format)
+@section Mettre en forme une chaîne (@code{format}).
+@cindex mettre en forme une chaîne
+@findex format
+
+La commande @code{format} est l'équivalent de la commande @code{sprintf}
+en C. Elle permet de formater une chaîne, en particulier quand elle
+contient une valeur numérique (pour fixer par exemple le nombre de
+chiffres après la virgule), mais aussi plus généralement pour fixer les
+alignements en figeant le nombre de caractères sur lesquels doit
+s'écrire la chaîne et en explicitant la position de la chaîne au sein de
+cet espace.
+
+Pour écrire des nombres décimaux, voici le format courant.
+@example
+set a [expr 1.0 / 3]
+@result{} 0.3333333333333333
+set b [format %3.2f $a]
+@result{} 0.33
+@end example
+
+Figer le nombre de chiffres décimaux permet ensuite d'aligner les
+chiffres de manière homogène en utilisant un alignement de chaîne à
+droite.
+
+@example
+puts "[format @{%+7s@} $b] \n [format @{%+6s@} [expr 10 + $b]]"
+@result{}   0.33 
+@result{}  10.33
+@end example
+
+On peut utiliser une variable dans le définition du format.
+
+@example
+set l 7
+@result{} 7
+puts [format %+$@{l@}s $b \n format %+$@{l@}s [expr 10 + $b]]
+@result{}   0.33 
+@result{}  10.33
+@end example
+
+On remarquera que la variable @code{l} a été encadrée par des accolades
+pour éviter qu'elle s'aggrège au code @code{s} de la définition du format.
+
+Si on recontre toujours des difficultés, on peut toujours se rabattre
+sur la commande @code{join}, qui marchera toujours sous cette forme.
+
+@example
+set l 7
+@result{} 7
+format [join "% $l s" ""] 0.33
+@result{}   0.33 
+@end example
+
+
+@subsection syntaxe de format
+
+La syntaxe:
+@example
+format formatString ?data1? ?data2? ...
+@end example
+
+@table @code
+@item formatString
+Une chaîne de format qui va définit le format d'affichage de la donnée
+qui suit. S'il y a plusieurs données, on doit donner une liste de format
+correspondant à chacune des données. Seules les données qui auront un
+format correspondant seront affichées.
+
+@item data#
+Les données qui vont être affichées avec ce format.
+@end table
+
+La chaîne de format commence par @code{%}. Si on veut afficher le
+caractère @code{%}, il faut le double @code{%%}. La définition d'un
+format a ensuite 5 parties:@footnote{J'omet volontaire l'indicateur de
+position selon XPG3 qui ne semble pas être utilisé}
+
+@multitable {pos} {caractère de conversion} {conversion specifier}
+@headitem Pos @tab signification @tab en Anglais 
+@item  @code{1} @tab drapeaux                @tab set of flags
+@item  @code{2} @tab largeur minimale        @tab minmum field width
+@item  @code{3} @tab précision               @tab precision
+@item  @code{4} @tab modificateur de taille  @tab size modifier
+@item  @code{5} @tab caractère de conversion @tab conversion specifier
+@end multitable
+
+@subsubsection Drapeaux (optionnel)
+
+Le premier caractère est un drapeau, correspondant aux indications suivantes:
+
+@multitable {@code{#}} {Un espace indique que le nombre aura un espace en première place}
+@item @code{-}
+@tab La chaîne sera justifiée à gauche
+@item @code{+}
+@tab Le signe sera toujours indiqué, même si positif
+@item @code{ }
+@tab Un espace indique que le nombre aura un espace en première place s'il n'y a pas de signe.
+@item @code{0}
+@tab La chaîne est complétée par des @code{0} à gauche
+@item @code{#}
+@tab Sortie alternative (voir plus loin)
+@end multitable
+
+
+@subsubsection Largeur minimale (optionnel)
+
+Le premier entier venant ensuite et qui doit être avant le point décimal
+s'il y en a un est la largeur minimale qu'aura la chaîne formatée. Si la
+représentation de la donnée est trop courte, elle sera complétées par
+des espaces à gauche.
+
+Si on a utilisé le code de justification à gauche @code{%-} alors les
+espaces seront ajoutés à droite.
+
+Si on a utilisé un début de code en @code{%0}, les espaces ajouté à
+gauche sont remplacés par des zéros.
+
+@subsubsection Précision (optionnelle)
+
+Le code de précision consiste en un point suivi d'un entier. Il définit
+le nombre de décimal à afficher.
+
+@subsubsection Modificateur de conversion (optionnel et rarement utilisé)
+
+Ce champs est rarement utilisé. Il correspond à une éventuelle
+troncature d'un entier trop long.
+
+@multitable {@code{ll}} {l'entier est tronqué à une valeur sur 16 bit avant d'être converti}
+@item @code{ll}
+@tab l'entier est pris sans troncature ou conversion
+@item @code{h}
+@tab l'entier est tronqué à une valeur sur 16 bit avant d'être converti
+@item @code{l}
+@tab l'entier est tronqué à la même valeur que celle utilisée par la
+fonction @code{wide} de la commande @code{expr} (au moins un entier sur
+64 bits). 
+@end multitable
+
+Si ce champs est absent, l'entier est tronqué à la même valeur que celle
+utilisée par la fonction @code{int} dans la commande @code{expr}. Il
+s'agit généralement de 32 bits qui est déterminé par la variable
+@code{wordSize} définie dans le vecteur système @code{tcl_platform}.
+
+
+@subsubsection Type de convesion (champs obligatoire)
+
+La @code{définition_du_format} est l'un des codes suivants.
+
+@multitable {@code{M} or @code{m}} {remplace l'argument par sa représentation en entier.}
+@item  @code{d} or @code{i}
+@tab attend un entier et le représente avec son signe éventuel
+@item  @code{u}
+@tab attend un entier non signé pour le représenter (attention! un
+entier négatif est représenté comme le complément à la valeur entière maximale)
+@item  @code{o}
+@tab convertit en un entier en valeur octale non signée
+@item @code{X} or @code{x}
+@tab convertit en un entier hexadécimal
+@item @code{b}
+@tab convertit un entier en une chaine binaire non signée
+@item  @code{c}
+@tab convertit un entier dans le caractère Unicode qu'il represente
+@item  @code{s}
+@tab la chaine donnée en argument sera représentée sans conversion
+@item  @code{f}
+@tab convertit le nombre en sa représentation décimale. Le nombre de
+décimal par défaut est 6. Si le précision donnée est 0, il n'y aura pas
+de point décimal.
+@item @code{E} or @code{e}
+@tab convertit le nombre en sa représentation en format scientifique.
+@item @code{G} or @code{g}
+@tab Si l'exposant et inférieur à -4 ou plus grand que la précision,
+alors convertit en représentation scientifique avec @code{%e} ou
+@code{%E}, sinon garde une représentation décimale du type @code{%f}.
+@item @code{%}
+@tab Pas de conversion, ne fait qu'insérer un signe @code{%}
+@end multitable
+
+
+@subsubsection Exemples d'utilisation
+
+L'affichage des chiffres décimaux avac la commande @code{format} avec un
+code du type @code{%7.2f} tronque la partie décimale, mais pas la partie
+entière. Elle va donc allonger la longueur prévue de la chaîne si
+besoin, ce qui est souvent ce qu'on cherche.
+
+@example
+puts "|[format %7.2f 4.567]|"
+@result{} |   4.57|
+puts "|[format %7.2f 13546789.56]|"
+@result{} |13546789.56|
+@end example
+
+Voici un autre exemple pour afficher une liste de valeur formattée en se
+rappelant que seule les données qui ont un format sont affichées. La
+première valeur est toujours affichée, même si elle n'a pas de format.
+
+@example
+format 45.3 .678 45
+@result{} 45.3
+format %5.2f 45.3 .678 45
+@result{} 45.30
+format [lrepeat 2 %5.2f] 45.3 .678 45
+@result{} 45.30  0.68
+format [lrepeat 3 %5.2f] 45.3 .678 45
+@result{} 45.30  0.68 45.00
+@end example
+
+
+L'alignement des chiffres est par défaut à droite, mais on peut aussi
+faire un alignement à gauche.
+
+@example
+puts "|[format %-7.2f 4.567]|"
+@result{} |4.57   |
+@end example
+
+Enfin, la commande @code{format} n'est pas tolérante vis à vis des
+erreurs de type. Il faut donc faire la vérification en amont.
+
+@example
+puts "|[format %7.2f NA]|"
+@result{} expected floating-point number but got "NA"
+
+set X NA
+@result{} NA
+if [string is double $X] @{
+  puts "|[format %7.2f $X]|"
+@} @{
+  puts "|[format %-7s $X]|"
+@}
+@result{} |NA     |
+
+set X 4.567
+if [string is double $X] @{
+  puts "|[format %7.2f $X]|"
+@} @{
+  puts "|[format %-7s $X]|"
+@}
+@result{} |   4.57|
+@end example
+
+
+
+@node Convertir une entrée en chaîne (scan)
+@section Convertir une entrée en chaîne (@code{scan}).
+@findex scan
+
+Le commande @code{scan} permet d'obtenir une chaîne sous le modèle
+de la fonction @code{sscanf} en C et elle est le complément de la
+fonction @code{format} que nous venons de voir.
+
+Aux commandes définies pour le format elle ajoute deux autres commandes
+toujours sur le modèle du langage des expressions régulières.
+
+Sa syntaxe est la suivante.
+
+@example
+scan chaine_a_scanner chaine_de_format ?var1? ... ?varN?
+@end example
+
+La @code{chaine_a_scanner} est entrée en deuxième position, puis la
+@code{chaîne_de_format} qui est simulaire à celle utilisée pour la
+commande @code{format} et ensuite les variables où seront mis les
+parties de texte reconnues.
+
+Voici un exemple.
+
+@example
+set string @{parle, ami et entre@}
+scan $string @{%s %s %s %s@} a b c d
+puts "$a -- $b -- $c -- $d"
+@end example
+
+On ajoute les éléments suivant à la chaîne de format.
+
+@table @code
+@item [...]
+donne la liste des caractères acceptés, ce qui peut être donné comme
+une séquence contiguë comme dans cet exemple
+
+@item [^...]
+donne la liste des caractères non acceptés.
+@end table
+
+
+@node Agrandir une chaîne (append)
+@section Agrandir une chaîne (@code{append}).
+@cindex agrandir une chaîne
+@findex append
+
+La méthode la plus naturelle d'ajouter des termes à une chaîne est
+d'utiliser @code{append}. Cette commande ajoute simplement les
+caractères sans insérer de séparation.
+
+@example
+set gens "Baptiste Joan Jane"
+@result{} Baptiste Joan Jane
+append gens tte
+@result{} Baptiste Joan Janette
+@end example
+
+On remarque qu'il faut donner le nom d'une chaîne et non son contenu.
+
+L'ajout est fait dans la chaîne (et la chaîne avec l'élément ajouté est
+aussi renvoyée par la commande).
+
+Enfin, on peut ajouter autant d'élément qu'on veut commen le montre ce
+dernier exemple.
+
+@example
+set str abc
+@result{} abc
+append str d e f g
+@result{} abcdefg
+@end example
+
+
+@node Concaténer deux chaînes (concat)
+@section Concaténer deux chaines (@code{concat}).
+@findex concat
+
+La commande @code{concat} peut concaténer deux chaînes, c'est-à-dire ici
+les joindre en laissant un espace entre les deux. Si nous continuons
+l'exemple précédant.
+
+@example
+set autres_gens "Marie Marthe Jean"
+@result{} Marie Marthe Jean
+set gens [concat $gens $autres_gens]
+@result{} Baptiste Joan Janette Marie Marthe Jean
+@end example
+
+La commande @code{concat} est cependant d'un autre type que la commande
+@code{append}.
+
+Au lieu de s'appliquer à un nom de chaîne, elle s'applique à un contenu
+de chaîne (et peut donc aussi s'appliquer à une chaîne définie en
+extension).
+
+Elle ne modifie pas de chaîne, mais renvoie le résultat de concaténation
+qu'il faut donc mettre dans une variable.
+
+Apparte:
+la commande @code{lappend}@footnote{@ref{Ajouter un élément (lappend)}}
+pourrait apparaitre comme une alternative intéressante qui
+en plus fonctionne comme @code{append} et ajoute un élément en insérant
+un espace. Cette commande appartient cependant aux commandes de
+liste. C'est possible dans cet exemple simplet, mais il convient
+de faire attention aux passages alternatif du format de
+chaîne au format liste comme nous le verrons plus
+tard@footnote{@ref{Effet de chatoiement}}.
+
+
+@node Convertir une liste en chaîne (join)
+@section Convertir une liste en chaîne (@code{join}).
+@findex join
+
+La commande @code{join} est plus complète que les précédentes, car elle
+permet de joindre les éléments d'une liste tout en précisant quel sera
+l'élément de liaison à utiliser. On peut néanmoins aussi l'utiliser pour
+ce même genre de contexte.
+
+@example
+join @{Jean Marie@} -
+@result{} Jean-Marie
+@end example
+
+Les termes à joindre viennent comme une liste en deuxième argument et
+l'élément de liaison est le deuxième argument. Selon les situations, on
+utilisera les accolades ou les guillements pour rassembler une liste en
+un deuxième élément unique.
+
+@example
+set prenom Jean
+@result{} Jean
+set prenom [join "$prenom Marie" -]
+@result{} Jean-Marie
+@end example
+
+
+L'élément de jointure peut être autre chose qu'un caractère simple comme
+le montre ces exemples.
+
+@example
+join @{a b c@} " and "
+a and b and c
+join @{a b c@} ""
+abc
+@end example
+
+
+@node Conversion d'une chaîne en liste (split)
+@section Conversion d'une chaîne en liste (@code{split})
+@findex split
+@cindex conversion d'un chaîne en liste
+
+La commande @code{split} est l'inverse de @code{join} et elle permet
+de scinder une chaîne en une liste, tout en précisant le
+caractère de jointure à ne pas conserver dans la liste résultante.
+
+@example
+set prenom Jean-Marie
+@result{} Jean-Marie
+split $prenom -
+@result{} Jean Marie
+@end example
+
+Voici un autre exemple.
+
+@example
+set ma_chaine "15/56/45"
+split $machaine /
+@result{} 15 56 45
+@end example
+
+Si on ne précise par la commande de séparation, on prendra la caractère espace
+comme caractère de séparation des mots qui est l'espace.
+
+@example
+set numero "un deux trois"
+split $numero
+@result{} un deux troix
+@end example
+
+
+Enfin je termine par une astuce qui dévoye la bouche @code{foreach} pour
+faire l'équivalent d'une commande @code{lassign}.
+
+@example
+foreach @{fich ext@} [split fichier.text .] @{@}
+puts $fich
+@result{} fichier
+puts $ext
+@result{} text
+@end example
+
+
+
+@node Rechercher dans une chaîne
+@section Rechercher dans une chaîne.
+@cindex rechercher dans une chaîne
+
+Il y a plusieurs méthode pour rechercher un élément dans une chaîne.
+
+@table @code
+@findex string first
+@item string first sous_chaine chaine
+donne l'index de la première occurance de la @code{sous_chaine} dans la
+@code{chaine}.
+
+@findex string match
+@item string match format chaine
+fait correspondre un schéma @code{format} à la @code{chaine}, pour
+retrouver une correspondance
+
+@findex regexp
+@item regexp
+fait la correspondre à chaîne à une expression régulière.
+@end table
+
+
+@node Retrouver une occurance d'une sous chaine
+@subsection Retrouver une occurance d'une sous chaine
+@findex string first
+
+@example
+string first string1 string2 ?startIndex?
+@end example
+
+Cherche la première occurence de la chaîne @code{string1} (l'aiguille)
+dans la chaîne @code{string2} (la meule de foin) en commençant
+éventuellement à partir de l'index @code{startIndex}. Si la recherche
+aboutit, la commande retourne l'index où se trouve le premier caractère
+de la chaîne recherchée, sinon retourne @code{-1}
+
+@example
+string first a 0a23456789abcdef 5
+@result{} 10
+@end example
+
+Dans l'exemple ci dessus, le premier @code{1} n'est pas trouvé, car on
+démarre à l'index @code{5}.
+
+@findex string last
+La commande @code{string last} fonctionne de la même façon, mais en
+démarrant de la droite.
+
+@cindex compter les occurrences d'une lettre dans une chaîne
+
+Voici un exemple pour compter le nombre d'occurence d'une lettre dans
+une chaîne utilisant @code{string first}.
+
+@example
+set idx1 0
+while @{[set idx2 [string first A adAgtdAAgt $idx1]] > -1 @} @{
+   incr NB ;
+   set idx1 [incr idx2]
+@}
+puts $NB
+@result{} 3
+@end example
+
+
+@node Faire correspondre un schéma
+@subsection Faire correspondre un schéma
+@findex string match
+
+@example
+string match ?-nocase? pattern string
+@end example
+
+La commande @code{string match} recherche selon le motif @code{pattern}
+dans la chaîne @code{string} et retourne @code{1} si la recherche
+aboutit, @code{0} sinon. L'option @code{nocase} indique si la casse des
+lettres est importante ou non dans la recherche.
+
+Les règles de construction du motif s'apparentent à celles utilisée par
+la commande de recherche de fichier @code{glob}
+(@ref{Trouver et sélectionner des fichiers (glob)}).
+
+@multitable @columnfractions .2 .8
+@item @code{*} 
+@tab Correspond à n'importe quelle séquence de caractères, incluant
+aucun caractère.
+
+@item @code{?}
+@tab Correspond à un caractère unique.
+
+@item @code{[a-z]}
+@tab Correspond à une séquence de caractères, ici les caractères de
+@code{a} à @code{z}.
+
+@item @code{\x} 
+@tab Correspond au caractère @code{x} sans interprétation, ce qui permet
+de reconnaître les caractères @code{*?[]}
+@end multitable
+
+
+@node Rechercher avec une expression régulière
+@subsection Rechercher avec une expression régulière
+@findex regexp
+
+La recheche se fait selon une expression régulière selon le format
+suivant.
+
+@example
+regexp ?switches? exp string ?matchVar? ?subMatchVar subMatchVar ...?
+@end example
+
+L'expression a plusieures options @code{switches}, utilise une expresion
+régulière @code{exp} dans une chaîne @code{string} et retourne la chaîne
+trouvée dans la variable optionnelle @code{matchVar} et les sous-chaînes
+dans les variables @code{subMatchVar}.
+
+Dans certains cas, uniquement les sous-chaînes sont intéressantes et on
+utilise alors classiquement @code{->} pour le nom de @code{matchVar}.
+
+@example
+regexp ?switches? exp string -> ?subMatchVar subMatchVar ...?
+@end example
+
+Une description de la syntaxe des expressions régulières est donnée en
+annexe
+(@ref{Syntaxe des expressions régulières}).
+
+Les options possibles de la commande @code{regexp} sont les suivante.
+@c : http://wfr.tcl-lang.org/regexp
+
+@table @code
+@item -all
+Teste la correspondance de l'expression rationnelle le plus grand nombre
+de fois possible, retournant le nombre total de correspondances
+trouvées.  Si on a donné des variables pour stocker les correspondances,
+elles ne contiendront que les dernières correspondances.
+
+@item --
+Marque la fin des commutateurs L'argument suivant ceci sera traité comme
+exp même s'il commence avec un -.
+
+@item -nocase
+Ne fait pas la distrinction sur la casse des lettres de la chaîne
+@code{string} lors des recherche de correspondances
+
+@item -inline
+Provoque le renvoi, comme liste, des données qui auraient été autrement
+placées dans les variables de correspondance. Quand cette option
+@code{inline} est utilisée, les variables de correspondance ne peuvent
+pas être spécifiées. Si elle est utilisée avec l'option @code{-all}, la
+liste sera concaténée à chaque itération. On obtient ainsi toujours une
+liste simple. Pour chaque itération, la commande ajoutera les
+correspondances supplémentaires aux données, plus un élément pour chaque
+sous expression dans l'expression rationnelle.
+
+Voici un exemple
+
+@example
+regexp -inline -- @{\w(\w)@} " inlined "
+@result{} in n
+
+regexp -all -inline -- @{\w(\w)@} " inlined "
+@result{}  in n li i ne e
+@end example
+
+@item -indices
+Change ce qui est stocké dans les @code{subMatchVars}. Au lieu de
+stocker les caractères correspondants de la chaîne @code{string}, chaque
+variable contiendra une liste de deux chaînes décimales donnant les
+indices dans la chaîne @code{string} des premiers et derniers caractères
+trouvés.
+
+@item -start index
+Spécifie l'indice pour dire sur quel caractère commencer la
+correspondance à une expression rationnelle. Quand on utilise cette
+option, @code{^} ne correspond plus au début de la ligne, mais \A
+correspond toujours au début de la chaîne à l'index donné. Si l'option
+@code{-indices} est spécifié, les indices seront indexés en partant du
+début de la chaîne d'entrée. @code{index} sera contraint au limites de la
+chaîne d'entrée.
+
+@item -expanded
+Active l'usage de la syntaxe étendue des expressions rationnelles où
+l'espace et les commentaires sont ignorés. Identique à la spécification
+de l'option @code{(?x)}
+(@ref{Metasyntaxe}).
+
+@item -line
+Active la correspondance sensible au saut de ligne. Par défaut, le saut
+de ligne est un caractère ordinaire sans signification spéciale. Avec
+cette option, @code{^} correspond à une chaîne vide après un caractère
+de nouvelle ligne en plus de sa signification normale de début de ligne
+et @code{$} correspond une chaîne vide avant toute caractère de nouvelle
+ligne en plus de sa fonction normale de reconnaissance de fin de
+ligne. Avec cette option, les resonnaissances peuvent s'arrêter au saut
+de ligne, s'ils n'ont pas été précisés comme atome possible au sein de
+l'ER. Cette option est équivalente à spécifier en même temps les
+options @code{-linestop} et @code{-lineanchor}, ou de l'option
+@code{(?n)}
+(@ref{Metasyntaxe}.
+
+@item -linestop
+Change le comportement de l'expression crochets @code{[^} et @code{.} de
+façon à ce qu'elles s’arrêtent aux saut de lignes. Ceci est identique à
+la spécification de l'option @code{(?p)}
+(@ref{Metasyntaxe}.
+
+@item -lineanchor
+Change le comportement de @code{^} et @code{$} (les « ancres ») de façon à
+ce qu'ils correspondent au début et à la fin d'une ligne respectivement.
+Ceci est identique à la spécification de l'option @code{(?w)}
+(@ref{Metasyntaxe}.
+
+@item -about
+Cette option sert à la mise au point. Au lieu de lancer la
+correspondance avec l'expression régulière, la commande retourne une
+liste informant sur l'expression régulière elle-même. Le
+premier élément de la liste est le nombre de sous expressions, le second
+élément est une liste de noms de propriété qui décrivent plusieurs
+attributs de l'expression rationnelle.
+@end table
+
+
+
+@node Substitution et évaluation des chaînes 
+@section Substitution et évaluation des chaînes.
+@cindex substitution et évaluation d'une chaîne
+
+Le principe d'interprétation du code par Tcl est toujours le même:
+@itemize @bullet
+@item analyse de l'instruction à exécuter
+
+@item faire une passe d'exécution de commande et de substitution
+
+@item exécuter la ligne résultante
+@end itemize
+
+Tcl permet d'intervenir sur ces étapes de l'interprétation, comme de
+faire des substitutions sur une chaîne ou d'évaluer une chaîne fabriquée
+par le programme en comme si cela avait été une instruction de code
+écrite par le programmeur. 
+
+
+@subsection Réaliser des substitutions sur des chaînes
+
+La commande @code{set} assigne une valeur à une variable ou retourne son
+contenu. Une utilisation courante est de tester et d'assigner une variable
+en une seule passe de la façon suivante.
+
+@findex stdin
+@example
+while @{[set len [string length $password]] < 8@} @{
+  puts "$la longueur $len est insuffisnate, \
+          utilisez 8 lettres au moins "
+  set password [gets stdin]
+@}
+@end example
+
+On peut aussi utiliser les substitutions pour les variables contenant
+le nom d'une autre variable comme dans l'example suivant.
+
+@example
+set a 1
+set b a
+puts "la valeur de $b est [set $b]"
+@end example
+
+Dans la première lecture de @code{$b}, il est substitué par @code{$a}.
+Par contre entre crochet, la commande @code{set} va substituer @code{$b}
+par @code{$a} puis l'exécuter, ce qui donne @code{1}.
+
+Si l'on a besoin de réaliser des substitutions dans des cas plus complexes,
+on pourra utiliser la commande @code{subst}. Cette commande effectue
+la passe de substitution sans la faire suivre par l'évaluation de la
+ligne résultante.
+
+L'exemple précédent se serait alors écrit.
+
+@example
+set a 1
+set b a
+puts [subst "la valeur de $b est $$b]"
+@end example
+
+Dans cet exemple, @code{$$b} est d'abord substitué par @code{$b} par
+la passe usuelle de substitution. Puis la ligne résultant étant exécutée,
+le fonction @code{subst} substitue @code{$b} par @code{1}.
+
+
+@subsection Substituer des composants selon un schéma
+@findex string map
+
+Une première méthode simple pour substituer des composants dans une
+chaîne est d'utiliser une liste donnant le mot à substitué suivi du
+nouvau mot.
+
+@example
+set STR "ma chhaîne avvec pleinn de faautes"
+set STR [string map @{chhaîne chaine avvec avec pleinn plein faautes@} $STR]
+@result{} ma chaine avec plein de fautes
+@end example
+
+Ceci est un cas simple. On peut parfois voulair utiliser des variables
+dans les mots à substituer. Dans ce cas, on remplace les accolades par
+des guillements. Voici un cas compliqué ou je veux remplacer le
+caractère @code{&} par @code{\&} avec que la barre oblique est un
+caractère d'échappement. Il faut en mettre quatre pour que cela
+fonctionne!
+
+@example
+set STR "Tom & Jerry"
+set SEP &
+set STR [string map "$SEP \\\\$SEP" $STR]
+@result{} Tom \& Jerry
+@end example
+
+Ce cas se rencontre par exemple quand on veut générer des tableaux LaTeX
+où le caractère de séparation des colonnes est le @code{&}. Mais ce
+caractère peut aussi se retrouver dans une cellule du tableau !
+
+
+@subsection Modifier un élément dans une chaîne (@code{regsub}).
+@findex regsub (modifier)
+@cindex modifier un élément d'une chaîne
+
+On peut utiliser la commande @code{regsub}
+
+@example
+set ma_liste @{a b c@}
+regsub b $ma_liste z ma_liste
+puts $ma_liste
+@result{} a z c
+@end example
+
+
+@subsection Supprimer un élément d'une chaîne (@code{regsub}).
+@findex regsub (suppression)
+
+On peut aussi utiliser @code{regsub}.
+
+@example
+set ma_liste @{a b c@}
+regsub b $ma_liste "" ma_liste
+puts $ma_liste
+@result{} a  c
+@end example
+
+
+@node Évaluer une chaîne comme une commande Tcl
+@section Évaluer une chaîne comme une commande Tcl.
+@findex eval
+
+La commande @code{eval} concatène ses arguments en une chaîne, qu'elle
+exécuter ensuite, comme si cette chaîne avait fait partie des autres
+lignes d'instructions du script. On peut donc utiliser ce type de
+commande pour écrire des programmes, qui seront dirigés par les données.
+Les procédures seront écrites en fonction des données qui auront été
+lues par le programme lui même.
+
+Dans l'exemple suivant, on entre différentes instructions dans
+des vecteurs associatifs qu'on reparcourts ensuite avec la commande
+@code{eval}.
+
+@example
+set cmd(0) @{set a 1@}
+set cmd(1) @{puts "démarre la valeur de A à: $a"@}
+set cmd(2) @{incr a 3@}
+set cmd(3) @{puts "la dernière valeur de A est:$a"@}
+
+for @{set i 0@} @{$i < 4@} @{incr i@} @{eval $cmd($i)@}
+@end example
+
+
+@node Interpréter une chaîne
+@section Interpréter une chaîne
+@findex @{*@}
+
+À la place de @code{eval}, ou peut aussi utiliser la commande
+@code{@{*@}} qui va interpréter une chaîne, c'est à dire que le premier
+membre de la chaîne devient la commande.
+
+@example
+@{*@}@{puts ok@}
+@result{} ok
+@end example
+
+Dans cette commande, le premier élément de la chaîne (@code{puts})
+devient le premier élément d'une chaîne interprétée.
+Nous verrons plus loin d'autres utilisations.
+
+
+
+@node Les sous-commandes de 'string'
+@section Les sous-commandes de @code{string}.
+@findex string
+
+La commande @code{string} a beaucoup de sous-commandes qui sont toutes
+sur le même modèle. On donne la chaîne en valeur (@code{$str}) et il
+faut récupérer le résultat de l'expression (on ne modifie pas la chaîne
+dont on ne donne que le contenu et non l'adresse).
+
+@ftable @code
+@item string bytelength $str
+@findex string bytelength
+Longueur en octets utilisés.
+
+@item string length $str
+@findex string length
+Longueur en nombre de caractères. Avec l'utilisation des caractères
+unicodes, c'est maintenant différent de la longueur en octets.
+
+@item string compare ?-nocase? ?-length int? $str1 $str2
+@findex string compare
+Comparaison des deux chaînes, caractère par caractère. Retourne -1 0 ou
+1 selon que la chaîne @code{$str1} est inférieure égale ou supérieur à
+la chaîne @code{$str2} en sommant la valeur des caractères.
+
+@example
+string compare stra strb
+@result{} -1
+string compare strb stra
+@result{} 1
+string compare stra stra
+@result{} 0
+@end example
+
+L'option @code{-nocase} peut décider de ne pas tenir compte de la casse
+des caractères. Si l'option @code{-length} est utilisée avec une entier
+positif, seul les premiers caractères sont comparés sur cette longueur
+donnée. Cette option est ignorée si l'entier est négatif.
+
+@item string equal ?-nocase? ?-length int? $str1 $str2
+@findex string equal
+Renvoie @code{1} si les chaînes sont égales, @code{0} sinon. On peut
+donc directement l'utiliser dans une test logique.
+L'option @code{-nocase} peut décider de ne pas tenir compte de la casse
+des caractères. Si l'option @code{-length} est utilisée avec une entier
+positif, seul les premiers caractères sont comparés sur cette longueur
+donnée. Cette option est ignorée si l'entier est négatif.
+
+@item string first $car $str ?startindex?
+@findex string first
+Trouver la première occurence de @code{$car} dans une chaîne
+@code{$str}) et retourner sa position, sinon retourner @code{-1}.  Si on
+donne en plus un entier en dernier argument (@code{startindex}), la
+recherche se fera à partir de cette position.
+
+
+@item string last $car $str ?lastindex?
+@findex string lastT
+Trouver la dernière occurence de @code{$car} dans une chaîne
+@code{$str}) et retourner sa position, sinon retourner @code{-1}. Si on
+donne @code{lastindex}, alors seul les caractères avant cet index seront considérés.
+
+@item string index $str $id
+@findex string index
+Renvoie le caractère en index @code{$id} dans la chaîne @code{str}.
+On peut entrer le mot clé @code{end} pour signifier le dernier caractère
+ou @code{end-int} pour le dernier moins @code{int} position.
+
+
+@item string map ?-nocase? @{$mot1 $repl1 $mot2 $repl2 ...@} $str
+@findex string map
+Pour chaque motif @code{$mot1} dans la liste, le remplacer par le
+remplaçant @code{$rel1} correspondant dans la chaîne @code{$str}.
+L'option @code{-nocase} peut décider de ne pas tenir compte de la casse
+des caractères.
+
+@item string match ?-nocase? $motif $str
+@findex string match
+Retrouve le motif dans une chaîne et renvoie 1 si succès, 0 sinon.
+L'option @code{-nocase} peut décider de ne pas tenir compte de la casse
+des caractères.
+Cette commande accepte des motifs d'interprétation commme :
+@table @code
+@item *
+correspond à n'importe quel nombre de caractères, y compris le caractère
+nul.
+
+@item ?
+correspond à n'importe quel séquence d'un caractère unique
+
+@item [car1-car2 car3-car4]
+correspond à l'ensemble des caractères entre @code{car1} et @code{car2}
+ou l'ensemble des caractères entre @code{car3} et @code{car4}.
+
+@item \x
+correspond au caractère @code{x} non interprété.
+@end table
+
+@item string replace $string $first $last ?newstring?
+@findex string replace
+Enlève une suite consécutive de caractères @code{$string} compris entre
+@code{$first} et @code{$last} et remplace par @code{newstring} s'il est
+donné.
+
+@item string range $str $first $last
+@findex string range
+Renvoie l'extrait de la chaîne @code{$str} entre @code{$first} et @code{$last}.
+
+@item string trim $str ?char?
+@findex string trim
+Retire les @code{char} aux extrémités de la chaîne @code{str} et renvoie
+le résultat
+
+@item string trimleft $str ?char?
+@findex string trimleft
+couper l'extrémité gauche
+
+@item string trimright $str ?char?
+@findex string trimright
+couper l'extrémité droite
+
+@item string wordstart $str $id / string wordend $str $id
+@findex string wordstart  / string wordend
+Retourne l'index du premier (ou dernier) caractère d'un mot de la chaîne
+@code{$str} qui tombe sur l'index @code{id} donné. L'application est
+l'interface graphique et l'idée est de pouvoir capturer le mot sur
+lequel l'utilisateur à mis le pointeur.
+
+@example
+set str "il pleut"
+@result{} il pleut sur la ville
+for @{set i 0@} @{$i < [string length $str]@} @{incr i@} @{
+   puts "$i : [string range $str [string wordstart $str $i] \
+                                 [string wordend $str $i]]"
+@}
+@result{} 0 : il 
+@result{} 1 : il 
+@result{} 2 :  p
+@result{} 3 : pleut 
+@result{} 4 : pleut 
+@result{} 5 : pleut 
+@result{} 6 : pleut 
+@result{} 7 : pleut 
+@end example
+
+
+@item string tolower
+@findex string tolower
+convertir en petites casses.
+
+@item string toupper
+@findex string toupper
+convertir en majuscules.
+
+@item string totitle
+@findex string tottile
+convertir en mots débutant par une majuscules.
+
+@item string is
+@c https://wiki.tcl-lang.org/page/string+is
+@findex string is
+Cette forme permet de faire plusieurs types de tests de validation sur
+une chaîne. La forme est toujours la suivante.
+
+@example
+string is class ?-strict? ?-failindex varname? string
+@end example
+
+Sans l'otion @code{-strict} toutes ces commandes retourne @code{1}
+(c'est-à-dire 'vrai') si la chaîne @code{string} est vide.
+
+@ftable @code
+@item string is alnum
+vérifier si une chaîne est alphanumérique
+
+@item string is alpha
+vérifier si une chaîne est composée de caractères alphabétiques.
+
+@item string is digit
+vérifier si une chaîne est composée de chiffres.
+
+@item string is double
+vérifier si une chaîne représente un réel double.
+
+@item string is integer
+vérifier si une chaîne représente un entier.
+
+@item string is lower
+vérifier si une chaîne est écrite en casses inférieures.
+
+@item string is upper
+vérifier si une chaîne est écrite en majustcules.
+
+@item sring is space
+vérifier si une chaîne est un caractère d'espacement.
+
+@item string is punct
+vérifier si une chaîne est composé de caractères de ponctuation.
+
+@item string is boolean
+vérifier si une chaîne est un booléen.
+
+@item string is script
+c'est la même chose que la commande @code{info complete script} qui
+vérifie si @code{script} est un script complet, c'est-à-dire bien
+terminé par des accolades ou des guillemets etc...
+
+@item string cat $x
+@findex string cat
+c'est la fonction identité dont on a parfois besoin.
+On pouvait aussi utiliser @code{lindex $x} (sans index) ou
+@code{return -level 0 $x}.
+
+@end ftable
+
+@end ftable
+
+
+@node La reconnaissance des dates
+@section La reconnaissance des dates
+@findex clock
+
+La command @code{clock}  a plusieurs usage dont voici les principaux.
+
+@ftable @code
+@item clock scan 
+lit une chaîne pour en retourner une valeur numérique, qui représente
+les dates et heures en interne.
+
+@item clock format
+formate une valeur numérique représentant une date et une heure en une
+chaîne donnant une date et/ou heure.
+
+@item clock add
+ajouter une valeur à une date/heure avec l'arithmétique des temps.
+
+@item clock seconds
+retourne l'heure actuelle en nombre de secondes (il existe aussi une
+fonction @code{milliseconds} ou @code{microseconds}.
+
+@end ftable
+
+
+Toutes ces fonctions peuvent utiliser les paramètres suivants.
+
+@ftable @code
+@item count
+Un entier representant un nombre d'unité de temps.
+
+@item timeVal
+Une valeur entière représentant le nombre de secondes depuis le 1°
+janvier 1970, 00:00. 
+
+@item unit
+Ce peut être @code{seconds}, @code{minutes}, @code{hours}, @code{days},
+@code{weeks}, @code{months} ou @code{years} qui sert à exprimer une
+durée.
+
+@end ftable
+
+Voici les principales options
+
+@ftable @code
+@item -timezone zoneName
+Spécifie les options par défaut applicable pour une zone géographique.
+Pour la France @code{-timezone Europe/Paris}.
+
+@item -locale localename
+Localisation
+
+@item -format format
+spécifie le format des dates et heures en utilisant les codes qui
+suivent.
+
+@end ftable
+
+
+Les formats sont construit avec les codes suivants.
+
+@ftable @code
+@item %d
+Le numéro du jour sur deux chiffres
+
+@item %a
+abréviation du jour dans la localisation donnée
+
+@item %A
+Le jour dans la localisation.
+
+@item %m
+Le numéro du mois sur deux chiffres
+
+@item %N
+Le numéro du mois sur 1 ou 2 chiffres
+
+@item %b
+L'abriviation du mois dans la localisation
+
+@item %B
+le nom du mois dans la localisattion
+
+@item %Y
+Le numéro de l'année sur quatre chiffres
+
+@item %y
+Le numéro de l'année sur deux chiffres
+
+@item %H
+l'heure de 1 à 24 sur deux chiffres
+
+@item %k
+l'heure de 1 à 24 sur un ou deux chiffres
+
+@item %j
+Le numéro du jour dans l'année sur trois chiffres de 001 à 366
+
+@item %M
+les minutes
+
+@item %S
+les secondes
+
+@end ftable
+
+
+Une méthode pour reconnaitre une date, si on connait son format peut
+être la vérification suivante.
+
+@example
+if @{[clock format [
+         clock scan $string -format @{%d/%m%Y@}
+      ] -format @{%d/%m/%Y@}] eq $string@} @{puts "$string est une date"@}
+@end example
+
+Une autre méthode est avec les expressions rationnelles, mais il est
+difficile d'être exhaustif. Voici un exemple pour reconnaitre une forme
+du type @code{%d/%m/%Y} ou @code{%d/%m/%y}
+
+@example
+if [regexp @{[0-3][0-9]/[0-1][0-9]/([0-9]@{2@}|[0-9]@{4@})@} $CELL ->] @{…@}
+@end example
+
+Mais cela ne capture pas le cas où la date n'existe pas.
+
+On peut aussi vouloir quelque chose de moins contraignant pour
+reconnaitre les différents formats possibles.
+
+@example
+if [regexp @{[0-9]@{1-4@}[/-][0-3][0-9][/-][0-9]@{2,4@}@} $CELL ->] @{…@}
+@end example
+
+
+Pour reconnaître aussi bien un date qu'une heure ou les deux à la fois,
+il faut des expressions plus complexes, dont voici un exemple.
+
+
+@example
+regexp @{([0-3][0-9]/[0-1][3-9]/[0-9]@{4@})?([0-2][0-9]:[0-5][0-9](:[0-5][0-9]))?@} $CELL ->
+@end example

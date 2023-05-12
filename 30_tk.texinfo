@@ -1,0 +1,2057 @@
+@c -*- mode: texinfo; coding: utf-8-unix; mode: auto-fill; -*-
+
+@node Interface graphique avec Tk
+@chapter Interface graphique avec Tk.
+
+@file{Tk} est un environnement graphique qui se charge comme un paquet.
+
+@example
+package require Tk
+@end example
+
+Si on utilise la console @file{wish}, il n'est pas nécessaire de charger
+ce paquet, car c'est déjà fait. Une fenêtre graphique vide est
+d'ailleurs toujours chargée en attente quand on démarre @code{wish}.
+
+Le principe est ensuite des commandes qui affiche des objets
+graphiques. Ces objets s'encastrent les uns dans les autres avec
+certaines règles de placement que nous verrons.
+
+
+@node Les objets graphiques
+@section Les objets graphiques.
+@cindex objects graphiques, liste
+
+Les principales commandes de création d'objets graphiques sont
+
+@table @code
+@item button
+un bouton servant à lancer une commande
+
+@item label
+un texte court ne faisant que s'affichier (une étiquette).
+
+@item radiobutton
+un ensemble des boutons on/off (souvent des ronds).
+
+@item checkbutton
+un bouton à cocher (souvent des carrés).
+
+@item entry
+pour entrer du texte.
+
+@item frame
+un cadre pour contenir d'autres objets graphiques.
+
+@item labelframe
+un cadre avec un cadre et des étiquettes optionnelles
+
+@item toplevel
+une fenêtre de haut niveau avec cadre, titre etc...
+
+@item message
+différentes boites de message toute prête pour des interactions simples.
+
+@item text
+une zone de texte.
+
+@item canvas
+pour montrer ou réaliser un dessin ou un image.
+
+@item scale
+une glissière qui appelle un procédure quand elle change.
+
+@item scrollbar
+un ascenceur qui s'attache à un objet graphique, quand il le supporte.
+
+
+@item menubutton
+un bouton qui montre un menu déroulant quand il est cliqué (principe des menu).
+
+@item menu
+attaché à @code{menubutton}, ligne correspondant à l'élément de menu.
+
+@end table
+
+
+@node Les éléments graphiques text et button
+@section Les éléments graphiques @code{text} et @code{button}
+
+Tk est utilisable sous un shell qui accepte les environnements
+graphiques.  Il faut donc lancer le shell @code{wish} au lieu de
+@code{tclsh}. Sous Emacs, le shell @code{M-x inferior-tcl}, lance une
+interface graphique. Si on écrit un script, qui deviendra un programme
+exécutable, il faut charger la paquet @code{Tk} au début du script.
+
+@example
+package require Tk
+@end example
+
+Tk est composé d'élements graphiques élémentaires (appelés 'widgets' en
+Anglais, ce qui est la compression de 'window' et 'gadget') qui
+composent les fenêtres des interfaces graphiques graphiques. Le plus
+simple d'entre-eux est l'étiquette, '@code{label}'.
+
+Le principe est toujours le même : création d'un élément graphique, puis
+affichage par l'une des trois méthodes : @code{pack}, @code{grid} et
+@code{place} que nous reverrons ensuite.
+
+Prenons donc d'abord l'exemple le plus élémentaire.
+
+@example
+label .hello -text "Bonjour le Monde !"
+grid .hello
+@end example
+
+Ce qui donne :
+
+@float
+@ @ @ @ @image{./images/30tk_01bj,,,,.png}
+@end float
+
+@cindex grossir les polices de caractères
+Le programme Tk utilise des fontes par défaut qui sont petites sur les
+écrans haute définition d'aujourd'hui. Il va être utile de définir
+rapidement des fontes plus lisibles en utilisant l'élément graphique
+@code{font}, qui sera ensuite passé en option aux éléments graphiques
+@code{label}.
+
+@example
+font create bigFont -family arial -size 24 -weight bold
+label .hello -font bigFont -text "Bonjour le Monde !" \
+             -background yellow -foreground blue
+grid .hello
+@end example
+
+Ce qui donne :
+
+@float
+@ @ @ @ @image{./images/30tk_02bjr,,,,.png}
+@end float
+
+
+Bien plus lisible ! et coloré ... À noter que les options de
+colorisation ne sont pas disponibles au niveau de l'élément graphique
+@code{font} mais bien de l'élément graphique @code{label}.
+
+On peut ensuite modifier après coup avec la sous-commande
+@code{configure}.
+
+@example
+.hello configure -text "meilleurs salutations !" -foreground red
+@end example
+
+@float
+@ @ @ @ @image{./images/30tk_03sal,,,,.png}
+@end float
+
+@cindex changer les fontes par défaut
+@findex option add *font
+Pour généraliser l'utilisation de polices plus grandes par défaut sur
+tous les éléments graphiques (ou presque tous), on peut mettre en début
+de script:
+
+@example
+font create myDefaultFont -family "DejaVu Sans" -size 20
+option add *font myDefaultFont
+@end example
+
+Cela peut s'écrire aussi de manière plus condensée :
+@example
+option add *font @{"DejaVu Sans" 20@}
+@end example
+
+L'explication détaillée de cette formule viendra plus tard. Pour
+l'instant, il faut simplement la retenir ainsi.
+
+
+@node Première fenêtre avec des boutons
+@section Première fenêtre avec des boutons.
+
+Voici un exemple de bouton dans le contexte global. Il se contente
+de changer le contenu d'une étiquette.
+ 
+@example
+font create myDefaultFont -family "DejaVu Sans" -size 20
+option add *font myDefaultFont
+
+set etiquette [label .l1 -text "début du test"]
+set bouton [button .b1 -text "cliquez" \
+      -command "$etiquette configure -text @{le bouton été cliqué@}"]
+grid $etiquette
+grid $bouton
+@end example
+
+@c on utilise une table à trois colonnes pour espacer les deux images
+@c sur la même ligne.
+@float
+@multitable @columnfractions .5 .5
+@item @ @ @ @ @image{./images/30tk_04win,,,,.png} @ @ @ @ 
+@tab  @ @ @ @ @image{./images/30tk_05win,,,,.png}
+@end multitable
+@end float
+
+Ici nous utilisons une bonne pratique qui est de donner un nom à nos
+objets (@code{etiquette} et @code{bouton}).
+
+La commande utilise @code{configure} pour modifier l'élément graphique
+de type @code{label}. Ces commandes sont simples et directes, mais
+peuvent donner une impression de fouillis quand la construction se
+complexifie. Pour pallier à ce problème et les inévitables collisions
+de noms qui en résulteraient, on utilise des espaces de nom.
+
+Voici un exemple équivalent au précédent utilisant un espace de noms.
+
+@example
+font create myDefaultFont -family "DejaVu Sans" -size 20
+option add *font myDefaultFont
+
+namespace eval demo @{
+  variable textEtiquette "début du test"
+
+  set etiquette [label .l1 \
+     -textvariable [namespace current]::textEtiquette]
+
+  set bouton [button .b1 -text "cliquez" \
+     -command [namespace code @{set textEtiquette @{le bouton a été cliqué@}@}]]
+  
+  grid $etiquette
+  grid $bouton
+@}
+@end example
+
+@float
+@multitable @columnfractions .5 .5
+@item @ @ @ @ @image{./images/30tk_06test,,,,.png} @ @ @ @ 
+@tab  @ @ @ @ @image{./images/30tk_07test,,,,.png}
+@end multitable
+@end float
+
+
+On notera avec un espace de nom l'utilisation de @code{namespace
+current} pour référencer la variable.  L'étiquette est d'ailleurs ici
+associée à une variable au lieu d'utiliser l'option @code{-text}. Enfin,
+la commande rattachée à l'option @code{-command} est englobée par
+@code{namespace code} pour être sûr qu'elle soit bien exécutée dans
+l'espace de noms.
+
+Voici maintenant un deuxième exemple ou l'action est déportée dans une
+ procédure.
+
+@example
+namespace eval demo @{
+  variable textEtiquette "début du test"
+
+  set etiquette [label .l1 \
+     -textvariable [namespace current]::textEtiquette]
+
+  set bouton [button .b1 -text "cliquez" \
+     -command [namespace current]::changeEtiquette]  
+  
+  proc changeEtiquette @{@} @{
+    variable textEtiquette
+    set textEtiquette @{le bouton a été cliqué@}
+  @}
+  
+  grid $etiquette
+  grid $bouton
+@}
+@end example
+
+Ici la procédure n'a pas de paramètre. On peut donc pu la manipuler comme
+une variable de l'espace de nom en utilisant @code{[namespace current]}. On
+aurait aussi pu utiliser @code{[namespace code @{…@}]}.
+
+@example
+namespace eval demo @{
+  variable textEtiquette "début du test"
+
+  set etiquette [label .l1 \
+     -textvariable [namespace current]::textEtiquette]
+
+  set bouton [button .b1 -text "cliquez" \
+     -command [namespace code changeEtiquette]]
+  
+  proc changeEtiquette @{@} @{
+    variable textEtiquette
+    set textEtiquette @{le bouton a été cliqué@}
+  @}
+  
+  grid $etiquette
+  grid $bouton
+@}
+@end example
+
+Par contre, si la fonction utilise un paramètre, il faut utiliser la
+forme avec @code{[namespace code @{…@}]}.
+
+@example
+namespace eval demo @{
+  variable textEtiquette "début du test"
+
+  set etiquette [label .l1 \
+     -textvariable [namespace current]::textEtiquette]
+
+  set bouton [button .b1 -text "cliquez" \
+     -command [namespace code @{change textEtiquette@}]  
+  
+  proc change @{text@} @{
+    upvar $text t
+    set t @{le bouton a été cliqué@}
+  @}
+  
+  grid $etiquette
+  grid $bouton
+@}
+@end example
+
+
+Si on préfère utiliser la technique de la programmation objet (avec
+TclOO), cet exemple devient :
+
+@example
+oo::class create guiDemo @{
+  variable textEtiquette
+  constructor @{@} @{
+    set textEtiquette "début du test"
+    label .l -textvar [my varname textEtiquette]
+    button .b -text bouton \
+      -command "[self] changeEtiquette"
+    grid .l
+    grid .b
+  @}
+  method changeEtiquette @{@} @{
+    set textEtiquette "le bouton a été cliqué"
+  @}
+@}
+guiDemo new
+@end example
+
+On a échangé la @code{[namespace current]::VAR} avec
+@code{[my varname VAR]} pour référencer une variable
+ou avec @code{[self] METHODE} pour référencer une méthode.
+
+
+@node L'objet graphique 'entry'
+@section Une zone d'entrée de texte @code{entry}
+@findex entry
+
+Il s'agit d'une zone pour entrer du texte. Voici un exemple
+
+@example
+font create myDefaultFont -family "DejaVu Sans" -size 16
+option add *font myDefaultFont
+
+set input [entry .e1 -textvariable inputval -width 10]
+set action [button .b1 -text "MAJUSCULES" \
+     -command @{set inputval [string toupper $inputval]@}]
+grid $input
+grid $action
+@end example
+
+
+@float
+@multitable @columnfractions .33 .33 .33
+@item @ @ @ @ @image{./images/30tk_08ent,,,,.png} @ @ @ @ 
+@tab  @ @ @ @ @image{./images/30tk_09ent,,,,.png} @ @ @ @ 
+@tab  @ @ @ @ @image{./images/30tk_10ent,,,,.png}
+@end multitable
+@end float
+
+
+Remarquons qu'ici le script de la @code{command} est entourée
+d'accolades et non de guillemets comme précédemment. Dans l'exemple
+précédents, nous avions besoin d'une substitution, mais ici au
+contraire, il faut l'éviter. En effet, au lancement du script
+la variable @code{inputval} est vide et donc la remplacer
+dans la commande par sa valeur aboutirait à remplacer le contenu
+de la zone de saisi par une chaîne vide !
+
+Comme règle générale, quand le script devient trop complexe et qu'il
+mélange ainsi les variables devant être substituées au moment de la
+création de l'élément graphique ou au moment de son exécution, mieux
+vaut remplacer le contenu de ce script par un appel de fonction.
+
+@example
+set input [entry .e1 -textvariable inputval -width 10]
+set action [button .b1 -text "MAJUSCULES" -command setToMAJ]
+proc setToMAJ @{@} @{
+  string toupper $inputval
+@}
+grid $input
+grid $action
+@end example
+
+@node les options standards
+@subsection les options standards de l'objet @code{entry}
+
+Les options standards sont les suivantes.
+
+@table @code
+@item -background
+@item -borderwidth
+@item -cursor
+@item -exportselection
+@item -font
+@item -foreground
+@item -highlightbackground
+@item -highlightcolor
+@item -highlightthickness
+@item -insertbackground
+@item -insertborderwidth
+@item -insertofftime
+@item -insertontime
+@item -insertwidth
+@item -justify
+@item -relief
+@item -selectbackground
+@item -selectborderwidth
+@item -selectforeground
+@item -takefocus
+@item -textvariable
+@item -xscrollcommand
+@end table
+
+
+@node les options spécifiques
+@subsection les options spécifiques de l'objet @code{entry}
+
+@table @code
+@item -disabledbackground
+spécifie la couleur d'arrière plan quand l'entrée de texte est
+désactivée (la chaîne vide veut dire que la couleur normale est utilisée).
+
+@item -disableforeground
+spécifie la couleur de premier plan quand l'entrée de texte est
+désactivée (la chaîne vide veut dire que la couleur normale est utilisée). 
+
+@item -invalidcommand (-invcmd)
+spécifie le script à évaluer quand @code{validateCommand} retourne
+@code{0}. Le positionner à @code{@{@}} désactive cette fonctionalité (ce
+qui est le cas par défaut).
+
+@item -readonlybackground
+spécifie la couleur d'arrière plan quand l'entrée est désactivée.
+
+@item -show
+si cette option est utilisée, alors le contenu de l'entrée de texte
+n'est pas affiché et à la place sera affiché le premier caractère de
+l'option comme @code{*} comme pour l'entrée masquée d'un mot de passe.
+
+Voici un exemple d'utilisation :
+
+@example
+$entr configure -show *
+@end example
+
+Et pour enlevever l'option :
+
+@example
+$entr configure -show @{@}
+@end example
+
+@item -state
+spécifie l'un des trois états d'entrée de texte : @code{normal},
+@code{disabled} ou @code{readonly}.
+
+@item -validate
+spécifie le mode dans lequel la validation de l'entrée se fait et qui
+peut être@tie{}: @code{none}, @code{focus}, @code{focusin},
+@code{focusout}, @code{key} ou @code{all}.
+
+@item -validatecommand (-vcmd)
+spécifie le script à évaluer quand on valide la saisie dans l'entrée de
+texte. Positionner cette option à @code{@{@}} désactive cette
+fonctionalité (ce qui est le choix par défaut). Le script doit retourner
+une valeur booléenne Tcl valide. Si la retour est @code{0} l'entrée est
+invalidée (voir plus loin).
+
+@item -width
+spécifie une valeur entière donnant la largeur désirée de l'entrée de
+texte en utilisant la taille moyenne des caractères de la police
+utilisée. Si la valeur est négative, le widget prend une taille
+suffisante pour contenir le texte courant.
+
+@end table
+
+
+@subsubsection La validation des entrées
+
+La validation peut utiliser les substitutions suivantes (comme avec la
+commande @code{bind}).
+
+@table @code
+@item %d
+type de l'action: @code{1} pour @code{insert} et @code{0} pour
+@code{delete} et @code{-1} pour une validation @code{focus},
+@code{forced} ou @code{textvariable}. 
+
+@item %i
+index du caractère à insérer/effacer, s'il existe, autrement @code{-1}.
+
+@item %P
+la valeur que l'entrée de texte doit modifier.
+
+@item %s
+la valeur courant avant édition.
+
+@item %S
+la chaîne insérée/effacée, sil existe, @code{@{@}} autrement.
+
+@item %v
+le type de validation actuel.
+
+@item %V
+le type de validation qui a déclenché l'appel (@code{key},
+@code{focusin}, @code{focusout}, @code{forced}).
+
+@item %W
+le nom du widget d'entrée de texte.
+
+@end table
+
+En général, il ne faudrait pas utiliser @code{textVariable} et
+@code{validateCommand} en même temps, sauf si @code{textVariable} n'est
+utilisée qu'en lecture seule.  Le risque est de donner à
+@code{textVariable} une valeur que @code{validateCommand} n'accepte pas
+et de désynchroniser le widget de sa variable. On retomberait dans une
+situation similaire à celle où une erreur intervient pendant
+l'évaluation de @code{validateCommand}.
+
+Si on souhaite changer le widget pendant la validation (par exemple
+remettre le texte à @code{@{@}} ou l'invalidation, il faut inclure la
+commande suivante dans @code{validateCommand} ou @code{invalidCommand}.
+
+@example
+after idle @{%W config -validate %v@}
+@end example
+
+(voir @ref{Faire attendre avec la commande 'after'})
+
+
+@node Les commandes du widget 'entry'
+@subsection Les commandes du widget @code{entry}
+
+La commande @code{entry} crée une nouvelle commande Tcl dont le nom est
+le chemin vers ce widget donné à la création.
+
+@example
+set entr [entry .parent.entry]
+@end example
+
+Gardons cet exemple qui crée un widget @code{entry} à l'intérieur du
+cadre @code{.parent}. Le chemin vers le widget est ici @code{entr}
+
+Cette nouvelle commande @code{entr} peut être utilisée à son tour pour
+différentes opérations sur le widget.
+
+@ftable @code
+@item $entr bbox index
+Retourne une liste de quatre chiffres décrivant les limites du caractère
+désigné par @code{index}. Les deux premiers entier donnent les
+coordonnées x,y du coin supérieur gauche de l'air de l'écran occupée par
+le caractère et les deux entiers suivants dans les largeur et hauteur du
+caractère en pixels.
+
+@item $entr cget option
+Retourne la valeur courant de l'option de configuration donnée par
+@code{option}, qui peut être n'importe quelle valeur acceptée par la
+commande @code{entry}.
+
+@item $entr configure ?option? ?value option valeur ...?
+Interroge ou modifie les options de configuration du widget. Si aucune
+option n'est spécifiée, retourne une liste décrivant toutes les options
+disponibles. Si l'option est spécifiée sans valeur, alors la commande
+retourne la liste décrivant cette option. Si une ou plusieurs paires
+@code{value option} sont données, alors la commande modifie la ou les
+options données.
+
+@item $entr delete first ?last?
+Efface un ou plusieurs élément de l'entrée donnée par les index (voir
+plus loin pour la définition de ces index).
+
+@item $entr get
+Retourne la chaîne de l'entrée
+
+@item $entr icursor index
+Déplace le curseur d'insertion à la position donnée par l'index.
+
+@item $entr index index
+Retourne l'index numérique correspondant à l'@code{index}.
+
+@item $entr insert index chaine
+Insère une chaine de caractère à la position donnée par l'@code{index}.
+
+@item $entr scan option args
+Cette commande est utilisée pour parcourir le texte entrée. Elle a deux
+formes, qui dépendent de l'@code{option}.
+@ftable @code
+@item $entr scan mark x
+enregistre @code{x} et la vue vue courante
+
+@item $entr scan dragto x
+Cette commande calcule la différence entre son argument @code{x} et
+l'argument @code{x} de la dernière commande @code{scan mark} de ce
+widget. Elle corrige alors la vue à gauche ou à droite de 10 fois la
+différence entre ces coordonnées @code{x}. Cette commande est
+généralement associée avec un déplacement à la souris dans le widget
+pour produire un effet d'entrainement ('dragging').
+@end ftable
+
+@item $entr selection option arg
+Cette commande est utilisée pour ajuster une selection faite sur le
+texte entré. ELle a plusieurs formes.
+
+@ftable @code
+@item $entr selection adjust index
+Localise la fin de la sélection la plus proche du caractère désigné par
+@code{index} et l'ajuste à cet @code{index} (en incluant ce caractère
+indexé).
+
+@item $entr selection clear
+Efface la sélection si elle est actuellement dans le widget.
+
+@item $entr selection from index
+Place le point d'ancrage de la sélection juste avant le caractère
+désigné par @code{index} sans changer la sélection.
+
+@item $entr selection present
+Retourn @code{1} s'il y a des caractères sélectionnés, @code{0} sinon.
+
+@item $entr selection range start end
+Place le début de la sélection sur le caractère indexé par @code{start}
+et la fin sur celui précédant @code{end}. Si @code{start} et @code{end}
+sont identiques, alors la sélection est effacée.
+
+@item $entr selection to index
+Si @code{index} est avant le point d'ancrage, place la sélection depuis
+@code{index} jusqu'au point d'ancrage (non inclus). Si @code{index} est
+après le point d'ancrage, place la sélection du caractère au point
+d'ancrage jusqu'à index (non inclus). Le point d'ancrage est déterminé
+par la commande @code{select from} ou @code{select adjust} la plus
+récente pour ce widget.
+@end ftable
+
+@item $entr validate
+Cette commande est utilisée pour forcer une évaluation de
+@code{validateCommand} indépendament des conditions spécifiées par
+l'option @code{validate}. Ceci est réalisé en positionnant
+temporairement l'option @code{validate} à @code{all}.
+
+@item $entr xview args
+Cette commande est utilisée pour consulter et changer la position
+horizontale du texte dans la fenêtre du widget.
+
+@ftable @code
+@item $entr xview
+retourne une liste à deux éléments. Chaque élement est une fraction
+comprise entre 0 et 1 décrivant la portion horizontale visible dans la
+fenêtre. Par exemple si les chiffres sont .2 et .6, 20% du texte est
+hors écran à gauche, 40% sont visibles et les 40% suivant sont hors
+écran à droite. Ce sont les mêmes valeurs transmises aux scrollbars via
+l'option @code{xscrollcommand}.
+
+@item $entr xview index
+ajuste la vue dans la fenêtre pour que le caractère désigné par
+@code{index} soit affiché à l'extrémité gauche.
+
+@item $entr xview moveto fraction
+ajuste la vue dans la fenietre pour que le caractère situé à
+@code{fraction} dans le texte soit affiché à l'extrémité gauche de la
+fenêtre.
+
+@item $entr xview scroll number what
+Cette commande décale la vue dans la fenêtre à gauche ou à droite en
+relation avec @code{number} et @code{what}. @code{what} doit être
+@code{units} ou @code{pages} ou une abbréviation des deux. Si
+@code{what} est @code{unit}, la vue est ajustée à gauche ou à droite de
+@code{number} caractères à l'écran. Si c'est @code{page}, alors c'est de
+@code{number} écrans. Si @code{number} est négatif, alors les caractères
+les plus à gauche deviennent visibles, s'il est positif ce sont ceux les
+plus à droite qui le deviennent.
+@end ftable
+
+@end ftable
+
+
+Ces commandes utilisent des numéros d'index. Voici les index qui sont reconnus.
+
+@table @code
+@item anchor
+indique le point d'ancrage de la sélection, qui est positionnée avec les
+commandes widget @code{select from} et @code{select adjust}.
+
+@item end
+indique le caractère juste après le dernier. Ceci peut donner la longueur de
+la chaine entrée et est compatible pour les fonctions de sélection.
+Pour selectionner l'ensemble de l'entrée, il suffit d'écrire
+@example
+$entr selection range 0 end
+@end example
+
+@item insert
+inidque le caractère adjacent et immédiatement suivant le curseur
+d'insertion.
+
+@item sel.first
+indique le premier caractère de la sélection. Mais attention, la
+sélection doit être faite dans le fenêtre ou sinon cela lève une erreur.
+
+@item sel.last
+inidique le caractère juste avant le dernier élement de sélection. La
+sélection doit exister comme précedemment.
+
+@item @@nombre
+sous cette forme @code{nombre} est traité en tant que coordonnée
+@code{x} dans la fenêtre de l'entrée de texte. Par exemple @code{@@0}
+inidque le caractère le plus à gauche dans la fenêtre.
+@end table
+
+On peut utiliser des abbréviations de ces formes (@code{e} pour
+@code{end}, @code{sel.f} pour @code{sel.first}). En général, les index
+hors des limites sont automatiquement arrondis à la valeur légale la
+plus proche.
+
+
+@node Les évènements par défaut de 'entry'
+@subsection Les évènement par défaut de @code{entry}
+
+Le widget @code{entry} reconnait les évènements souris ou clavier
+propres à Emacs.
+
+On peut néamoins retrouver une bonne partie des évènements liés par
+défaut avec la commande @code{bind}
+
+@example
+foreach l [bind Entry] @{puts $l@}
+@result{} <B2-Motion> ...
+@end example
+
+
+@node Organiser une fenêtre avec des cadres
+@section Organiser une fenêtre avec des cadres.
+@cindex Organiser le contenu d'une fenêtre
+
+
+Les contenants graphiques sont des éléments qui sont crées pour en
+contenir d'autres et les organiser. Le principale contenant est le cadre
+(@code{frame}) qui sert à structurer le contenu d'une fenêtre.
+
+Le cadre d'étiquette (@code{labelframe}) permet de présenter une zone de saisie de manière
+plus compact en mettant un titre autour de cette zone et en l'encadrant.
+
+Les onglets (@code{notebook}) de la bibliothèque @file{ttk} permettent
+de superposer plusieurs fenêtre dans un seul cadre en y accédant par des
+onglets comme dans un classeur.
+
+Les zones à panneaux coulissants (@code{panedwindow}) permettent de
+superposer plusieurs fenêtre dans un seul cadre en faisant coulisser ces
+fenêtres les unes sur les autres.
+
+
+@node frame
+@subsection Les cadres de fenêtres (frame)
+@findex frame
+
+Les contenants graphiques sont des objets permettant d'organiser les
+autres composants d'une fenêtre. Le plus courant est la cadre
+(@code{frame}).
+
+Voici un exemple de fenêtre assez complète qui est conçue comme une
+série de cadres en bandeau, s'empilant verticalement. À l'intérieur de
+ces bandeaux, les élements graphiques sont alignés horizontalement.
+
+Le script ci-dessous permet de suivre l'affichage de ces bandeaux
+horizontaux au moment de leur création si on entre ce code dans un
+interface wish (ou M-x inferior-tcl). 
+
+@example
+font create myDefaultFont -family "DejaVu Sans" -size 16
+option add *font myDefaultFont
+
+# le bandeau de titre
+set infoFrame   [frame .info]
+grid $infoFrame
+
+set w [label $infoFrame.name -text "Application test" \
+    -font @{arial 28 bold@}]    
+grid $w
+
+# le bandeau contenant les boutons
+set buttonFrame [frame .buttons]
+grid $buttonFrame -sticky w
+
+foreach buttonName @{Fichier Édite Aide@} @{
+  lappend buttonList [button $buttonFrame.b_$buttonName \
+    -text $buttonName -command "perform_$buttonName"]    
+@}
+grid @{*@}$buttonList
+
+# le bandeau principal contenant les entrées
+set mainFrame   [frame .main -relief solid -borderwidth 2]
+grid $mainFrame -sticky ew
+
+foreach id @{Nom Ville Région@} @{
+  set w1 [label $mainFrame.l_$id -text $id:]
+  set w2 [entry $mainFrame.e_$id -textvariable State($id) \
+      -background white]
+  grid $w1
+  grid $w2
+@}
+
+# le bandeau du status
+set statusFrame [frame .status]
+grid $statusFrame
+
+set w1 [label $statusFrame.status -textvariable status]
+set w2 [label $statusFrame.time -textvariable time]
+grid $w1 $w2
+set status "No Errors"
+set time [clock format [clock seconds]]
+@end example
+
+@float
+@ @ @ @ @image{./images/30tk_11win,,,,.png}
+@end float
+
+
+@node labelframe
+@subsection Les encadrements d'étiquettes (labelframe)
+@findex labelframe
+
+Les encadrements de fenêtre permettent un présentation plus synthétique
+du couple étiquette/zone d'entrée de texte. Nous reprenons la même
+concept de fenêtre en adoptant ce nouveau contenant.
+
+@example
+font create myDefaultFont -family "DejaVu Sans" -size 16
+option add *font myDefaultFont
+
+# le bandeau de titre
+set infoFrame   [frame .info]
+grid $infoFrame
+
+set w [label $infoFrame.name -text "Application test" \
+    -font @{arial 28 bold@}]
+grid $w
+
+# le bandeau contenant les boutons
+set buttonFrame [frame .buttons]
+grid $buttonFrame -sticky w
+
+foreach buttonName @{Fichier Édite Aide@} @{
+  lappend buttonList [button $buttonFrame.b_$buttonName \
+    -text $buttonName -command "perform_$buttonName"]    
+@}
+grid @{*@}$buttonList
+
+# le bandeaux principal contenant les entrées
+set mainFrame   [frame .main -relief solid -borderwidth 2]
+grid $mainFrame -sticky ew
+
+foreach id @{Nom Ville Région@} @{
+  set w [labelframe $mainFrame.l_$id -text $id:]
+  set w2 [entry $w.e_$id -textvariable State($id) \
+      -background white  -width 32]
+  grid $w
+  grid $w2
+@}
+
+# le bandeau du status
+set statusFrame [frame .status]
+grid $statusFrame
+
+set w1 [label $statusFrame.status -textvariable status]
+set w2 [label $statusFrame.time -textvariable time]
+grid $w1 $w2
+set status "No Errors"
+set time [clock format [clock seconds]]
+@end example
+
+
+@float
+@ @ @ @ @image{./images/30tk_12win,,,,.png}
+@end float
+
+
+@node notebook
+@subsection Les zones à onglets (@code{ttk::notebook})
+@findex notebook
+
+Les onglets ont été introduit dans le bibliothèque ToolKut (@file{tk}) à
+partir de la version 8.5. Contrairement aux autres, ces éléments
+graphiques sont développés dans un espace de nom privé (@file{ttk}),
+qu'il faut donc mettre en préfixe.
+
+@example
+ttk::notebook widgetName ?option?
+@end example
+
+@table @code
+
+@item widgetName
+le nom de la zone à onglet
+
+@item ?option?
+les options donc en particulier l'option @code{-height} qui définit la
+hauteur de la zone à onglet. Par défaut, la commande utilise toute la
+hauteur disponible.
+
+@end table
+
+Quand une zone à onglet est crée, on lui ajoute ensuite les onglets
+ avec la commande @code{add} ou @code{insert}. La première commande
+ ajoute l'onglet à la suite des autres, la seconde l'insert entre deux
+ onglets existants.
+
+@example
+notebookName add window ?option?
+notebookName insert window ?option?
+@end example
+
+@table @code
+@item notebookName
+le nom de la zone à onglets qui a été crée
+
+@item window
+le nom de l'onglet ajouté
+
+@item option
+les options pour contrôler comment l'onglet est ajouté dont en
+particulier les suivantes.
+
+@table @code
+
+@item -text
+texte à inscrire dans l'onglet
+
+@item -image
+une image à y mettre
+
+@item -sticky
+l'un des choix @code{n,e,w,s} qui spécifie où caler les onglets, la
+position par défaut étant de centrer les onglets.
+
+@end table
+@end table
+
+Voici l'exemple, où nous en particulier utiliser la variable
+@code{unique} pour numéroter les éléments graphiques qui sont générés
+par des boucles et dont le nom réel a peu d'importance pour le
+programmeur, hormis le fait qu'il doit être unique.
+
+@example
+# le bandeau de titre
+set infoFrame [frame .info]
+grid $infoFrame
+
+set w [label $infoFrame.name -text "Application test" \
+    -font @{arial 20 bold@}]    
+grid $w
+
+# le bandeau contenant les boutons
+set buttonFrame [frame .buttons]
+grid $buttonFrame -sticky w
+
+foreach buttonName @{Fichier Édite Aide@} @{
+  lappend buttonList [button $buttonFrame.b_$buttonName \
+    -text $buttonName -command "perform_$buttonName"]    
+@}
+grid @{*@}$buttonList
+
+# le bandeaux principal contenant les entrées
+set mainFrame   [frame .main -relief solid -borderwidth 2]
+grid $mainFrame -sticky ew
+
+set unique 0
+set note [::ttk::notebook $mainFrame.n]
+grid $note
+
+# les trois onglets
+foreach txt @{Adresse @{État civil@} Emploi@} \
+  elements @{ @{rue ville région@}
+             @{nom @{né le@} école@}
+             @{@{début de contrat@} @{fin de contrat@}@}@} @{
+             
+    set w [frame $note.f_[incr unique]]
+    
+    foreach el $elements @{
+      set w1 [labelframe $w.lf_[incr unique] -text $el]
+      set w2 [entry $w1.e_[incr unique] -textvar State($el) -width 32]
+      grid $w1
+      grid $w2
+    @}
+    
+    $note add $w -text $txt -sticky ne
+@}
+
+# le bandeau du status
+set statusFrame [frame .status]
+grid $statusFrame
+
+set w1 [label $statusFrame.status -textvariable status]
+set w2 [label $statusFrame.time -textvariable time]
+grid $w1 $w2
+set status "No Errors"
+set time [clock format [clock seconds]]
+@end example
+
+@float
+@multitable @columnfractions .33 .33 .33
+@item @ @ @image{./images/30tk_13wiA,,,,.png} @ @
+@tab  @ @ @image{./images/30tk_13wiB,,,,.png} @ @
+@tab  @ @ @image{./images/30tk_13wiC,,,,.png}
+@end multitable
+@end float
+
+
+@node panedwindow
+@subsection Les zones à panneaux coulissants (@code{panedwindow})
+@findex panedwindow
+
+Une zone à panneaux coulissants est une zone dans laquelle trois panneaux
+peuvent se recouvrir les uns les autres et couvriront toujours la même
+zone global. On peut donc glisser (redimensionner) un panneau pour
+mieux accéder au contenu du panneau qui est dessous.  Pour construire ce
+type de zone à panneaux coulissants, on utilise la commande.
+@code{panedwindow}.
+
+@example
+panedwindow windowName ?-option?
+@end example
+
+@table @code
+@item windowName
+nom de la zone à onglet
+
+@item -option
+Les options dont en particuliers.
+
+@table @code
+@item -orient
+l'orientation @code{vertical} @code{horizontal} du mouvement de
+coulissement des panneaux, l'orientation par défaut étant l'horizontale.
+
+@item -showhandle
+par défaut à @code{false}, si cette option est mise ) @code{true} une
+poignée de coulissement apparaît entre les fenêtres redimensionnables.
+
+@item -handlepad
+un entier pour définir à quelle distance du bord
+supérieur ou du bord de gauche on place la poignée de coulissement.
+
+@end table
+@end table
+
+La commande @code{panedwindow} a aussi une sous-commande @code{add} qui
+permet d'ajouter des panneaux. Par défaut, ils sont ajoutés en dernier,
+mais on peut aussi les insérer juste avant le panneau actuellement
+sélectionné.
+
+@example
+panedWindowName add widgetName ?option?
+@end example
+
+@table @code
+@item panedWindowName
+c'est le nom de la zone qui a été crée
+
+@item widgetNam
+le nom du panneau qui est ajouté
+
+@item option
+les options possibles dont en particulier
+
+@table @code
+@item -after widgetname
+pour insérer l'ongler après le panneau @code{widgetName}
+
+@item -before widgtname
+pour insérer l'ongler avant le panneau @code{widgetName}
+@end table
+
+@end table
+
+
+Voici l'application.
+
+@example
+# le bandeau de titre
+set infoFrame   [frame .info]
+grid $infoFrame
+
+set w [label $infoFrame.name -text "Application test" \
+    -font @{arial 20 bold@}]    
+grid $w
+
+# le bandeau contenant les boutons
+set buttonFrame [frame .buttons]
+grid $buttonFrame -sticky w
+
+foreach buttonName @{Fichier Édite Aide@} @{
+  lappend buttonList [button $buttonFrame.b_$buttonName \
+    -text $buttonName -command "perform_$buttonName"]    
+@}
+grid @{*@}$buttonList
+
+# le bandeaux principal contenant les entrées
+set mainFrame   [frame .main -relief solid -borderwidth 2]
+grid $mainFrame -sticky ew
+
+set pw [panedwindow $mainFrame.n]
+grid $pw
+
+# les trois panneaux
+foreach txt @{Adresse @{État civil@} Emploi@} \
+  elements @{ @{rue ville région@}
+             @{nom @{né le@} école@}
+             @{@{début de contrat@} @{fin de contrat@}@}@} @{
+    set w [frame $pw.f_[incr unique] -relief solid -borderwidth 1]
+    
+    foreach el $elements @{
+      set w1 [labelframe $w.lf_[incr unique] -text $el]
+      set w2 [entry $w1.e_[incr unique] -textvar State($el)]
+      grid $w1
+      grid $w2
+    @}
+    
+    $pw add $w
+@}
+@end example
+
+On obtient une fenêtre avec trois panneaux coulissant pouvant se
+recouvrir les uns les autres pour accéder à leur contenu.
+
+@float
+@ @ @ @ @image{./images/30tk_14win,,,,.png}
+@end float
+
+@c ---------------------------------------------------
+
+
+@node Placer les éléments d'une fenêtre
+@section Placer les éléments d'une fenêtre: @code{place}, @code{pack} et @code{grid} 
+@cindex Placer les éléments d'une fenêtre
+
+L'agencement à l'intérieur d'une fenêtre est géré par trois algorithmes
+possibles correspondant à trois commandes:
+
+@itemize @bullet
+@item  @code{place}
+
+@item @code{pack}
+
+@item @code{grid}
+@end itemize
+
+Toutes ces commandes supportent l'option @code{-in} qui permet de
+définir dans quelle fenêtre on doit placer l'élément graphique. Par
+défaut, les éléments graphiques sont sinon placés dans leur parent
+immédiat, ce qui est la pratique courante. Cette option permet de
+contourner cette pratique, si c'est requis.
+
+
+@node place
+@subsection La commande @code{place}
+@findex place
+
+La commande @code{place} place un élément graphique à une position
+précise.
+
+@example
+place widgetName option ?options?
+@end example
+
+@table @code
+@item widgetName
+Le nom de l'objet graphique que l'on place
+
+@item option
+Cette commande demande qu'on donne au moins les coordonnées pour le
+placement.
+
+@item -x -y
+la position absolue en pixels.
+
+@item -relx -rely
+une fraction donnant le position relative en fonction de la taille de la
+fenêtre.
+
+@item -in
+la fenêtre dans laquelle sera cet élément graphique (si ce n'est pas le
+parent immédiat, ce qui est le choix par défaut).
+
+@end table
+
+
+@node pack
+@subsection La commande @code{pack}
+@findex pack
+
+Cette commande @code{pack} est plus simple à utiliser que la commande
+@code{place} car elle ne demande pas de calculer les coordonnées exactes
+de placement de l'objet graphique.
+
+@example
+pack windgetName ?option?
+@end example
+
+
+@table @code
+@item widgetName
+le nom de l'élément graphique à placer
+
+@item ?option?
+les options avec en particulier
+
+@table @code
+@item -side
+le côté sur lequel on place l'élément graphique, ce qui peut être choisi
+parmis @code{top}, @code{bottom}, @code{left} et @code{right}. Le
+placement par défaut est @code{top}.
+
+@item -anchor
+Si le contenant est plus grand que l'objet à placer, ceci permet de
+préciser la direction d'un placement avec les paramètre @code{n},
+@code{e}, @code{w} et @code{s} (pour les trois directions North East,
+West, South) (voir l'exemple qui suit).
+
+@item -expand
+si mis à 1 ou @code{yes}, alors le widget s'étendra pour prendre toute
+la place disponible de l'élément graphique parent. La valeur par défaut
+est 0, c'est à dire @code{no}.
+
+@item -fill
+permet de définir dans quelle direction étendre l'élément graphique
+
+@table @code
+@item none
+le widget ne s'étend pas
+
+@item x
+le widget s'étend horizontalement
+
+@item y
+le widget s'étend verticalement
+
+@item both
+le widget s'étend dans les deux directions
+@end table
+
+@item -padx -pady
+déclare l'espace horizontal ou vertical à laisser entre les éléments
+graphiques (en pixels).
+
+@item -after
+place l'élément graphique sur un autre widget nommé.
+
+@end table
+
+@end table
+
+
+Voici un exemple d'illustrant le placement et l'ancrage.
+
+@example
+label .la -background gray80 -text GAUCHE -relief solid
+label .lb -background gray80 -text HAUT -relief solid
+pack .la -side left
+pack .lb -side top -anchor w
+
+. configure -background white -relief solid -borderwidth 3
+wm geometry . 120x50
+@end example
+
+Je donne ci-dessous deux vues ou la dimension de la fenêtre principale a
+été changée pour mieux comprendre les principes d'ancrage et de
+positionnement.
+
+@float
+@multitable @columnfractions .5 .5
+@item @ @ @ @ @image{./images/30tk_15pck,,,,.png} @ @ @ @
+@tab  @ @ @ @ @image{./images/30tk_16pck,,,,.png}
+@end multitable
+@end float
+
+L'étiquette contenaut "HAUT" se place en haut, mais aussi le plus à
+l'Ouest possible tout en n'empiétant pas sur la positon de l'étiquette
+"GAUCHE" placée avant, même si celle-ci ne prend pas toute la hauteur
+de la fenêtre.
+
+On peut remplir l'espace qui est réservé à une étiquette par cet
+algorithme de placement avec l'option @code{fill} ou étendre cette
+étiquette avec l'option @code{expand}.
+
+@example
+font create myDefaultFont -family "DejaVu Sans" -size 16
+option add *font myDefaultFont
+
+frame .root -background black
+pack .root
+
+frame .root.twolabels -background gray50
+label .root.twolabels.upperlabel -text "en haut"
+label .root.twolabels.lowerlabel -text "en bas, bien rempli"
+pack .root.twolabels -side left
+pack .root.twolabels.upperlabel -side top
+pack .root.twolabels.lowerlabel -side bottom
+@end example
+
+@float
+@ @ @ @ @image{./images/30tk_17pck,,,,.png}
+@end float
+
+Nous ajoutons maintenant une étiquette à droite sans expansion, ce qui
+va montrer le fond noir de la fenêtre principale.
+
+
+@example
+frame .root.nofill -background gray50
+label .root.nofill.label -text "sans expansion"
+pack .root.nofill -side left
+pack .root.nofill.label
+@end example
+
+@float
+@ @ @ @ @image{./images/30tk_18pck,,,,.png}
+@end float
+
+et maintenant si nous changeons la propriété d'expansion.
+
+@example
+.root.nofill.label configure -text "avec expansion"
+pack .root.nofill -side left -fill y
+@end example
+
+@float
+@ @ @ @ @image{./images/30tk_19pck,,,,.png}
+@end float
+
+et enfin si nous étendons cette nouvelle étiquette placée à droite en
+même temps que le cadre.
+
+@example
+pack .root.nofill -side left -fill y -expand y
+pack .root.nofill.label -fill y -expand y
+@end example
+
+@float
+@ @ @ @ @image{./images/30tk_20pck,,,,.png}
+@end float
+
+
+Cette option de remplissage peut servir à aligner les éléments graphique
+comme sur cet exemple. Nous commençons sans utiliser l'option
+@code{fill}.
+
+@example
+font create myDefaultFont -family "DejaVu Sans" -size 16
+option add *font myDefaultFont
+
+set buttonFrame [frame .buttons]
+set inputFrame  [frame .input]
+set resultFrame [frame .result]
+
+set quitbutton [button .buttons.quitbutton -text "Quitter" \
+                         -command "exit"]
+set gobutton [button .buttons.gobutton -text "calcul de TVA" \
+    -command @{set salesTax [format %2.f [expr $userInput * 0.1]]@}]
+
+set input [entry $inputFrame.input -textvariable userInput]
+
+set prompt [label $inputFrame.prompt -text "Prix HT:"]
+set tax [label $resultFrame.tax -text "TVA à 10%:"]
+set result [label .result.result -textvariable salesTax \
+                                 -relief raised]
+
+pack .buttons.quitbutton -side right
+pack .buttons.gobutton -side right
+pack $input -side right
+pack $prompt -side left
+pack $tax -side left
+pack $result -side left
+
+pack .buttons -side bottom
+pack $inputFrame -side top
+pack $resultFrame -after $inputFrame
+@end example
+
+@float
+@ @ @ @ @image{./images/30tk_21pck,,,,.png}
+@end float
+
+Et maintenant, nous plaçons le résultat avec l'option @code{fill}
+
+@example
+pack $resultFrame -after $inputFrame -fill x
+@end example
+
+La bande contenant le résultat va maintenant occuper tout l'espace
+disponible dans la largeur, ce qui va repousser l'étiquette vers la
+gauche pour un parfait alignement des étiquettes.
+
+@float
+@ @ @ @ @image{./images/30tk_22pck,,,,.png}
+@end float
+
+Nous pouvons pousser en forçant maintenant les étiquettes à prendre la
+même place.
+
+@example
+$prompt configure -width 10 -anchor w
+$tax    configure -width 10 -anchor w
+# et on recourcis aussi la zone de saisie
+$input configure -width 10 
+@end example
+
+@float
+@ @ @ @ @image{./images/30tk_23pck,,,,.png}
+@end float
+
+
+@node grid
+@subsection La commande @code{grid}
+@findex grid
+
+Beaucoup d'interface se concoivent finalement comme des grilles ou
+tableau sur lesquelles on accrocherait les éléments graphiques. La
+commande @code{grid} effectue le placement en se référant à une grille
+virtuelle ayant des rangée des colonnes numérotées.
+
+@example
+grid widgetName ?widgetNames? option
+@end example
+
+@table @code
+@item widgetName
+Ceci doit être le nom de l'élément graphique
+
+@item option
+Viennent ensuite les options dont voici les principales :
+
+@table @code
+@item -column number / -row number
+Le numéro de colonne ou de rangée
+
+@item -columnspan number / -rowspan number
+Le nombre de colonnes ou de rangées à utiliser, par défaut 1.
+
+@item -sticky side
+Le côté sur lequel on place les éléments graphiques
+@code{n}, @code{e}, @code{w}, @code{s}.
+
+@end table
+@end table
+
+En reprenant l'exemple précédant.
+
+@example
+font create myDefaultFont -family "DejaVu Sans" -size 16
+option add *font myDefaultFont
+
+set quitbutton [button .quitbutton -text "Quitter" \
+                         -command "exit"]
+set gobutton [button .gobutton -text "calcul de TVA" \
+    -command @{set salesTax [format %2.f [expr $userInput * 0.1]]@}]
+
+set input [entry .input -textvariable userInput -width 10]
+
+set prompt [label .prompt -text "Prix HT:"]
+set tax [label .tax -text "TVA à 10%:"]
+set result [label .result -textvariable salesTax \
+                          -relief raised -width 10]
+
+grid $quitbutton $gobutton -row 3
+grid $prompt $input -row 1 -sticky w
+grid $tax $result -row 2 -sticky w
+@end example
+
+
+@float
+@ @ @ @ @image{./images/30tk_24pck,,,,.png}
+@end float
+
+On obtient le même résultat qu'avec le commande @code{pack}, mais plus
+directement, car nous n'avons pas besoin de construire une suite de
+cadre qui s'empilent pour retrouver une structure de tableau.
+
+
+@node Sous-commande 'forget' et commande 'destroy'
+@subsection Sous-commande @code{forget} et commande @code{destroy}
+@findex place forget
+@findex grid forget
+@findex pack forget
+
+Les trois commandes de placement (@code{place}, @code{grid} et
+@code{pack}) possèdent toutes la sous-commande @code{forget}, qui retire
+l'objet au gestionnaire de fenêtres et suspend ainsi son affichage.
+Cette sous commande s'utilise après la commande @code{place},
+@code{grid} ou @code{pack}, en veillant à utiliser la même que celle
+prise pour l'affichage qu'on annule.
+
+@example
+set win [frame .win -background red]
+pack .win
+pack configure $win -expand t -fill both
+pack forget $win
+@end example
+
+@findex destroy
+La commande @code{destroy} retire aussi l'objet de l'affichage, mais en
+le détruisant complètement. On peut aussi l'appliquer à un objet qui a été
+enlevé de l'affichage si on veut par exemple le redéfinir.
+
+@example
+destroy $win
+@end example
+
+
+@node Sous-commande 'configure'
+@subsection Sous-commande @code{configure}
+@findex place configure
+@findex grid configure
+@findex pack configure
+
+La sous-commande @code{configure} permet de modifier une option de la
+commande de placement (que ce soit @code{place}, @code{pack} ou @code{grid}).
+
+
+
+@c ---------------------------------------------------
+
+
+@node Rafraîchir l'écran avec 'update'
+@section Rafraîchir l'écran avec @code{update}
+@findex update
+
+La commande @code{update} traite les évènement et les appels
+de retour en attente.
+
+@example
+update ?idltasks?
+@end example
+
+Cette commande est utilisée pour mettre l'application à jour et
+rafraîchir les widgets affichés.
+
+Si l'argument @code{idletasks} est spécifié, aucun nouvel événement ou
+erreur n'est traité. Seuls les appels de retour qui seraient en attente
+sont effectués. Cet argument provoque le traitement immédiat des
+opérations normalement différées, comme les rafraîchissement d'écran et
+les calculs de fenêtrage.
+
+La commande @code{update idletasks} est utile pour les scripts dans
+lequels des changements d'état ont été effectués et qu'on veut les faire
+apparaitre immédiatement, au lieu d'attendre la fin complète du
+script. Par exemple, ceci arrive dans une boucle qui change
+continuellement l'apparence d'un widget, comme un widget montrant la
+progression d'un calcul.
+
+Néanmoins, il y a des mises à jour qui se produisent seulement en
+réponse à des événements, tels les changements de taille de fenêtre. Ces
+mises à jour ne se produiront pas avec @code{update idletasks}.
+
+La commande @code{update} sans options est utile dans les scripts où vous
+effectuez de longs calculs mais où vous désirez que l'application
+réponde aux événements tels que les interactions avec l'utilisateur. Si
+vous appelez occasionnellement update alors l'entrée utilisateur sera
+traitée pendant l'appel suivant de @code{update}.
+
+
+@node Faire attendre l'utilisateur
+@section Faire attendre l'utilisateur
+
+Un interface graphique suppose de n'exécuter que des commandes courtes
+pour revenir au plus vite au contrôle de l'interface. Mais parfois, il
+faut lancer un traitement long en arrière plan et donc faire attendre
+l'utilisateur. On regroupe ici les différentes commandes de mise en
+attente. Ces commandes ne sont pas toutes obligatoirement dans un
+environnement Tk.  Certaines présupposent simplement qu'on a lancé un
+gestionnaire d'évènements, ce qui est fait par défaut avec @file{wish}
+mais a pas avec @code{tclsh}.
+
+
+@node La commande 'vwait'
+@subsection La commande @code{vwait}
+@findex vwait
+
+Cette commande démarre le gestionnaire d'évènements au cas où il ne
+serait pas chargé. Ceci est utile par exemple si on est sous
+@file{tclsh} et non sous @code{wish} et que @file{Tk} n'a pas été
+chargé.
+
+@example
+vwait varName
+@end example
+
+Cette instuction attend qu'un évènement fasse changer @code{varName}. La
+variable est recherchée au niveau global. 
+
+Une façon de suspendre un programme sous Tcl qui n'a pas de gestionnaire
+d'évènements et d'utiliser la commande.
+
+@example
+vwait forever
+@end example
+
+La variable @code{forever} n'est normalement jamais utilisée.
+
+
+
+
+@node Faire attendre avec la commande 'after'
+@subsection Faire attendre avec la commande @code{after}
+@findex after
+
+Cette commande n'a d'effet que si l'application est pilotée par les
+évènements. Ceci est le cas pour un script exécuté avec @file{wish},
+mais pas avec @file{tclsh}. Pour ce dernier, il faut activer la boucle
+d'évènement avec les commandes @code{vwait} ou @code{update}.
+
+Le plus courant est d'écrire.
+@example
+after ms
+@end example
+
+où @code{ms} est la valeur d'attente en millisecondes.
+Le script va attendre sur cette ligne que cette durée s'écoule.
+
+On peut ajouter des scripts sur cette ligne d'instruction.
+
+@example
+after ms script ?script?
+@end example
+
+Dans ce cas les scripts sont concaténés puis exécutés. Mais à la
+différence des lignes qui peuvent suivre cette instruction, ces scripts
+sont exécutés au niveau global quelque soit la situation de cette
+instruction. Si une erreur se produit, elle est traitée par le mécanisme
+@code{bgerror}
+@footnote{voir @ref{Lancer une fenêtre 'bgerror'}}.
+La commande @code{after} renvoie un identificateur qui peut être utilisé
+par annuler la commande retardée avec @code{after cancel}.
+
+@findex after cancel
+La commande @code{after cancel id} annule une commander retardée en
+utilisant l'identifiant qui a été renvoyé. Si la commande qui renvoie
+cet identifiant a déjà été exécutée, cette instruction n'a aucun effet.
+
+On peut aussi écrire :
+
+@example
+after cancel script ?script?
+@end example
+
+Cette instruction annule les commandes qui correspondent à ces scripts
+(après concaténation) si elles sont en attente. Si elles ne le sont pas,
+cette instruction n'a pas d'effet.
+
+
+@findex after idle
+On peut aussi faire attendre qu'il n'y ait plus d'évènement à traiter
+pour exécuter un script et continuer.
+
+@example
+after idle script ?script?
+@end example
+
+Enfin la commande @code{after info id} renvoie l'information au sujet
+des gestionnaires d'évènements existants. Si aucun @code{id} n'est
+donné, la commande renvoie la liste de toutes les identifiants de tous
+les gestionnaires existant. Si @code{id} est fourni, il spécifie un
+gestionnaire existant. C'est en fait la valeur de retour d'un appel
+précédant à une commande @code{after} et on obtient un résultat
+uniquement si cette commande n'a ni été déclenchée ni annulée. La
+commande renvoie alors deux éléments, qui sont le script et le type de
+déclencheur: @code{idle} ou @code{timer}.
+
+Voici un exemple utilisant la commande @code{after} avec la commande
+@code{vwait} et qui suspend la console pendant un certain temps. Ceci
+marche en particulier aussi sur @file{tclsh}.
+
+@example
+after 30000 @{set a 1@}
+vwait a
+@end example
+
+
+@node Bloquer le pointeur avec la commande 'busy'
+@subsection Bloquer le pointeur avec la commande @code{busy}
+@findex busy
+
+La commande @code{busy} permet de bloquer le pointeur quand il est dans
+une fenêtre ou dans un cadre pour attendre la fin d'un traitement qui peut
+prendre du temps.
+
+Les formes sont les suivantes :
+
+@table @code
+@item tk busy frm ?options?
+Raccourcis pour le commande @code{tk busy hold}.
+
+@item tk busy hold frm ?options?
+Gèle tous les évènements pour la fenêtre ou cadre @code{frm}.
+Il faut normalement appeler tout de suite la commande @code{update}
+@footnote{@ref{Rafraîchir l'écran avec 'update'}} pour être sûr
+que la commande prenne effet.
+
+Les options sont
+@table @code
+@item -cursor cursorName
+avec un nom de curseur dépend du système. Il peut être suivi de deux noms
+de couleurs (avant et arrière plan). Les noms possibles @code{X_cursor},
+@code{watch}, @code{hand2}, @code{left_ptr}, @code{plus}, @code{arrow},
+@code{crosshair}, @code{wait}. La valeur par défaut est @code{wait} sous
+Windows et @code{watch} sur les autres plateformes.
+@end table
+
+
+@item tk busy cget frm option
+Interroge la commande @code{tk busy} sur les options de
+configurations. @code{frm} doit être un widget ayant reçu cette commande
+@code{tk busy}. 
+
+
+@item tk busy configure frm ?option value?
+cette sous commande interroge ou modifie @code{tk busy} avec l'option donnée.
+Notons que la base de données d'option dans ce cas passe par
+@code{frm}.
+@example
+option add *frm.busyCursor gumby
+option add *frm.BusyCursor gumby
+@end example
+
+@item tk busy forget frm ?frm?
+Arrête le gel du cadre @code{frm} (on peut en donner plusieurs).
+
+
+@item tk busy current ?motif?
+Retourne les paramètres de tous les widgets qui sont actuellements
+@code{busy}. Le @code{motif} permet de filter les noms de widgets.
+
+@item tk busy status frm
+Retourne le status d'un widget (1 ou 0).
+
+@end table
+
+
+Voici un exemple qui réutilise ces commandes.
+
+@example
+frame .top
+entry .top.e1
+button .top.b1 -text Run -command Run
+button .top.b2 -text Exit
+pack .top.e1 .top.b1 .top.b2
+pack .top
+
+proc Run @{@} @{
+  # Suspension de l’interactivité
+  tk busy hold .top ;
+  update
+  # donner au curseur l'apparence d'un sablier
+  # en fait, c'est donné par défaut
+  tk busy configure .top -cursor "watch"
+  ...
+  # Phase de traitement
+  ...
+   # On redonne la main
+  tk busy forget .top ;
+@}
+@end example
+
+
+@node Lier un élément à une commande avec 'bind'
+@section Lier un évènement graphique à une commande avec @code{bind}
+@findex bind
+
+La plupart des éléments graphiques de Tk traite les évènements en
+renvoyant une commande précise. Le bouton pressé par la souri renvoie
+ ainsi la commande qui a été indiquée.  La commande @code{bind} permet de
+généraliser en liant tout évènement possible à une commande.
+
+La forme générale est la suivante.
+
+@example
+bind el ev script
+@end example
+
+Chaque fois que l'élement graphique@footnote{en réalité, le tag de
+l'élément graphique, ce qui permet de faire référence à un groupe
+d'éléments ayant des tag similaires comme avec lab* pour référencer tous
+les éléments dont le tab commence par lab.}  @code{el} voit l'évènement
+@code{ev} se produire, le @code{script} s'exécute.
+
+Cette liaison se défait par la commande suivante.
+
+@example
+bind el ev ""
+@end example
+
+ou encore, si on veut délier tous les évènements possibles sur cet
+élement graphique.
+
+@example
+bind el ""
+@end example
+
+Au contraire, si l'élément graphique a déjà un script attaché que l'on
+veut conserver, on peut ajouter le nouveau script de la manière
+suivante.
+
+@example
+bind el ev +script
+@end example
+
+
+
+@node Le modèle d'évènements
+@subsection Le modèle d'évènements
+@cindex modèle d'évènements
+
+Un évènement graphique est une séquence d'actions concernant soit les
+touches du clavier, soit la souris.
+
+L'évènement le plus simple est une touche du clavier, qui est alors
+référencé par son caractère (hormis pour '<' et l'espace qui sont
+des touches particulières dans ce cas).
+
+@example
+entry .e
+pack .e
+bind .e a @{puts "vous avez tapé 'a'"@}
+bind .e a @{+puts "vous avez vraiment tapé un 'a'"@}
+bind .e A @{puts "vous avez tapé 'A'"@}
+@end example
+
+
+Le deuxième modèle d'évènement est @key{<modifier-type-detail>}.  Pour
+retrouver ces évènements, le mieux est de regarder ceux qui existent
+déjà pour une classe connue d'éléments graphiques.  La commande
+@code{bind} sans arguments autre que la classe de l'élément graphique
+permet de liste les évènements qui lui sont déjà liés.
+
+
+@example
+bind Button
+@result{} <ButtonRelease-1> <Button-1> <Leave> <Enter> <<Invoke>>
+<Key-space>
+@end example
+
+(la classe @code{Entry} a beaucoup plus d'évènement liés)
+
+On peut aussi voir les évènements qui sont associés à tous les éléments
+en utilisant le mot clé 'all'.
+
+@example
+bind all
+@result{} <<PrevWindow>> <<NextWindow>> <Key-F10> <Alt-Key>
+@end example
+
+Si nous reprenons l'exemple précédant, voici une manière de lier
+l'évènement clic de souris (bouton ici indéterminé).
+
+@example
+bind .e <Button> @{puts @{vous avez pressé un bouton de la souris@}@}
+@end example
+
+
+Enfin le troisième modèle est pour les modèles définis par l'utilisateur
+et s'écrivent @code{<<Model>>}.
+
+
+@node Les scripts de liaisons et substitution
+@subsection Les scripts de liaisons et substitution
+
+L'argument @code{script} de la commande @code{bind} est le script à
+exécuté quand l'évènement attendu intervient. Si ce script contient un
+caracètre @code{%}, c'est qu'il faut faire une substitution avant de
+l'exécuter.
+
+Voici quelques uns de ces codes.
+
+@table @code
+@item %%
+est remplacé par un seul signe de pourcentage
+
+@item %#
+le numéro de la dernière requête client traité par le serveur.
+
+@item %b
+le numéro du bouton pressé ou relâché (pour @code{ButtonPress} ou
+@code{ButtonRelease}).
+
+@item %s
+le champ état (ndt. state) de l'évènement
+
+@item %t
+le champ @code{time} pour les évènements qui en ont un.
+
+@item %x %y
+Le champ @code{x} ou @code{y} pour les évènements qui en ont un.
+
+@item %A
+le caractère ASCII correspondant à l'évènement ou la chaîne vide si
+l'évènement ne correspond pas à un caractère ASCII. Ceci ne fonctionne
+que pour les commandes @code{KeyPress} et @code{KeyRelease}.
+
+@item %T
+type de l'évènement
+
+@item %W
+le nom du chemin de la fenêtre auquel l'évènement se rapporte.
+
+@end table
+
+@c http://wfr.tcl-lang.org/156
+
+
+
+@node Organiser les liens avec 'bindtags'
+@section Organiser les liens avec @code{bindtags}
+@findex bindtags
+
+@c http://wfr.tcl-lang.org/162
+@c https://wiki.tcl-lang.org/page/bindtags
+@c https://web.archive.org/web/20090501045631/http://www.tclscripting.com/articles/mar06/article2.html
+@c http://perl.mines-albi.fr/ModulesFr/Tk-bindtags.html
+@c http://wfr.tcl-lang.org/162
+
+Lorsqu'on crée une liaison avec la commande bind, elle est associée soit
+à une fenêtre particulière telle que $widget, un nom de classe tel que
+Tk::Button, le mot-clé all, ou n'importe quelle autre chaîne. Toutes ces
+formes sont appelées des tags de liaison (binding tags). Chaque fenêtre
+a une liste de tags de liaison qui détermine comment seront traités les
+événements pour cette fenêtre. Lorsqu'un événement se produit dans une
+fenêtre, il est appliqué à chaque tag de la fenêtre dans l'ordre : pour
+chaque tag, la liaison la plus spécifique correspondant au tag et à
+l'événement donnés est exécuté. Voir la documentation de Tk::bind pour
+des informations supplémentaires sur le processus de correspondance.
+
+Par défaut, chaque fenêtre possède quatre tags de liaison qui sont le
+nom de classe de la fenêtre, le nom de la fenêtre, le nom de la plus
+proche fenêtre toplevel ancêtre et all, dans cet ordre. Les fenêtres
+toplevel ont seulement trois tags par défaut, puisque le nom du toplevel
+est le même que celui de la fenêtre.
+
+Notez que cet ordre est différent de l'ordre utilisé par Tcl/Tk. Dans
+l'ordre des liaisons de Tcl/Tk, la fenêtre précède le nom de
+classe. Ceci parce que Tcl est procédural et non orienté objet et la
+manière normale d'écraser les liaisons de classe dans les applications
+Tcl/Tk est d'utiliser une liaison d'instance. 
+
+La commande bindtags permet de lire et de modifier les tags de liaison
+d'une fenêtre.
+
+Si on invoque @code{bindtags .wdg} sans arguments, l'ensemble actuel
+de tags de liaison de @code{.wdg} est renvoyé sous forme de liste. 
+
+Cette commande peut permettre d'inverser l'ordre naturel des liaisons
+comme avec cette commande.
+
+@example
+bindtags .b @{all . Button .b@}
+@end example
+
+Les bindings de all seront ici appelé en premier, suivi des binding pour
+la toplevel, puis ceux de la classe @code{Button} et enfin ceux du
+widget.
+
+Cette commande peut aussi être utilisé pour introduire des bindings tags
+supplémentaires.
+
+@example
+bindtags .b @{.b TrickyButton . all@}
+@end example
+
+Cette commande remplace le tag @code{button} de @code{.b} par
+@code{TrickyButton}. Les bindings associés par défaut à la classe
+@code{Buttons} ne s'appliqueront plus à @code{.b} et sont donc remplacés
+par ceux qui auront été crées et associés à @code{TrickyButton}.
+
+
+@node Obtenir des informations sur l'environnement
+@section Obtenir des informations sur l'environnement.
+@cindex environnement
+
+Un même script devant pouvoir s'exécuter sur plusieurs plateformes, il
+existe plusieurs possibilités pour reconnaître son evonrionnement.
+est.
+
+@table @code
+@item tcl_platform
+Il s'agit d'un vecteur global qui a deux composantes intéressantes.
+   @table @code
+   @item $tcl_platform(platform)
+   dit si on est sous linux, windows, macos ...
+   @item $tcl_platform(user)
+   donne l'id de l'utilisateur en cours
+   @end table
+
+@item ::platform::identify
+Donne directement si on est sous macos, linux, windows
+@end table
+
+
+@c lien : https://wiki.tcl-lang.org/page/winfo
+
+@findex winfo
+D'autre part, la commande @code{winfo} permet d'obtenir plusieurs
+information importante sur le système de fenêtrage. Toutes les commandes
+ont le même format.
+
+@example
+winfo cmd .window
+@end example
+
+où @code{cmd} est la sous-commande, dont nous allons donner ici quelques
+exemples important et @code{.window} est le nom de la fenêtre.
+
+@table @code
+@item winfo children .wd
+Cette commande donne tous les widgets contenus dans @code{.wd}.
+
+@item winfo class .wd
+Donne la classe définie pour le widget .wd
+
+@item winfo containing ?-displayof window? rootX rootY
+Donne le widget qui contient le point dont on a donné les coordonnées.
+
+@item winfo geometry .wd
+Donne les dimensions du  widget @code{.wd}
+
+@item winfo manager .wd
+Donne le type de gestionnaire de placement (@code{pack}, @code{place} ou
+@code{grid}) utilisé pour ce widget @code{.wd}
+
+@item winfo name .wd
+Le nom du widget.
+
+@item winfo parent .wd
+Donne le widget parent de @code{.wd}
+
+@item winfo exist .wd
+Retourne un booléen pour savoir si le widget @code{.wd} existe.
+
+@item winfo screenheight .
+Le nom de la fenêtre doit toujours être présent, même quand il s'agit
+comme ici de la taille de l'écran (mais pensons au cas d'un ordinateur
+connecté à plusieurs écrans). Cette commande donne la résolution
+verticale de l'écran où se trouve la fenêtre.
+
+@item winfo screenwidth .
+comme précédemment mais pour la résolution horizontale de l'écran.
+
+@item winfo width .wd
+donne la largeur actuelle de la fenêtre ou l'élément .wd
+
+@item winfo height .wd
+comme précédemment mais pour la hauteur
+
+@item windo reqwidth .wd
+La largeur calculée par le gestionnaire de fenêtre et qu'il
+faudrait pour la fenêtre wd
+
+@item winfo reqheight .wd
+pareil et pour la largeur.
+@end table

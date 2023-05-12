@@ -1,0 +1,136 @@
+@c -*- coding: utf-8-unix; mode: texinfo; mode: auto-fill -*-
+
+@node Introspection avec la commande 'info'
+@chapter Introspection avec la commande @code{info}.
+@findex info
+
+Avec les espaces de noms, nous avons déjà rencontrés quelques commandes
+permettant l'introspection, c'est à dire, permettant au code de
+déterminer par lui même le contexte dans lequel il est.
+@footnote{voir les commandes
+@ref{namespace origin}, @ref{namespace which},
+@ref{namespace children}, @ref{namespace qualifiers},
+@ref{namespace tail}, @ref{namespace current}, @ref{namespace parent}}
+La commande @code{info} va compléter ce que nous avions déjà pour ces
+opérations d'introspection.
+
+@ftable @code
+@item info args 'procname'
+Retourne la liste des arguments de la procédure @code{'procname'}
+
+@item info body 'procname'
+Retourne le corps de la procédure @code{'procname'}
+
+@item info class 'subcommand' 'class' ?'args' ...
+Retourne des informations sur la classe.
+(@ref{info class})
+
+@item info cmdcount 
+Retourne le nombre de commandes qui ont été invoquées par l'interpréteur
+
+@item info commands ?motif?  || info comand ?motif?
+Si le motif n'est pas donné, retourne les liste des commandes Tcl visibles
+dans l'espace de noms en cours, sinon toutes les procédures correspondant
+au motif. On peut rajouter le chemin vers un espace de nom.
+
+@item info complete 'commande'
+Retourne 1 si la commande est complète au sens que les accolades,
+crochets et guillemets doivent avoir été refermés. Ceci est utilisé dans
+les environnements utilisateur en ligne pour attendre la refermeture
+d'une commande, typiquement pour une écriture sur plusieurs lignes.
+
+@item info coroutine
+(à écrire)
+
+@item info default 'procname' 'arg' 'varname'
+Détermine si la procédure @code{procanme} utilise ses arguments par
+défaut (1) ou non (0).
+
+@item info errorstack ?interp?
+(à écrire)
+
+@item info exists 'varName'
+Détermine si la variable @code{varName} existe (1) ou non (0)
+
+@item info frame
+Donne accès à toutes les fenêtres qui sont sur la pile d'exécution.
+(à continuer)
+
+@item info functions ?motif?
+Sans motif, retourne la liste de toutes les fonctions mathématiques
+actuellement définies. Sinon utilise le motif pour filtrer.
+
+@item info globals ?motif?
+Sans motif, retourne toutes les variables globales. Sinon utilise le
+motif pour filtrer.
+
+@item info hostname
+Retourne le nom de l'ordinateur hôte.
+
+@item info level ?numéro?
+Si aucun numéro n'est spécifié, cette commande retourne le niveau actuel
+d'exécution (dans le tas). Si nous sommes au niveau le plus haut, la
+commande retourne 0. Si un numéro est entré, alors la commande retourne
+une liste donnant les noms et arguments des procédures appelées à ce
+niveau d'exécution dans la pile d'exécution.
+
+@item info library
+Retourne les répertoires des bibliothèques de Tcl. C'est en fait la
+valeur de la variable @code{tcl_library} qui peut être changé par la
+commande @code{tcl_library}.
+
+@item info loaded ?interp?
+Retourne la liste de tous les paquets qui ont été chargés dans
+l'interpréteur @code{interp}. Chaque élément de la liste consiste en
+un couple donnant le nom du fichier et le nom di paquet chargé. Si
+l'interpréteur n'est pas indiqué, l'information sera sur tous les
+interpréteurs en activité. Pour avoir seulement ceux de l'interpréteur
+en cours, rentrer une chaîne vide.
+
+@item info locals ?motif?
+Si aucun motif n'est donné, retourne tous les noms de localisation
+actuellement définis. Sinon, filtre le résultat avec le motif.
+
+@item info nameofexecutable
+Retourne le nom qualifé (contenant le chemin) du fichier binaire qui
+invoque l'application (s'il le trouve).
+
+@item info object
+Retourne des informations sur l'objet
+(@ref{info object})
+
+@item info patchlevel
+Retourne la valeur de la variable @code{tcl_patchLevel}, qui contient le
+nom exact de la biblitohèque Tcl.
+
+@item info procs ?motif?
+Si le motif n'est pas précisé, renvoie une liste des noms de toutes
+les procédures de l'espace de noms courant. Sinon, un filtre est fait
+avec le motif.
+Par exemple pour obtenir toutes les procédures de l'espace de nom
+@code{n}
+@example
+info procs n::*
+@end example
+
+@item info script
+Si un script Tcl est en exécution, alors cette commande retourne le nom
+du premier fichier exécuté. (voir la documentation)
+
+@item info sharedlibextension
+Retourne les extensions utilisées pour les bibliothèques partagées sur la
+platerforme en cours (par exemple sous Unix, .so).
+
+@item info tclversion
+Retourne la version de la biblothèque Tcl.
+
+@item info vars ?motif?
+Si le motif, retourne la liste de toutes les variables visibles, sinon,
+filtre avec le motif.
+On peut ainsi aussi voir toutes les variables d'un espace de noms comme
+avec @code{info procs}.
+@example
+info vars n::*
+@end example
+
+@end ftable

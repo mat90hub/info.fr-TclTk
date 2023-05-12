@@ -1,0 +1,741 @@
+@c -*- mode: texinfo; coding: utf-8-unix; mode: auto-fill; -*-
+
+@node Gérer les erreurs
+@chapter Gérer les erreurs.
+@cindex gestions des erreurs
+@cindex erreurs
+
+La gestion d'erreur ne sert pas à rechercher les erreurs de son propre
+programme, mais à gérer les erreurs qui viennent des interactions entre
+le programme et son environnement (l'utilisateur ou un autre programme
+indépendant). Un exemple type est l'ouverture d'un fichier : le code
+d'ouverture peut être correct, si le fichier désigné n'existe pas, une
+erreur est générée.
+
+S'il n'y a qu'une ou deux vérifications à faire, ou pourrait se
+contenter de faire des tests (comme la vérification de l'existence du
+fichier avant d'essayer de l'ouvrir). Mais quand ces interactions se
+multiplient, le nombre de combinaisons entre elles croient encore
+plus rapidement et vouloir les contrôler devient vite inextricable.
+
+Le principe de la gestion d'erreurs est de centraliser la gestion des
+erreurs et de permettre leur interception avant l'arrêt total du
+programme. Un diagnostique peut alors être prévu et une possiblité de
+correction ou d'adaptation peut être proposée pour relancer le
+processus.
+
+On accède ainsi à la gestion d'erreur de Tcl. Mais on peut aussi créer
+ses propres interruption pour des diagnostiques qu'on souhaiterait
+ajouter pour une application particulière. La gestion se fait non pas
+par des combinaisons de cas à éviter, mais par une liste d'erreurs, ce
+qui au final est plus efficace.
+
+
+@node La commande 'catch'
+@section La commande @code{catch}
+@findex catch
+
+La fonction @code{catch} permet d'intercepter une erreur pour ne pas
+interrompre un programme.
+
+@example
+catch script ?err? ?errDesc?
+@end example
+
+La fonction @code{catch} exécute le @code{script}. Comme pour les autres
+constructions de ce type (avec @code{expr} par exemple), il est est
+prudent de rassembler les instructions entre accolades pour éviter des
+substitutions immédiates. Si par contre, on a besoin de ces
+substitutions immédiates, il faut utiliser les doubles guillemets.
+Quand une erreur est levée, l'exécution globale n'est pas interrompue:
+la commande @code{catch} renvoie le code d'erreur (le plus souvent
+@code{1}) ou @code{0} s'il n'y en a pas eu. Ceci permet d'intégrer cette
+commande dans une boucle de test.
+
+@example
+if [catch @{set res [expr 1 / 2]@}] @{puts erreur!@} @{puts fin@}
+@result{} fin
+if [catch @{set res [expr 1 / 0]@}] @{puts erreur!@} @{puts fin@}
+@result{} erreur!
+@end example
+
+Les arguments optionnels permettent d'être plus explicite en donnant les
+informations système sur l'erreur, qui a été interceptée. Le premier
+paramètre optionnel @code{err} donne la la chaîne de retour.
+
+@example
+catch @{expr 1 / 0@} err
+@result{} 1
+puts $err
+@result{}divide by zero
+@end example
+
+Le second paramètre @code{errDesc} récupère une information plus
+complète sur l'erreur sous forme d'un dictionnaire.
+
+@example
+catch @{expr 1 / 0@} @{@} errDict
+@result{} 1
+foreach k [dict keys $errDict] @{
+  puts "$k: [dict get $errDict $k]"
+@}
+@result{}-code: 1
+@result{}-level: 0
+@result{}-errorstack: INNER @{div 1 0@}
+@result{}-errorcode: ARITH DIVZERO @{divide by zero@}
+@result{}-errorinfo: divide by zero
+@result{}    while executing
+@result{} "expr 1 / 0"
+@result{}-errorline: 1
+@end example
+
+Voici pour finir un exemple opérationnel pour le sujet classique
+d'ouverture d'un fichier. 
+
+@example
+if @{ [ catch @{open $someFile w@} fid ] @} @{
+     puts stderr "Ne peut ouvrir $someFile en écriture\n$fid"
+@}
+@end example
+
+Le fichier peut ne pas être présent sur le disque (ce qui est
+indépendant du script en cours), le script général ne s'interrompra pas
+mais informera ici l'utilisateur. Le programmeur peut ensuite soit
+proposer les actions alternatives (comme par exemple de créer un nouveau
+fichier) ou d'interrompre le programme.
+
+On remarquera aussi qu'on n'a pas utilisé le descriptif standard, mais
+qu'on a choisit d'écrire une explication nous même.
+
+
+@node La commande 'error'
+@section La commande @code{error}
+@findex error
+
+@c https://www.tcl.tk/man/tcl/TclCmd/error.html
+
+La commande @code{error} permet au programmeur de génèrer une erreur,
+qu'il aura définie pour les besoins de son application. Cette erreur
+sera ensuite traitée avec les mêmes ressources que les erreurs système.
+
+@example
+error 'message' ?info? ?code?
+@end example
+
+@vindex errorInfo
+@vindex errorCode
+Elle interrompt le programme et écrit le @code{'message'}.  Si
+@code{info} est donnée, cette information est empilée sur celle déjà
+dans disponible dans la variable globale @code{errorInfo}. Si
+@code{code} est donné, le code est mis dans la variable
+globale @code{errorCode}. La variable @code{errorInfo} donne
+l'information sous une forme lisible par un utilisateur, tandis que
+@code{errorCode} est sous une forme orientée machine.
+
+Voici un example qui reprend ces deux fonctions de gestion
+d'erreur @code{catch} et @code{error}.
+
+@example
+proc Div @{a b@} @{
+  if @{$b == 0@} @{
+    error "Error generated by error" "Info String for error" 401
+  @} else @{
+    return [expr $a/$b]
+  @}
+@}
+@end example
+
+Et voici une fonction qui encapsule cette fonction en y rajoutant
+des explications.
+
+@example
+proc maDivPar0 @{@} @{
+  global errorInfo
+  global errorCode
+
+  if @{[catch @{puts "Result = [Div 10 0]"@} errmsg]@} @{
+    puts "ErrorMsg: $errmsg"
+    puts "ErrorCode: $errorCode"
+    puts "ErrorInfo: \n$errorInfo\n"
+  @}
+@}
+@end example
+
+On remarquera la déclaration de la variable globale (au niveau de Tcl)
+de @code{errorInfo} et de @code{errorCode}. Ce qui donne
+
+@example
+% maDivPar0
+ErrorMsg: Error generated by error
+ErrorCode: 401
+ErrorInfo: 
+Info String for error
+    (procedure "Div" line 1)
+    invoked from within
+"Div 10 0"
+@end example
+
+Les variables globales @code{errorInfo} et @code{errorCode} permettent
+d'avoir l'origine de l'erreur dans l'empilement des procédures qui
+s'appellent les unes les autres.
+
+
+Sur un autre exemple souvent utile pour l'ouverture d'un fichier.
+
+@example
+% catch @{set file [open nonexistingfile.txt]@} result
+1
+% puts $result
+couldn't open "nonexistingfile.txt": no such file or directory
+% puts $errorInfo
+couldn't open "nonexistingfile.txt": no such file or directory
+% puts $errorCode
+POSIX ENOENT @{no such file or directory@}
+@end example
+
+
+@node La commande 'try'
+@section La commande @code{try}
+@findex try
+@findex trap
+
+La commande @code{try} a été introduite dans Tcl8.6 sur le modèle de ce
+qui se fait dans d'autres langages. Nous mettons plus loin le code Tcl
+qui permet sinon de construire cette commande.
+
+La commande @code{try} exécute un script donné en arguments et entre
+accolades. Si une erreur est levée, il renvoie l'exécution vers un
+gestionnaire d'évènement qui peut différentier l'action en fonction du
+type d'erreur et au final permet aussi de définir ce qui sera
+exécutée que s'il y a une erreur ou non.
+
+@example
+try @{ … body … @} ?handler @{…@}? ?finally @{…@}?
+@end example
+
+
+La gestionnaire d'évènement (@code{handler}) peut être soit
+
+@table @code
+@item on code variableList script
+La partie @code{script} de cette clause est exécuté si l'exception
+donnée par le @code{code} est levée. Ce @code{code} est soit un
+entier caractérisant l'exception soit l'un des mots clés @code{ok},
+@code{error}, @code{return}, @code{break} ou @code{continue}. Ces mots
+clés d'execption correspondent en fait respectivement aux entiers de 0 à
+4.
+
+@item trap pattern variableList script
+La partie @code{script} de cette clause est exécutée si l'exception
+levée renvoie une description (telle que renvoyée par
+@code{$::errorCode}) qui correspond au motif donné
+@end table
+
+Dans chaque gestionnaire @code{variableList} est une liste d'une ou deux
+variables. Dans la première est rangé le résultat de l'évaluation du
+@code{body} de l'instruction @code{try} précédante. Elle contient
+typiquement le code d'erreur. Dans la seconde variable (si elle est
+présente) est rangé le dictionnaire de l'interpréteur au moment de le
+fin d'exécution.
+
+Sur un exemple d'essai d'ouverture d'un fichier qui n'existe pas.
+
+@example
+try @{
+  set f [open somefile r]
+@} trap @{@} @{var1 var2@} @{
+  puts "var1: $var1"
+  foreach K [dict keys $var2] @{
+   puts "var2 $K: [dict get $var2 $K]
+  @}
+@}
+@result{}var1: couldn't open "somefile": no such file or directory
+@result{}
+@result{}var2 -code: 1
+@result{}var2 -level: 0
+@result{}var2 -errorstack: INNER @{invokeStk1 open ./somefile r@}
+@result{}var2 -errorcode: POSIX ENOENT @{no such file or directory@}
+@result{}var2 -errorinfo: couldn't open "./somefile": no such file or directory
+@result{}      while executing "open ./somefile r" ("try" body line 2)
+@result{}var2 -errorline: 2
+@end example
+
+On voit sur cet exemple que le préfixe de @code{-errorcode} est
+@code{POSIX ENOENT} pour un fichier absent. Ce sont les codes à
+utiliser dans le premier argument de @code{trap}. Voici un exemple
+pratique pour l'ouverture d'un fichier qui utilise ces arguments.
+
+@example
+try @{
+  set f [open /un/fichier]
+@} trap @{POSIX EISDIR@} @{@} @{
+  puts @{erreur à l'ouverture de /un/fichier: c'est un répertoire@}
+@} trap @{POSIX ENOENT@} @{@} @{
+  puts @{erreur à l'ouverturde de /un/fichier: il n'existe pas@}
+@}
+@end example
+
+Enfin la commade @code{try} termine optionnellement pas une commande
+@code{finally} qui s'exécutera quelque soit le résultat du groupe
+exécuté par @code{try}. On l'utilise ici par exemple pour être sûr de
+fermer un fichier, que l'entrée ait réussi ou non.
+
+@example
+try @{
+  puts $f "un truc"
+@} finally @{
+   close $f
+@}
+@end example
+
+
+
+@c @node Script d'une implémentation de 'try'
+@subsection Script d'une implémentation de @code{try}.
+
+@example
+ #----------------------------------------------------------------------
+ #
+ # try --
+ #
+ #       Execute a Tcl script with a mandatory cleanup.
+ #
+ # Usage:
+ #       try script1 finally script2
+ #
+ # Parameters:
+ #       script1 -- Script to execute
+ #       finally -- The literal keyword, "finally".
+ #       script2 -- Script to execute after script2
+ #
+ # Results:
+ #       See below.
+ #
+ # Side effects:
+ #       Whatever 'script1' and 'script2' do.
+ #
+ # The [try] command evaluates the script, 'script1'.  It saves the
+ # result of evaluating the script temporarily, and then evaluates
+ # 'script2'.  If 'script2' returns normally, the result of the
+ # 'try' is the result of evaluating 'script1', which may be
+ # a value, an error, or a return, continue, or break.  If 'script2'
+ # returns an error, or if it breaks, continues, or returns, the
+ # action of 'script2' overrides that of 'script1'; the result
+ # of the [try] is to return the error, break, continue, or return.
+ #
+ # Bugs:
+ #       [return -code] within either script cannot be implemented.
+ #       For this reason, [try] should not be used around scripts
+ #       that implement control structures.
+ #
+ # Example:
+ #    The following script:
+ #
+ #       set f [open $fileName r]
+ #       try @{
+ #            while @{ [gets $f line] >= 0 @} @{
+ #                processOneLine $line
+ #            @}
+ #       @} finally @{
+ #            close $f
+ #       @}
+ #
+ #    has the effect of ensuring that the file is closed, irrespective
+ #    of what processOneLine does.  (If [close] returns an error, that
+ #    error is returned in preference to any error from the 'try'
+ #    block.)
+ #
+ #----------------------------------------------------------------------
+ 
+ proc try @{ script1 finally script2 @} @{
+     if @{ [string compare $finally @{finally@}] @} @{
+         append message \
+             "syntax error: should be \"" [lindex [info level 0] 0] \
+             " script1 finally script2\""
+         return -code error $message
+     @}
+     set status1 [catch @{
+         uplevel 1 $script1
+     @} result1]
+     if @{ $status1 == 1 @} @{
+         set info1 $::errorInfo
+         set code1 $::errorCode
+     @}
+     set status2 [catch @{
+         uplevel 1 $script2
+     @} result2]
+     switch -exact -- $status2 @{
+         0 @{                             # TCL_OK - 'finally' was ok
+             switch -exact -- $status1 @{
+                 0 @{                     # TCL_OK - 'try' was also ok
+                     return $result1
+                 @}
+                 1 @{                     # TCL_ERROR - 'try' failed
+                     return -code error \
+                            -errorcode $code1 \
+                            -errorinfo $info1 \
+                            $result1 
+                 @}
+                 2 @{                     #  TCL_RETURN
+                     return -code return $result1
+                 @}
+                 3 @{                     # TCL_BREAK
+                     return -code break
+                 @}
+                 4 @{                     # TCL_CONTINUE
+                     return -code continue
+                 @}
+                 default @{               # Another code
+                     return -code $code $result1
+                 @}
+             @}
+         @}
+         1 @{                             # TCL_ERROR -- 'finally' failed
+             set info2 $::errorInfo
+             set code2 $::errorCode
+             append info2 "\n    (\"finally\" block)"
+             return -code error -errorcode $code2 -errorinfo $info2 \
+                 $result2
+         @}
+         2 @{                             # TCL_RETURN
+             # A 'return' in a 'finally' block overrides
+             # any status from the 'try' ?
+             
+             return -code return $result2
+         @}
+         3 @{                             # TCL_BREAK
+             # A 'break' in a 'finally' block overrides
+             # any status from the 'try' ?
+             
+             return -code break
+         @}
+         4 @{                             # TCL_CONTINUE
+             # A 'continue' in a 'finally' block overrides
+             # any status from the 'try' ?
+             
+             return -code break
+         @}
+         default @{                       # Another code in 'finally'
+             # Another code in a 'finally' block is returned
+             # overriding any status from the 'try'
+             
+             return -code $code $result2
+         @}
+     @}
+ @}
+@end example
+
+
+
+@node La commande 'throw'
+@section La commande @code{throw}
+@findex throw
+
+Cette commande @code{throw} introduite dans Tcl8.6 est une alternative à
+la commande @code{error}.@ref{La commande 'error'}
+
+@example
+throw 'code' 'message'
+@end example
+
+sur un exemple, si on devait recréer l'erreur division par
+zéro.
+
+@example
+throw @{ARITH DIVZERO @{divide by zero@}@} @{divide by zero@}
+@end example
+
+
+@node 'errorCode' et 'errorInfo'
+@section @code{errorCode} et @code{errorInfo}
+
+Il existe deux variables globales qui permettent d'avoir des informations sur
+la dernière erreur rencontrée.
+(voir le chapitre @ref{Variables d'environnement (tclvar)}
+
+
+@table @code
+@item errorInfo
+Dernière valeur retournée par l'option @code{-errorinfo} de la commande
+@code{return} (voir prochains chapitres) ou-bien le texte d'explication
+prévu dans les erreurs standards.
+
+@item errorCode
+Dernière valeur retournée par l'option @code{-errorcode} ou-bien le contenu
+de l'erreur rencontrée par l'interpréteur. Ce message est plus complet
+que le précédent et donne en particulier la trace de la propagation de
+l'erreur dans le code.
+@end table
+
+Sur un exemple.
+
+@example
+expr 1 / 0
+@result{}divide by zero
+
+puts $::errorInfo
+@result{}divide by zero
+@result{}    while executing
+@result{}"expr 1 / 0"
+
+puts $::errorCode
+@result{}ARITH DIVZERO @{divide by zero@}
+@end example
+
+
+@node La commande 'return'
+@section La commande @code{return}
+@findex return
+
+La commande @code{return} est utilisée pour terminer un procédure. Dans
+sa forme la plus simple, la commande renvoie simplement le résultat
+attendu ou une chaîne vide.
+
+@example
+return ?result?
+@end example
+
+Quand on veut volontairement arrêter la procédure pour déclarer une
+erreur à la place d'un résultat, on peut utiliser cette forme.
+
+@example
+return ?-code 0/1? ?errMsg?
+@end example
+
+0 est la valeur par défaut qui indique l'absence d'erreur (donc en
+pratique, on ne s'en sert pas). Pour signaler une erreur, on utilise 1.
+@footnote{Il existe d'autres codes : 2 pour @code{return} (sans
+paramètre), 3 pour @code{break} et 4 pour @code{continue}.}
+@c https://www.tcl.tk/man/tcl/TclCmd/return.html
+
+Voici un exemple d'utilisation.
+
+@example
+proc add @{x y@} @{
+ set errMsg "deuxième paramètre nul"
+ if @{$y == 0@} @{
+  return -code 1 -errorinfo $errMsg\
+                 -errorcode "ARITH PARAM NULL \@{$errMsg\@}"\
+         $errMsg
+ @} @{
+ return [expr @{$x + y@}]
+ @}
+@}
+@end example
+
+Si on effecture un test.
+
+@example
+add 1 0
+@result{} deuxième paramètre nul
+@end example
+
+Mais l'avantage est que nous avons aussi renseigné la pile donnant les
+informations sur les erreurs en cours.
+
+@example
+puts $errorInfo
+@result{} deuxième paramètre nul
+@result{}    invoked from within
+@result{}"add 1 0"
+
+puts $errorCode
+@result{} ARITH PARAM NULL @{deuxième paramètre nul@}
+@end example
+
+
+La variante la plus développée utilise des options.
+
+@example
+return ?option value ...? ?result?
+@end example
+
+Ces options sont les suivantes:
+
+@table @code
+@item -code
+Le code d'erreur vu précédemment pour indiquer un traitement d'erreur.
+
+@item -errorcode list
+Utilisé avec l'option @code{-code}, stocke de l'information
+supplémentaire sur l'erreur sous forme d'une liste.
+
+@item -errorinfo info
+Utilisé avec l'option @code{-code}, donne de l'information lisible par
+un humain sur la pile du traitement d'erreur qui est stockée dans la
+variable globale @code{errorinfo}.
+
+@item -errorstack
+Utilisé avec l'option @code{-code}, donne de l'information qui sera
+ensuite disponible par @code{info errorstack}.
+
+@item -level level
+Utilisé avec l'option @code{-code}, donne le niveau dans l'empilage du
+traitement d'erreur.
+
+@item -option optDict
+Permet de donner des informations supplémentaires sous forme de dictionnaire.
+@end table
+
+Voici un premier exemple utilisant @code{-code} pour qu'une procédure
+renvoie une information plus précise sur l'erreur rencontrée.
+
+@example
+proc factorial @{n@} @{
+    if @{![string is integer $n] || ($n < 0)@} @{
+        return -code error \
+                "expected non-negative integer,\
+                but got \"$n\""
+    @}
+    if @{$n < 2@} @{
+        return 1
+    @}
+    set m [expr @{$n - 1@}]
+    set code [catch @{factorial $m@} factor]
+    if @{$code != 0@} @{
+        return -code $code $factor
+    @}
+    set product [expr @{$n * $factor@}]
+    if @{$product < 0@} @{
+        return -code error \
+                "overflow computing factorial of $n"
+    @}
+    return $product
+@}
+@end example
+
+Voici un autre exemple utilisant ces options de @code{return} en
+coordination avec une interception d'erreur par @code{catch}.
+
+
+@example
+proc add @{x y@} @{
+ set errMsg "deuxième paramètre nul"
+ catch @{
+   if @{$y == 0@} @{
+      error $errMsg "ARITH \@{$errMsg\@}"
+   @} @{
+      expr $x + $y
+   @}
+ @} result options
+ return -option $options $result
+@}
+
+add 2 5
+@result{}7
+
+add 1 0
+@result{}deuxième paramètre nul 
+@end example
+
+Ici nous avons créé notre erreur avec la commande @code{error}, mais si
+la bloc était plus complexe avec d'autres sources d'erreur (comme une
+division par 0), toutes ces erreurs sont alors traitées de manière
+centralisée à la fin de l'instruction @code{catch}. S'il n'y a pas
+d'erreur, le premier paramètre renvoie le dernier résultat du groupe
+d'instruction à l'intérieur de la commande @code{catch}.
+
+@c https://www.tcl.tk/man/tcl/TclCmd/return.html
+
+
+@node Lancer une fenêtre 'bgerror'
+@section Lancer une fenêtre @code{bgerror}
+@findex bgerror
+
+L'implémentation par défaut de @code{bgerror} n'existe pas dans Tcl mais
+dans Tk où elle affiche une fenêtre donnant l'erreur. Elle existe donc
+par défaut sous @file{wish}, mais pas sous @file{tclsh}.
+
+@example
+bgerror msg
+@end example
+
+Cette commande @code{bgerror} est le pendant graphique de la commande
+@code{error} : elle renvoie un message d'erreur dans une fenêtre
+graphique plus adaptée pour ce mode. La commande @code{error} est
+toujours possible en mode graphique, mais son message est envoyé dans
+le shell d'exécution des commandes, qui n'est pas toujours en premier
+plan ou même visible.
+
+Dans les dernières versions de Tcl/Tk, il es maintenant recommandé
+d'utiliser plus précisemment @code{interp bgerror}, qui lance donc cette
+fenêtre dans un interpréteur dédié, ce qui cloisonne mieux la
+propagation d'erreur. 
+
+Nous verrons plus loin la signification de cette construction avec un
+interpréteur, (@ref{interp bgerror path ?cmdPrefix?}), mais pour le
+moment acceptons cette construction comme nous la montrons ici avec la
+commande @code{catch} sur l'exemple que nous commençons maintenant à
+bien connaître.
+
+@example
+if @{[catch @{expr 1 / 0@} err errdict]@} @{
+     catch @{[interp bgerror ""] $err $errdict@}
+@}
+@end example
+
+Si nous reprenons la procédure @code{add} que nous avions définit dans
+le section précédante, voici ce que nous ferions.
+
+@example
+proc add @{x y@} @{
+  set errMsg "deuxième paramètre nul"
+  if [catch @{
+       if @{$y == 0@} @{
+          error $errMsg "ARITH \@{$errMsg\@}"
+        @} @{
+          expr $x + $y
+        @}
+     @} result options] @{
+     catch @{[interp bgerror ""] $result $options@}        
+  @}
+  return -option $options $result     
+@}
+@end example
+
+
+La première occurence de @code{catch} capture l'erreur évenutelle ou le
+résultat. La deuxième aurait pu être remplacée par @code{eval}, car il
+ne s'agit que de grouper le résultat de @code{bgerror} avec les
+paramètres pour lancer la fenêtre. On utilise ensuite aussi le résultat
+de la dernière instruction de @code{catch} pour envoyer le résultat
+final.
+
+On peut englober plusieurs commandes dans cette construction (le
+contenu de toute une procédure), mais il ne fait pas utiliser de
+commande @code{return} à l'intérieur et attendre de sortir de
+l'instruction @code{catch} pour le faire.
+
+Si on a besoin de signifier une erreur au cours de ces instructions, on
+utilise alors simplement la commande @code{error}. L'interuption que
+nous aurions voulu introduire est simplement repoussée à la sortie du
+bloc @code{catch} avec les autres interuptions possibles.
+
+Si on doit retourner un résultat, on peut utiliser la variable
+@code{result} qui est renvoyée par l'instruction @code{catch} dans le
+bloc optionnel qui s'exécute quand @code{catch} n'intercepte pas
+d'erreur. Nous utilisons ici la fenêtre @code{tk_messageBox}. Cette
+variable @code{result} pourrait aussi être utilisée plus loin dans le
+code.
+
+@example
+eval @{
+  set SCHEMA maz
+  set DBNAME syn
+  puts -nonewline "what? "
+  flush stdout
+  gets stdin what 
+  if [catch @{
+    switch -nocase $what @{
+      SCHEMA @{set result $SCHEMA@}
+      DBNAME @{set result $DBNAME@}      
+      default @{error "one can get:\nSCHEMA\nDBNAME"@}
+    @}	    
+  @} result options] @{
+     catch @{[interp bgerror ""] $result $options@}
+  @} @{
+     tk_messageBox -title result -type ok -message "$what = $result"
+  @}
+@}
+@end example
+

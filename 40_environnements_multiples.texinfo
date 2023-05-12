@@ -1,0 +1,802 @@
+@c -*- coding: utf-8-unix; mode: texinfo; mode: auto-fill; -*-
+
+@node Environnements multiples
+@chapter Environnements multiples.
+
+Certaines applications ont besoins de gérer plusieurs environnements de
+travail de manière concomittante@w{}:
+
+@itemize @bullet
+@item un serveur TCP/IP
+
+@item une plateforme de test
+
+@item les applications multi-utilisateurs
+
+@item les applications voulant contrôller des processeurs multiples
+@end itemize
+
+Tcl est compatible avec une programmation parallèle utilisant plusieurs
+fils d'exécution (@dfn{thread} en Anglais). Les techniques utilisées et
+que nous allons voir plus en détail sont les suivantes.
+
+@table @asis
+@item les boucles d'attente
+On peut écrire plusieurs environnements en utilisant les files Tcl et
+évaluer des procédures qui feront ensuite référence à une variable
+persistante entre ces environnements en utilisant la commande
+@code{upvar}. Cette technique est utilisée par exemple par le paquet
+@code{tclhttpd} pour gérer plusieurs connexions @code{http}. Cette
+technique fonctionne bien quand les différents programmes parallèlisés
+utilisent le même ensemble de procédures, mais gèrent des ensembles
+de variables différents.
+
+@item Les interpréteurs esclaves
+Si votre application requiert des procédures privées ou des
+modifications pendant l'exécution, vous pouvez créer de nouveaux
+interpréteur pour les différentes files parallèles d'exécution. Chaque
+file aura ses propres procédures, ses propres paquets et ses
+propres variables globales. Un interpréteur peut créer un espace
+sécurisé, qui ne peut pas atteindre le système des fichiers locaux ou
+intéragir avec l'extérieur. Les interpréteurs sont crées
+hiérachiquement, un parent pouvant avoir de multiples interpréteurs
+enfants, chacun d'entre eux pouvant à son tour avoir des
+enfants. L'utilisation d'interpréteurs esclaves est particulièrement
+adaptée pour les applications de type agent, contrôleur, testeur ou
+encore des applications réseaux, qui pourraient faire face à des clients
+potentiellement nuisibles.
+
+@item Les paquets parallélisés
+L'interpréteur par défaut de Tcl est sécurisé pour la programmation
+parallélisée, mais il n'inclue pas de support pour sa gestion. Il faut
+télécharger des extensions comme @code{teacup}. Ceci permet d'utiliser
+tous les avantages d'une configuration de processeurs parallels. (pas
+développé ici).
+
+@item Le support de la bibliothèque C
+La bibliothèque Tcl inclut plusieurs commandes pour créer de nouvelles
+files d'exécution ou interpréteurs et pour interagir avec eux. Ceci
+peut s'avérer très utile si on veut s'interfacer avec un programme qui utilise
+le parallelisme comme par exemple l'application @code{sendmail} qui
+lance un nouveau processus pour chaque message envoyé. (pas développé ici)
+
+@end table
+
+@node Les boucles d'attente
+@section Les boucles d'attente.
+
+L'interpréteur Tcl inclut une boucle d'attente pour les évènements qui
+peuvent être traités par ses procédures. Ceci inclut des évènements
+comme des données devenant disponibles au moment d'un branchement
+(@dfn{socket}), à l'expiration d'un minuteur (@dfn{time}), à la
+modification d'une variable ou à un évènement fait à la souri ...
+
+Pour pouvoir utiliser la boucle d'attente, le code doit:
+@itemize @bullet
+@item enregistrer les scripts à exécuter quand un évènement intervient
+@item attendre les évènements
+@end itemize
+
+L'enregistrement d'un script dans une boucle d'attente se fait par l'une
+des commandes suivantes.
+
+@table @code
+@item fileevent
+Pour enregistrer un script à évaluer quand des données deviennent
+disponibles à la lecture sur un fichier ou un autre type de branchement.
+
+@item trace
+Pour enregistrer un script à évaluer quand une variable ou une procédure
+est accédée.
+
+@item after
+Pour enregistrer un script à évaluer après l'écoulement d'un délai mesuré
+par le minuteur.
+
+@item bind
+Pour enregistrer un script à évaluer lors d'un évènement dans le système
+de fenêtrage (bouton ou mouvement souri par exemple).
+@end table
+
+La façon dont votre application peut tenir compte de cette boucle
+d'attente dépend de l'interpréteur tcl utilisé: @code{tclsh} ou
+@code{wish}. @code{wish} inclue un gestionnaire d'évènement et vous
+n'avez donc rien de particulier à prévoir.
+
+L'interpréteur @code{tclsh} par contre évalue normalement toutes les
+commandes qu'on lui soumet et s'arrête. La commande @code{vwait} permet
+cependant de mettre l'exécution d'un script en pause, jusqu'à ce qu'une
+variable change de valeur. Cette technique est couramment utilisée pour
+créer un interface utilisateur modal et pour forcer un serveur réseau
+de continuer de fonctionner jusqu'à ce quelque chose le force explicitement à terminer.
+
+
+@node fileevent
+@subsection Utiliser @code{fileevent}.
+
+La commande @code{fileevent} enregistre un script, qui sera évalué quand
+un canal de communication requerra un service. L'utilisation la plus
+courante est le traitement des données. Ceci permet à une application
+d'utiliser les commandes @code{read} et @code{gets} seulement quand les
+données sont mises à disposition au lieu d'exécuter ces commandes en
+mode bloquant. Par exemple si l'application contrôle un appareil lent,
+comme un modem, la commande @code{fileevent} ne sera alors exécutée
+qu'au moment où l'appareil sera prêt à accepter des données fraîches.
+
+Une application unique peut enregistrer plusieurs scripts gérant des
+files d'évènements associées à plusieurs canaux. Cette technique est
+utilisée pour les démons TCP/IP (comme un serveur internet ou de
+conversation instantannées) pour accepter plusieurs connexions
+simultanées.
+
+La syntaxe est la suivante.
+
+@example
+fileevent canal direction ?script?
+@end example
+
+@table @code
+@item canal
+le canal sur lequel on lit ou on écrit
+
+@item direction
+la direction du flot de données: @dfn{readable} ou @dfn{writeable}
+
+@item ?script?
+un script (optionnel) à évaluer quand le canal le permet. Si cet
+argument n'est pas présent, c'est le script qui a été enregistré
+avant qui devient le script à évaluer.
+@end table
+
+
+Voici un example de procédure qui lit une ligne de données sur un
+branchement et l'imprime sur la sortie standard (@code{stdout}).  Quand
+la ligne de données est le mot @code{exit}, la variable @code{done} est
+modifiée et la commande @code{vwait} interrompt l'attente de nouvelles
+données, ce qui clôt la tâche.
+
+
+@example
+proc readData @{channel@} @{
+  global done
+  set len [gets $channel line]
+  if @{$len < 0@} @{
+    puts "FAIL"
+  @}
+  if @{$line eq "exit"@} @{
+    set done 1
+  @}
+  puts "Nous avons lu $len octets dans $line"
+@}
+
+# Ouvre le branchement sur le port 53210 qui est attaché au
+# serveur TCP/IP (s'il est ouvert)
+set channel [socket 127.0.0.1 53210]
+
+fileevent $channel readable "readData $channel"
+set done 0
+vwait done
+@end example
+
+
+@c voir chapitre 16.1.1 pour compléter d'autres exemples
+
+
+@node trace
+@subsection Utiliser la commande @code{trace}.
+
+La commande @code{trace} permet d'enregistrer un script à évaluer
+quand une commande ou une procédure sera accédée. La forme est la
+suivante.
+
+@example
+trace add type names ops script
+@end example
+
+avec
+
+@table @code
+@item name
+Le nom de l'item à tracer.
+
+@item type
+L'item peut peut être des types suivant
+@table @code
+@item command
+pour enregistrer un script à évaluer si une commande est renommée
+ou effacée.
+
+@item execution
+pour enregistrer un script à évaluer si une procédure entre ou sort
+d'exécution.
+
+@item variable
+pour enregistrer un script à évaluer si une variable est lue, modifée
+ou effacée.
+@end table
+
+@item ops
+Une sous-option en fonction du type. Ces options ont été détaillées dans
+la section @ref{Tracer (trace)}.
+
+@item script
+Le script à exécuter si cette opération intervient.
+@end table
+
+Voici un exemple ou nous allons suivre les déplacements d'un personnage
+dans un jeu d'aventure. Il a deux méthodes de déplacement, la
+téléportation ou la marche (en Anglais qui est plus facile ici à cause
+de l'absence d'accents et d'articles).
+
+@example
+# définition des paires localisation/nouvelles destinations possibles
+array set places @{
+  house @{up roof down basement@}
+  roof @{down house@}
+  basement @{up house@}
+@}
+
+# écrit les localisations
+array set descript @{
+  house @{You are in the house@}
+  roof @{You are on the roof, see the sky@}
+  basement @{You are in the basement@}
+@}
+
+# écrits les déplacements possibles
+proc describe @{name index operation@} @{
+ global places descript
+ upvar $name myState
+ puts "\n$descript($myState(location))"
+ foreach @{direction destination@} $places($myState(location)) @{
+   puts "You can go $direction (to the $destination)"
+  @}
+@}
+
+proc teleport @{destination player@} @{
+  upvar $player myState
+  global places
+  if @{[info exists places($destination)]@} @{
+    set myState(location) $destination
+  @}
+@}
+
+proc go @{direction player@} @{
+  global places
+  upvar $player myState
+  array set moves $places($myState(location))
+  if @{![info exists moves($direction)]@} @{
+    puts "You can't go $direction from $myState(location)"
+  @} else @{
+    set myState(location) $moves($direction)
+  @}
+@}
+
+# UTILISATION DE TRACE
+trace add variable player1(location) write describe
+
+# initialisation du joueur 1
+set player1(location) house
+
+# boucle pour se déplacer
+while @{1@} @{
+  puts -nonewline "Now what? " ; flush stdout
+  set cmd [gets stdin]
+  eval $cmd player1
+@}
+@end example
+
+
+@node after
+@subsection Utiliser @code{after}.
+
+La commande @code{after} met un programme en pause (par exemple
+pour le synchroniser avec un appareil) ou peut prévoir d'effectuer
+un script après un certain délais.
+
+La syntaxe pour mettre un programme en pause est la suivante.
+
+@example
+after ms
+@end example
+
+où @code{ms} est la durée en milli-secondes.
+
+Pour évaluer un script après @code{$ms} milli-secondes sera la suivante.
+
+@example
+after ms script
+@end example
+
+Voici un exemple pour envoyer un signal actif toutes les 20s sur
+un branchement particulier.
+
+@example
+proc heartBeat @{socket@} @{
+  puts $socket "active"
+  flush $socket
+  after 20000 heartBeat
+@}
+@end example
+
+Cette procédure n'est pas récursive : chaque commande démarre une
+nouvelle procédure, mais s'arrête ensuite. Il n'y a donc pas
+d'empilement en mémoire, mais une suite intérrompue de battement
+de coeur.
+
+@c @node bind
+@c @subsection Utiliser @code{bind}
+
+@c La commande @code{bind} est plus particulièrement utilisée par
+@c l'extension Tk pour relier une action à un évènement qui arrive
+@c sur le système de fenêtrage.
+
+@c Vous pouvez ajouter de nouvelles actions à des gadgets visuels
+@c (@dfn{widget}) existants avec cette commande.
+
+@c @example
+@c bind tag even script
+@c @end example
+
+@c @code{tag} identifie le @dfn{widget} ou sa classe ou tous (avec
+@c le mot cle @code{all}), @code{event} est l'évènement qui intervient
+@c sur ce @dfn{widget} et le script, le programme qui s'exécute.
+
+@c Voici par exemple la création d'un bouton pour sortir.
+
+@c @example
+@c button .exit -text "Exit" -command exit
+@c bind .exit <ButtonRelease-3> @{tk_messageBox -type ok \
+@c -message "Vous allez sortir ..."@}
+@c grid .exit
+@c @end example
+
+
+@node Les interpréteurs esclaves
+@section Les interpréteurs esclaves.
+
+La plupart des applications Tcl n'utilisent qu'un seul interpréteur
+dans un même exécutable, chaque interpréteur ayant son environnement
+propre (procédures, paquets, variables globables...).
+
+Un nouvel interpréteur peut être crée, éventuellement avec un champs
+restreint d'actions pour en faire une zone sécurisée : ce type
+d'interpréteur sécurisé ne peut ni ouvrir des fichiers, ni se brancher
+à un flot de données, ni exécuter des commandes avec @code{exec}.
+
+Les nouveaux interpréteurs ont une relation maître-esclave
+avec leur créateur. Un interpréteur peut créer de multiples
+interpréteurs esclaves, qui a leur tour pourront en créer d'autres.
+
+Les interpréteurs esclaves sont nommés en se référant à leur
+interpréteurs maîtres. Si l'interpréteur @code{aa} crée un interpréteur
+@code{bb}, ce dernier sera nommé @code{@{aa bb@}}.
+
+Voici comment on crée un nouvel interpréteur.
+
+@example
+interp create ?-safe? ?--? ?name?
+@end example
+
+@table @code
+@item -safe
+paramètre optionnel indiquant un interpréteur sécurisé.
+
+@item --
+marque la fin des options
+
+@item name
+nom optionnel de cet interpréteur. Les noms par défaut sont
+@code{interp0}, @code{interp1} etc.
+@end table
+
+Quand un nouvel interpréteur est crée, une commande du même nom est crée
+dans l'interpréteur maître pour interagir avec l'interpréteur esclave
+par une commande du type.
+
+@example
+interp eval name script
+@end example
+
+@table @code
+@item name
+@code{name} est le nom de l'interpréteur esclave. Il est obligatoire,
+mais si on met la chaîne vide, alors il s'agit simplement de
+l'interpréteur en cours (celui de plus haut niveau).
+
+@item script
+le @code{script} à évaluer à l'intérieur de cet interpréteur esclave.
+@end table
+
+Voici un exemple avec trois interpréteurs.
+
+@example
+# création d'un premier sous-interpréteur
+interp create aa
+@result{} aa
+# crée un sous-intepréteur bb, esclave de aa
+aa eval @{interp create bb@}
+@result{} bb
+# crée cc, un autre sous-interpréteur esclave de aa
+interp create @{aa cc@}
+@result{} aa cc
+interp eval aa @{set ax 1@}
+@result{} 1
+aa eval @{expr @{$ax + 2@}@}
+@result{} 3
+interp eval @{aa bb@} @{set bx 2@}
+@result{} 4
+aa eval @{bb eval @{expr $bx + 2@}@}
+@result{} 4
+@{aa cc@} eval @{set cx 3@}
+@result{} invalid command name "aa cc"
+@end example
+
+La dernière commande ne fonctionne pas car le sous-interpréteur
+@code{cc} n'est pas visible dans l'interpréteur global, seul le sous
+interpréteur @code{aa} l'est. Le résultat serait identique avec
+@code{@{aa bb@}}.
+
+
+@node Les interpréteurs sûrs
+@subsection Les interpréteurs sûrs
+
+Un interpréteur sûr est un interpréteur où certaines commandes et
+variables sont enlevées pour qu'un utilisateur malveillant ne puisse pas
+faire de dégat dans l'interpréteur hôte. Il se déclare avec la commande
+@code{interp create -safe} (@ref{interp create ?-safe? ?--? ?path?}).
+
+Un interpréteur sûr a exactement ce jeu de commande internes.
+
+@example
+ after    append    array    binary
+ break     case     catch     clock
+ close    concat   continue    eof
+ error     eval      expr   fblocked
+ fcopy   fileevent  flush      for
+ foreach   format     gets    global
+ history     if       incr     info
+ interp    join    lappend   lindex
+ linsert    list    llength   lrange
+ lreplace  lsearch   lsort   namespace
+ package     pid      proc     puts
+ read    regexp    regsub   rename
+ return    scan      seek      set
+ split    string    subst    switch
+ tell     trace    unset    update
+ uplevel    upvar   variable   vwait
+ while
+@end example
+
+Les commandes suivantes sont cachées.
+
+@example
+ cd   exec   exit  fconfigure
+ file  glob   load     open
+ pwd  socket source   vwait
+@end example
+
+Ces commandes peuvent être recréées plus tard comme fonctions ou alias
+Tcl, ou ré-exposées avec @code{interp expose}.
+
+La variable @code{env} n'est pas présente dans une interpréteur sûr. Ces
+variables posent un problème de sécurité car un utilisateur pourrait y
+stocker de l'information sensible.
+
+Les extensions chargées dans un interpréteur sûr doivent aussi être
+revues pour restreindre leur propres fonctionalités.
+
+
+@node les alias
+@subsection Les alias
+
+Le mécanisme d'alias a été conçu en cas d'exécution d'un script non
+fiable exécuté dans un esclave sécurisé et à destination d'un
+interpréteur maître que l'on veut sécuriser.
+
+Les risques interviennent au moment de la substitution ou à l'évaluation
+d'une instruction. Un code malicieux pourrait alors s'exécuter dans
+l'interpréteur maître.
+
+Quand un alias est appelé dans un interpréteur esclave, les
+substitutions Tcl usuelles sont effectuées à l'analyse de la
+commande. Au moment de la création de l'alias (@ref{interp alias}), ces
+arguments sont mélangés avec la commande ciblée. Cette commande est
+localisé dans l'interpréteur cible et s'exécute avec le jeu d'arguments
+transmis. Aucune substitution supplémentaire n'est donc effectuée à ce
+moment, ce qui empêche qu'un code arbitraire puisse d'exécuter.
+
+
+@node Les commandes cachées
+@subsection Les commandes cachées
+
+Les interpréteurs sûr restreignent l'accès à certaines commandes. Mais
+dans certains cas, il peut être justifié de contourner cette
+limitation. 
+
+Certaines commandes ne sont que cachées dans l'interpréteur: elles
+existent, mais dans un espace de noms particulier. On peut les appeler
+avec la commande @code{interp invokhidden} qui permet d'évaluer sans
+faire de substitution dans l'interpréteur maître.
+
+Les interpréteurs sûr ne sont pas autorisés à appeler des commandes
+cachées dans eux mêmes ni dans leurs descendants.
+
+L'ensemble des commandes cachées peut être manipulées avec
+@code{interp expose} ou @code{interp hide}. La première commande
+déplace une commande cachée dans le jeu des commandes visibles et la
+deuxième fait l'inverse.
+
+Les noms de commandes cachées dans dans l'espace global. Il faut
+éventuellement les renomer avant de pouvoir les cacher et ceci doit se
+faire dans l'espace global. Ceci évite que l'interpréteur esclace cache
+les mauvaises commandes dans un espace de noms.
+
+
+@node Les différentes sous commandes de 'interp'.
+@subsection Les différentes sous commandes de @code{interp}.
+
+@node interp create ?-safe? ?--? ?path?
+@subsubsection interp create ?-safe? ?--? ?path?
+@findex interp create
+
+La commande @code{interp create} cré un nouvel interpréteur esclave à
+l'interieur de celui où la commande est lancée. Si l'option @code{-safe}
+est donnée, l'interpréteur crée sera bridé pour empêcher toutes les
+actions qui pourrait nuire à l'environnement d'accueil depuis cet
+interpréteur. On notera que ce type d'interpréteur est aussi
+substanciellement plus rapide à constuire, donc si les fonctionalités
+qu'il offre suffisent, autant utiliser cette option.
+
+
+@node interp eval path arg ?arg?
+@subsubsection interp eval path arg ?arg?
+@findex interp eval path arg ?arg?
+
+Cette commande concatène ses argument et évalue la chaîne résultante
+dans l'interpréteur donnée. Le résultat de cette évaluation (incluant
+les éventuelles informations d'erreur @code{errorInfo} et
+@code{errorCode} sont retournées à l'interpréteur invoquant.
+
+
+@node interp cancel ?-unwind? ?--? ?path? ?result?
+@subsubsection interp cancel ?-unwind? ?--? ?path? ?result?
+@findex interp cancel
+
+Annule le script en train de s'exécuter dans l'interpréteur identifié
+par @code{path}. Sans l'option @code{-unwind} l'interpréteur est déroulé
+jusqu'à retrouver la fermeture d'une commande @code{catch}
+@footnote{@ref{La commande 'catch'}}
+ou qu'il n'y ait plus d'interpréteur sur la pile. Avec l'option,
+@code{-unwind}, la pile d'exécution est déroulée sans tenir compte des
+commmandes @code{catch} éventuelle.
+
+
+@node interp bgerror path ?cmdPrefix?
+@subsubsection interp bgerror path ?cmdPrefix?
+@findex interp bgerror
+
+Quand une erreur intervient dans une situation où elle ne peut pas être
+reportée directement (par exemple dans l'exécution d'un évènement ou
+d'un appel @code{vwait}) et est traité par le mécanisme du traitement
+des erreurs en arrière plan. Chaque interpréteur a son système de
+gestion d'erreur.
+
+
+@node interp debug path ?-frame ?boolean?
+@subsubsection interp debug path ?-frame ?boolean??
+@findex interp debug path ?-frame ?boolean?
+
+Contrôle si l'information au niveau @code{frame-level} est capturée dans
+l'interpréteur esclave identifié par @code{path}.  Si @code{-frame} est
+présent, le niveau de debogage est donnée par le booléen. Si le booléen
+n'est pas présent, on utilise le réglage en cours. Ceci impacte la
+sortie de @code{info frame} qui capture une information plus exacte (et
+longue) pour la recherche d'erreur. Ceci ralentit le code et ne peut pas
+être annulé une fois lancé.
+
+
+@node interp delete ?path?
+@subsubsection interp delete ?path?
+@findex interp delete ?path?
+
+Efface les interpréteurs donnés par le chemin. Quand on efface un
+interpréteur, ses interpréteurs esclaves sont aussi effacés.
+
+
+@node interp issafe ?path?
+@subsubsection inter issafe ?path?
+
+Retrourne @code{1} si l'interpréteur donné par le chemin est sûr.
+(mais à vrai dire, se reposer sur cette commande est un peu naïf).
+
+
+@node interp exists path
+@subsubsection interp exists path
+@findex interp exists
+
+Vérifie si un interpréteur existe sur le chemin qui est donné et
+retourne 1 le cas échéant, 0 s'il n'en existe pas.
+
+@node interp expose path hiddenName ?exposedCmdName?
+@subsubsection interp expose path hiddenName ?exposedCmdName?
+@findex interp expose
+
+Rend la commande cachée @code{hiddenName} visible en lui donnant
+éventuellement un nouveau non @code{exposedCmdName} dans l'interpréteur
+designé par @code{path}. Une commande de ce nom ne doit pas préexister.
+
+@node interp hide path exposedCmdName ?hiddenName?
+@subsubsection interp hide path exposedCmdName ?hiddenName?
+@findex interp hide
+
+Cette commande cache la commande visible @code{exposedCmdName} en la
+renommant en commande cachée @code{hiddenName} ou en conservant le même
+nom, si cette option n'est pas donnée. Il ne faut pas qu'une commande
+cachée du même nom existe déjà. Les commandes à cacher sont recherchées
+dans l'espace de noms global même si l'espace de noms courant ne l'est
+pas. Ceci empêche les exclaves d'abuser un maître interpéteur en cachant
+les mauvaises commandes.
+
+@node interp hidden path
+@subsubsection interp hidden path
+@findex interp hidden
+
+Renvoie la liste des noms de toutes les commandes cachées dans
+l'interpréteur indentifié par @code{path}.
+
+@node interp alias
+@subsubsection interp alias
+@findex interp aliases
+
+Voici les différentes sous commandes.
+
+@table @code
+@item interp alias scrPath srcCmd
+Renvoie une liste des commandes ciblées associées aux alias nommées
+@code{srcCmd} dans l'interpréteur identifié par @code{scrPath}.
+
+@item interp alias scrPath srcCmd @{@}
+Efface l'alias de la commande @code{srcCmd} dans l'interpréteur escalve
+@code{srcPath}.
+
+@item interp alias srcPath srcCmd targetPath targetCmd ?arg arg ...?
+Cette commande crée un alias entre un esclave et un autre.  Dans cette
+commande, chacun des interpréteurs peut être n'importe où dans la
+hiérarchie des interpréteurs. @code{SrcPath} est une liste désignant le
+chemin d'un interpréteur. Si la liste est vide, ceci désigne
+l'interpréteur appelant.  @code{srcCmd} est le nom d'une nouvelle
+commande, qui sera créée dans l'interpréteur source
+@code{srcPath}. @code{TargetPath} et @code{targetCmd} spécifient la
+cible interpréteur et commande, et l’argument @code{arg}, s'il existe,
+spécifie les arguments supplémentaires à @code{targetCmd} qui sont
+ajoutés à tout argument spécifié dans l'appel de
+@code{srcCmd}. @code{TargetCmd} n'est pas créé par cette commande et
+doit donc pré-exister dans @code{targetCmd}. L'alias prépare la commande
+cible à être appelée dans l'interpréteur cible chaque fois que la
+commande source est appelée dans l'interpréteur source.
+@end table
+
+Voici par exemple une astuce pour le débogage. Pendant ce phase,
+on a souvent besoin d'écrire l'instruction @code{set errorInfo} qui
+donne des informations sur la dernière erreur recontrée. En entrant
+cette commande :
+@example
+interp alias @{@} ? @{@} set errorInfo
+@end example
+il suffit alors de rentrer @code{?} pour écrire la même chose...
+
+@node interp aliases
+@subsubsection interp aliases ?path
+@findex interp aliases
+
+renvoie les alias qui ont ét défini.
+
+
+@node interp invokehidden path ?-global? hiddenCmdName ?arg...?
+@subsubsection interp invokehidden path ?-global?  hiddenCmdName ?arg...?
+@findex interp invokehidden
+
+Appelle la commande cachée @code{hiddenCmdName} avec les arguments
+fournis dans l'interpréteur désigné par @code{path}. Aucune substitution
+ou évaluation n'est appliquée au arguments. Si l'option @code{-global}
+est présente, la commandes cachée est appelée au niveau global.
+
+
+@node interp marktrusted path
+@subsubsection interp marktrusted path
+@findex interp marktrusted
+
+Marque un intérpréteur comme fiable. Ne montre pas les commandes
+cachées. Cette commande ne peut être appelée qu'à partir d'un
+interpréteur de confiance.
+
+
+@node interp share srcPath channelId destPath
+@subsubsection interp share srcPath channelId destPath
+@findex interp share
+
+Met en place le partage du canal I/O identifié par @code{channelId}
+entre l'interpréteur @code{srcPath} et l'interpréteur
+@code{desPath}. Les deux interpréteurs ont les mêmes permissions sur le
+canal I/O. Les canaux I/O sont automatiquement détruit quand l'un des
+interpréteur est détruit.
+
+
+@node interp slaves ?path?
+@subsubsection interp slave ?path?
+@findex interp slave
+
+Renvoie la liste de tous les interpréteurs esclaves de l'interpréteur
+donné par @code{path}. Si @code{path} est absent, renvoie les
+interpréteurs esclaves de l'interpréteur appelant.
+
+@node interp target path alias
+@subsubsection interp target path alias
+@findex interp target
+
+Renvoie la liste décrivant l'interpréteur cible d'un alias.
+
+@node interp transfer srcPath channelId destPath
+@subsubsection interp transfer srcPath channelId destPath
+@findex interp transfer
+Rend le canal I/O indentifié par @code{channelId} disponible dans
+l'interpréteur @code{destPath} et indisponible dans l'interpréteur
+@code{srcPath}.
+
+
+@node Les commandes crées avec l'interpréteur esclave.
+@subsection Les commandes crées avec l'interpréteur esclave.
+
+Pour chaque interpréteur esclave créé avec la commande @code{interp},
+une nouvelle commande tcl est créée dans l'interpréteur maître avec le
+même nom que ce nouvel interpréteur. Cette commande permet de faire
+plusieurs opérations sur l'interpréteur esclave. Les commandes ont
+toutes la forme.
+
+@example
+slave command ?arg arg?
+@end example
+
+où @code{slave} est le nom de l'interpréteur esclave et @code{command}
+le nom de la commande.
+
+Voici ces commandes.
+
+@table @code
+@item slave aliases
+Renvoie la liste des alias
+
+@item slave scrCmd
+Renvoie la liste des commandes ciblées et de leurs arguments.
+
+@item slave alias srcCmd @{@}
+Efface l'alias de @code{scrCmd} and l'interpréteur esclave.
+
+@item slave alias scrCmd targetCmd ?arg...?
+Crée un alias tel que chaque fois que @code{scrCmd} est appelé dans
+@code{slave}, @code{targetCmd} est appelée dans l'interpréteur maître.
+
+@item slave eval arg ?arg...?
+Cette commande concatène ses argument évalue la chaîne résultante dans
+l'interpréteur @code{slave}. Le resultat (incluant les informations
+d'erreur le cas échéant) sont retournés dans l'interpréteur maître
+appelant.
+
+@item slave expose hiddenName ?exposedCmdName?
+Cette commande expose la commande cachée @code{hiddenName} en la
+renommant évuentellement si @code{exposedCmdName} est donné.
+
+@item slave hide exposedCmdName ?hiddenName?
+Rend une commande invisible.
+
+@item slave hidden
+Renvoie la liste de toutes les commandes cachées.
+
+@item issafe
+Renvoie 1 si l'esclave est sûr
+
+@item slave markstrusted
+Marque l'interpréteur comme fiable.
+
+@end table

@@ -1,0 +1,69 @@
+@c -*- coding: utf-8-unix; mode: texinfo; mode: auto-fill; -*-
+@c typographie française :    «   »  … ’
+
+@node Intégrer du code Tcl en C
+@chapter Intégrer du code Tcl en C
+
+@c https://medium.com/elp-2018/tcl-un-langage-double-face-56745ebe89ca
+
+@c @node Intégrer dans un programme en C
+@section Intégrer du code Tcl dans un programme en C
+@findex Tcl_Interp
+@findex Tcl_Eval
+
+On peut intégrer un script Tcl dans un programme source en C en
+utilisant la bibliothèque @file{tcl.h}. Voici un permier exemple
+élémentaire. 
+
+@example
+#include <stdio.h>
+#include <tcl.h>
+
+main (int argc, char *argv[]) @{
+  Tcl_Interp *myinterp;
+  char *action = "set a [expr 5 * 8]; puts $a";
+  int status;
+  printf ("Your Program will run ... \n");
+  myinterp = Tcl_CreateInterp();
+  status = Tcl_Eval(myinterp,action);
+  printf ("Your Program has completed\n");
+@}
+@end example
+
+Dans le code précédent, la variable C @code{action} contient
+le code Tcl à exécuter. La procédure Tcl @code{Tcl_CreateInterp()}
+déclare l'interpréteur Tcl qui est ensuite passé à la procédure
+@code{Tcl_Eval()} pour qu'il exécute le code stocké dans la variable
+@code{action}.
+
+On peut ensuite aller plus loin en déclarant des objets ou des commandes
+complètes avec @code{Tcl_CreateObjCommand()} et @code{Tcl_CreateCommand()}.
+
+Les paramètres sont les mêmes pour les deux procédures :
+
+@example
+Tcl_CreateCommand(interp, cmdName, proc, clientData, deleteProc)
+@end example
+
+avec :
+
+@multitable @columnfractions .2 .8
+@item @code{interp}
+@tab interpréteur Tcl
+
+@item @code{cmdName}
+@tab nom de la commande à créer
+
+@item @code{proc}
+@tab La fonction Tcl à invoquer quand la commande est appelée
+
+@item @code{clientData}
+@tab inutile de s’en soucier dans la majorité des cas (NULL)
+
+@item @code{deleteProc}
+@tab fonction C à invoquer si la commande est détruite (souvent à NULL)
+@end multitable
+
+La nouvelle commande @code{cmdName} pourra alors ête invoquée par un
+appel de @code{Tcl_eval} comme nous l'avons vu dans l'exemple plus
+simple du dessus. Ceci permet d'intéger plus de code Tcl.

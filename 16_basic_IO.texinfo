@@ -1,0 +1,914 @@
+@c -*- mode: texinfo; coding: utf-8-unix; mode: auto-fill -*-
+@c typographie française :    «   » … ’
+
+@node Le système de fichiers et les connexions I/O
+@chapter Naviguer dans le système de fichiers et connexion I/O de base.
+@cindex système de fichiers
+
+@c améliorer avec : http://wfr.tcl-lang.org/111
+
+
+@node Les entrées et sorties standards
+@section Les entrées et sorties standards.
+@vindex stdin
+@vindex stdout
+@vindex stderr
+
+L'entrée standard est le clavier, la sortie standard est l'écran de
+l'ordinateur.  Ces sorties sont nommées @code{stdin} et @code{stdout} en
+Tcl et on peut aussi rencontrer un troisième élément qui est
+@code{stderr}, qui est la sortie standard dans un fichier consignant les
+alarmes et erreurs rencontrées (qu'on appelle couramment un fichier 'log',
+car il est souvent utilisé pour les connexions, les 'login' en Anglais).
+
+Voici un exemple d'entrée sortie élémentaire.
+
+@findex flush
+@findex gets
+@example
+puts -nonewline "Please enter your name : "
+flush stdout
+gets stdin name
+puts "Bonjour $name"
+@end example
+
+@itemize @bullet
+@item La commande @code{puts} avec l'option @code{-nonewline} inscrit l'invite de commande à l'écran
+sans le retour à la ligne habituel.
+
+@item La commande @code{flush stdout} supprime automatiquement les retours écrans
+      comme le caractère pourcentage (@code{%}) qui apparait à chaque fin d'instruction ou
+      les éventuels retours par défaut des commandes qui suivent (comme le nombre de caractères
+      lus pour la commande @code{gets}
+
+@item La commande @code{gets} saisie l'entrée utilisateur (qui s'affiche par contre toujours
+      à l'écran) et la stocke dans la variable @code{name}.
+@end itemize
+
+Note: cette astuce marche bien, quand la ligne d'instruction est lancée
+depuis un script. Par contre, dans un script interactif (wish ou tclsh),
+il reste toujours le caractère d'invite (@key{%} dans mon cas avec M-x
+tcl-inferior). Pour l'enlever, il suffit d'intégrer cette instruction
+dans une commande @code{eval} et on peut aussi introduire des sauts de
+lignes.
+
+@example
+eval @{
+  puts -nonewline "Please enter your name: ";
+  flush stdout;
+  gets stdin name;
+  puts "Bonjour $name";
+@}
+@end example
+
+
+
+@node Navigation dans le système de fichiers
+@section Navigation dans le système de fichiers.
+
+Les systèmes d'exploitations représentent couramment les fichiers dans
+une structure arborescente descendant d'un unique neud racine.  Ces
+structures arborescentes sont représentées par des chaînes de mots, qui
+sont les noms de fichiers, séparés par un caractère qui est hélas différent
+selon le système d'exploitation.
+
+Pour s'affranchir des différences entre les systèmes d'exploitation, Tcl
+propose des commandes qui lui sont propres:
+
+@table @samp
+@findex cd
+@item cd :
+changer de répertoire (comme sous bash).
+
+@findex pwd
+@item pwd :
+savoir quel est le répertoire courant.
+@end table
+
+L'utilisation de @code{cd} est identique à celle que l'on fait dans une
+console (Unix, Linux ou Windows). La fonction @code{pwd} ressemble plus
+à la commande identique sous Linux (ou Unix) et on l'utilise ainsi.
+
+@example
+puts "répertoire courant :" [pwd]
+@end example
+
+
+@node Trouver un fichier et le manipuler
+@section Trouver un fichier et le manipuler
+
+
+Deux fonctions vont nous aider à rechercher ou manipuler des noms
+de fichiers :
+
+@node Trouver et sélectionner des fichiers (glob)
+@subsection Trouver et sélectionner des fichiers (glob)
+@findex glob
+
+La fonction @code{glob} sert à sélectionner un fichier ou un groupe de
+fichiers. Sa syntaxe est la suivante.
+
+@example
+glob ?-nocomplain? ?-types typelist? ?--? pattern
+@end example
+
+S'il est présent, le terme @code{nocomplain} enlèvera les messages
+d'avertissements.
+
+Si elle est présente, la chaîne @code{typelist} contient les éléments
+suivants qui sont alors compris comme étant liés par des @code{OR}:
+
+@itemize @minus
+@item b : un fichier ou pilote en mode d'accès par blocs
+@item c : un fichier ou pilote en mode d'accès par octet
+@item d : un répertoire
+@item f : un fichier normal
+@item l : un lien symbolique
+@item p : un tube (unix) nommé
+@item s : un branchement (socket)
+@item w : accès en écriture
+@item r : accès en lecture
+@end itemize
+
+On peut aussi avoir des chaînes.
+@itemize @minus
+@item hidden : les fichiers cachés
+@end itemize
+
+Ces termes sont alors reliés par des @code{AND}.
+
+Enfin, la chaîne @code{pattern}, qui n'est pas optionnelle, donne le
+motif permettant de sélectionner le groupe de fichiers selon les règles
+habituelles. Les éventuels @code{--} qui sont avant, servent à délimiter
+ce motif des éventuelles @code{typelist} qui peuvent avoir été mis
+avant.
+
+Voici un example pour retrouver tous les fichiers source en C dans
+un répertoire.
+
+@example
+foreach fileName [glob *.c *.h] @{
+   puts "Fichier sources C: $fileName"
+@}
+@end example
+
+Pour trouver simplement une liste de répertoires, on écrit.
+
+@example
+puts "Les sous-répertoires de /usr sont : [glob -types d /usr/*]"
+@end example
+
+
+@node Manipuler les noms de fichiers (file)
+@subsection Manipuler les noms de fichiers (file)
+
+Tcl utilise dans ses commandes les chemins écrits à la façon Unix.
+
+@example
+set channel [open "C:/data/datafile" r]
+@end example
+
+Utiliser une barre inversée @code{\} pour séparer les répertoires, comme
+c'est la cas pour Windows aboutirait à une erreur. Par contre, si on
+veut afficher le chemin pour l'utilisateur et donc utiliser le format du
+système d'exploitation en cours pour ne pas perturber l'utilisateur, il
+suffit de passer par cette fonction @code{file}, qui s'adaptera
+automatiquement.
+
+@example
+puts [file nativename "C:/My Documents/letter.doc"]
+@end example
+
+qui donnera donc sous Windows:
+
+@example
+C:\My Documents\letter.doc
+@end example
+
+Cette fonction va donc aider à écrire du code portable entre les
+différents systèmes d'exploitation.
+
+La fonction @code{file} a de nombreuses options. Voici les principales
+pour avoir des informations en lecture.
+
+@table @samp
+@item file normalize chemin
+retrouve le chemin absolu.
+
+@item file split chemin
+retourne les répertoires du chemin dans une liste.
+
+@item file extension
+retourne l'extension du fichier.
+
+@item file join liste
+joint les éléments de @code{list} en un nom de chemin.
+
+@item file dirname chemin
+donne la partie chemin uniquement.
+
+@item file tail chemin
+retourne la partie fichier.
+
+@item file rootname chemin
+retourne le disque (cas d'un chemin Windows).
+
+@item file split
+partage le nom en nom de répertoire et nom de fichier.
+
+@end table
+
+
+Une application concrète est la récupération du répertoire où se situe
+le script actuellement exécuté. Ceci peut être utile, par exemple pour
+se référer à d'autres fichiers dans le même répertoire (par exemple
+en faisant un 'source') sans ce soucier d'un éventuel changement de
+localisation de ce répertoire.
+
+@example
+set script_path [ file dirname [ file normalize [ info script ] ] ]
+puts $script_path
+
+puts "info script = [info script]"
+puts "file normalize = [file normalize [info script]]"
+puts "dirname = [file dirname [file normalize [info script]]]"
+@end example
+
+Voici un autre exemple pour obtenir un nom de fichier sans son
+extension.
+
+@example
+set filename monFicher.txt
+set name [string trimright $filename [file extension $filename]]
+@end example
+
+
+@node Avoir des info sur les fichiers (file)
+@subsection Avoir des info sur les fichiers (file)
+
+Il existe aussi d'autres options de @code{file} pour faire des
+tests éventuels avant d'essayer d'ouvrir un fichier qui peut-être
+n'existe pas...
+
+@table @samp
+@item file exists path
+renvoie (true) si le fichier existe.
+
+@item file type path
+retourne le type de fichier (file, directory, characterSpecial,
+blockSpecial, fifo, link, socket)
+
+@item file isdirectory path
+renvoie 1 (true) s'il s'agit d'un répertoire.
+
+@item file isfile path
+renvoie 1 s'il s'agit d'un fichier.
+
+@item file isdirectory path
+renvoie 1 s'il s'agit d'un répertoire
+
+@item file executable path
+renvoie 1 si le fichier est exécutable
+
+@item file atime path
+renvoie le temps du dernier accès
+
+@item file mtime path
+renvoie le temps de la dernière modification
+
+@item file owned path
+renvoie 1 si le fichier appartient à l'utilisateur
+
+@item file readable path
+renvoie 1 si le fichier est lisible par l'utilisateur
+
+@item file readlink path
+retourne le nom du fichier pointé par le lien symbolique
+
+@item file size path
+retourne la taille du fichier
+
+@item file writable path
+retourne 1 si le fichier peut être écrit.
+@end table
+
+La commande @code{file} peut aussi servir à avoir des statistiques
+sur le fichier. La forme est alors.
+
+@example
+file lstat path varName
+@end example
+
+@code{path} est le nom du fichier, @code{varName} le nom du vecteur
+associatif qui contient les résultats et dont les indices sont alors
+les suivant.
+
+@itemize @bullet
+@item atime :
+heure du dernier accès.
+
+@item ctime :
+heure du dernier changement sur le répertoire
+
+@item mtime :
+heure du dernier changement sur le contenu du fichier
+
+@item dev :
+dispositif auquel on est connecté
+
+@item gid :
+groupe utilisateur
+
+@item ino :
+numéro d'inod
+
+@item mode :
+protection du fichier sous forme de chaîne binaire
+
+@item nlink
+nombre de liens (liens symboliques exclus)
+
+@item size :
+taille en octets
+
+@item type :
+type du fichier
+
+@item uid :
+Id utilisateur du créateur du fichier
+@end itemize
+
+
+La commande @code{file state} permet aussi d'obtenir des renseignements
+sur un fichier sous forme de vecteur associatif nommé ici @code{varname}.
+
+@example
+file stat name varname
+@end example
+
+Les indexes de @code{varname} sont :
+
+@table @code
+@item atime
+moment du dernier accès
+
+@item ctime
+moment de la dernière modification de status
+
+@item mtime
+moment de la dernière modification
+
+@item dev
+information sur l'inode
+
+@item gid
+le groupe id
+
+@item ino
+le numéro d'inode
+
+@item mode
+le mode de protection de l'indoe
+
+@item nlink
+nombre de lien en dur
+
+@item size
+taille en octets
+
+@item type
+type de fichier
+
+@item uid
+id de l'utilisateur
+@end table
+
+
+@node Manipuler les fichiers et les répertoires (file)
+@subsection Manipuler les fichiers et les répertoires (file)
+
+La commande @code{file} permet aussi d'agir sur les fichiers et les
+répertoires.
+
+@c @table @code
+@c @item file copy
+@c copier un fichier ou un répertoire
+
+@c @item file delete
+@c effacer un fichier ou un répertoire
+
+@c @item file mkdir
+@c créer un répertoire
+
+@c @item file rename
+@c renommer ou bouger un fichier ou un répertoire
+@c @end table
+
+@node copier un fichier ou un répertoire (file copy)
+@subsubsection copier un fichier ou un répertoire (file copy)
+
+La copie de fichiers a deux formes possibles.
+
+@example
+file copy ?-force? ?--? source cible
+file copy ?-force? ?--? source ?source…? repertoire_cible
+@end example
+
+La première forme copie un fichier dans un autre. L'option @code{-force}
+permet d'écraser le fichier s'il existe. Si l'argument @code{cible} est
+un répertoire, alors la seconde forme est utilisée.
+
+Cette seconde forme copie tous les fichiers listés dans le répertoire
+cible.  Si parmis les sources se trouve un répertoire, alors il est
+copié récursivement dans le répertoire cible.
+
+
+@node effacer un fichier ou un répertoire (file delete)
+@subsubsection effacer un fichier ou un répertoire (file delete)
+
+L'effacement d'un fichier s'écrit de la manière suivante.
+
+@example
+file delete ?-force? ?--? repertoire ?repertoire…w?
+@end example
+
+Cette forme efface un fichier ou un répertoire. L'option @code{-force}
+permet d'effacer un répertoire non vide. Si le répertoire est un lien
+symbolique, le lien symbolique est effacé et non le répertoire désigné.
+
+L'option @code{-force} permet d'effacer le répertoire en cours. On sera
+alors simplement placé dans le répertoire parent.
+
+@example
+pwd
+@result{} ~/…/parent/enfant
+file delete -force [pwd]
+pwd
+@result{} ~/…/parent
+@end example
+
+Attention l'effacement en utilisant des caractères génériques ne
+fonctionne pas comme sous le shell.
+
+@example
+touch file.txt file2.txt
+file delete *.txt
+ls
+@result{} file.txt file2.txt
+@end example
+
+Les fichiers n'ont pas été effacés. Il faut en fait construire les noms
+de fichiers avec Tcl comme l'exemple ci-dessous.
+
+@example
+file delete @{*@}[glob -nocomplain *.txt]
+@end example
+
+L'option @code{-nocomplain} sert à ne pas recevoir de message d'erreur
+s'il n'y a pas de fichier ayant cette extension @code{.txt}.
+
+
+@node créer un répertoire (file mkdir)
+@subsubsection créer un répertoire (file mkdir)
+
+On peut créer un répertoire avec la commande suivante.
+
+@example
+file mkdir repertoire ?repertoire…?
+@end example
+
+Cette commande s'assure que les répertoires donnés en arguments
+existent, en les créant le cas échéant.
+
+
+@node renommer ou bouger un fichier ou un répertoire (file rename)
+@subsubsection renommer ou bouger un fichier ou un répertoire (file rename)
+
+On peut renommer (ou déplacer) un fichier depuis Tcl avec la commande
+suivante.
+
+@example
+file rename ?-force? ?--? source cible
+file rename ?-force? ?--? source ?source…? repertoire_cible
+@end example
+
+Comme pour la copie, la première version est pour renommer (déplacer) un
+fichier. La seconde forme s'applique quand on déplace une série de
+fichiers vers un autre répertoire.
+
+
+@node Lire un fichier et y écrire
+@section Lire et écrire dans des fichiers
+
+
+Nous allons voir deux fonctions de lecture qui sont @code{gets} et
+@code{read} et une une fonction d'écriture qui est @code{puts}. Ces
+fonctions font à chaque fois référence à un canal, qui doit avoir été
+déclaré et ouvert par la fonction @code{open}. Quand le travail dans le
+fichier est terminé, on referme avec @code{close}.
+
+
+@findex open
+@node Ouvrir un canal avec 'open'
+@subsection Ouvrir un canal avec @code{open}
+
+On définit au moment de l'ouverture les permissions qui seront données
+sur le fichier.
+
+@example
+open fileName ?mode? ?createPermissions?
+@end example
+
+
+@multitable @columnfractions .3 .8
+@item fileName
+@tab le nom du fichier
+
+@item mode
+@tab le mode d'accès : w (write), r (read), a (add).
+Ces modes ont tous une version avec un + qui indique qu'alors les deux
+modes (r et w) sont actifs.
+
+@item createPermissions
+@tab correspond à un entier qui sera utilisé si la fichier doit être
+créé. Les permissions par défaut sont 666*.
+@end multitable
+
+Les permissions peuvent être données par des lettres (@code{w},
+@code{r}, @code{x}) ou par trois chiffres entiers, qui correspondent à
+des drapeaux binaires, qui correspondent aux valeurs décimales
+suivantes :
+
+@itemize @minus
+@item 4 droit en lecture (@code{r})
+@item 2 droit en écriture (@code{w})
+@item 1 droit en exécution (@code{x})
+@end itemize
+
+Ces chiffres peuvent s'additionner comme les lettres peuvent
+s'ajouter. Ainsi 6 correspond à un droit en lecture/écriture, 5 en
+lecture/execution (mais pas en écriture), 7 donne tous les droits…
+
+Les trois chiffres correspondent ensuite au trois niveaux d'accès
+définis pour tous les fichiers Linux.
+
+@itemize @bullet
+@item le premier donne les droits de l'auteur
+@item le second donne les droits des autres membre du groupe
+@item le troisième donne les droits des autres utilisateurs.
+@end itemize
+
+Le nombre par défaut de 666 dit donc que l'auteur, le groupe et les
+autres utilisateurs ont le droit en lecture/écriture, mais pas en
+exécution.
+
+
+Dans l'exemple qui suit, le fichier "monFichier.txt" présent sur le
+répertoire courant est ouvert en lecture et écriture et le canal est
+stocké dans la variable @code{canalFichier}.
+
+@example
+set canalFichier [open "./monFichier.txt" r+]
+@end example
+
+Il existe des alternatives aux code w, r, a qui sont plus verbeuses, mais
+conformes au standard POSIX. Il faut utiliser uniquement l'un des
+drapeaux @code{RDONLY}, @code{WRONLY} ou @code{RDWR}. 
+
+@table @code
+@item RDONLY
+Ouvre le fichier en lecture seule.
+
+@item WRONLY
+Ouvre le fichier en écriture seule.
+
+@item RDWR
+Ouvre le fichier en lecture écriture
+
+@item APPEND 
+Place le pointeur à la fin du fichier avant d'écrire dans chaque fichier.
+
+@item BINARY
+Configure le canal pour écrire en binaire.
+
+@item CREAT
+Crée le fichier s'il n'existait pas (donc sans lever d'erreur si le
+fichier n'existe pas.
+
+@item EXCL
+Si @code{CREAT} est aussi spécifié, une erreur est retournée si le
+fichier existe déjà.
+
+@item NOCTTY
+Si le fichier est un terminal, ce drapeau empêche le fichier de devenir
+la terminal contrôlant le processus en cours.
+
+@item TRUNC
+Si le fichier existe, il est tronqué à zéro.
+@end table
+
+Sur un exemple
+
+@example
+set FH [open fichier.txt "CREAT WRONLY TRUNC"]
+puts -nownewline $FH "ceci est une ligne de texte"
+close $FH
+@end example
+
+
+@c @findex stdin (canal)
+@c @findex stdout (canal)
+@c @findex stderr (canal)
+@c Il faut se rappeler que sous Unix, tout est fichier. Tcl reconnait ainsi
+@c trois canaux standards qui sont:
+@c @itemize @bullet
+@c @item stdin
+@c @item stdout
+@c @item stderr
+@c @end itemize
+
+@c Ce sont les canaux classiques utilisés sous Unix et que l'on peut ouvrir
+@c comme on ouvrirait un fichier si besoin.
+
+
+
+@findex read
+@node Lire dans un canal avec 'read'
+@subsection Lire dans un canal avec @code{read}
+
+La fonction @code{read} va lire l'ensemble de l'entrée venant du canal
+qui est donné en argument. Si l'option @code{-nonewline} est indiquée,
+on va supprimer le dernier caractère du canal s'il s'agit d'un caractère
+de saut à la ligne.
+
+@example
+set texte [read -nonewline numCanal]
+@end example
+
+Une autre forme permet aussi d'indiquer le nombre maximum d'octets
+à lire.
+
+@example
+set text [read numCanal maxByte]
+@end example
+
+
+Voici des examples d'utilisation pour lire un fichier. Avec la commande
+@code{read} on peut lire le fichier entier en un seul coup et le charger
+dans une variable. Cette variable peut ensuite être traitée, par exemple
+pour la transformer en une liste corresondant à chacune des lignes.
+
+@example
+set fd [open $fileName r]
+set fileContent [read $fd]
+set lines [split $fileContent \n]
+close $fd
+foreach line $lines @{
+     set line [string trim $line " "]
+     if @{$line == ""@} continue
+     # etc...
+@}
+@end example
+
+
+@findex gets
+@node Lecture ligne-à-ligne avec 'gets'
+@subsection Lecture ligne-à-ligne avec @code{gets}
+
+Le fonction @code{gets} permet de lire l'entrée venant d'un canal
+ligne à ligne. C'est-à-dire que la lecture s'arrête dès qu'elle
+tombe sur le retour à la ligne (\n). Il y a deux formes possibles, selon
+que l'on veuille ou non utiliser la valeur de retour :
+@example
+set lu [gets numCanal]
+@end example
+
+ou pas
+@example
+gets numCanal lu2
+@end example
+
+Le canal peut être @code{stdin}, dans ce cas le canal est l'entrée
+au clavier, se finissant par la touche retour clavier, qui indique la fin
+de l'entrée et qui n'est pas prise en compte ensuite dans la variable
+enregistrant l'entrée.
+
+@example
+gets stdin entree
+@end example
+
+
+On peut aussi utiliser @code{gets} pour faire une lecture ligne à ligne d'un fichier.
+
+@example
+set fd [open $fileName r]
+set fileContent [read $fd]
+while @{[gets $fd data] >= 0@} @{
+     puts $data
+@}
+close $fp
+@end example
+
+
+@findex puts
+@node Écrire dans un canal avec 'puts'.
+@subsection Écrire dans un canal avec @code{puts}.
+
+La commande @code{puts} écrit dans un canal, qui aura donc dû être
+ouvert en écriture.
+
+@example
+set fd [open $filename w]
+puts $fd $content
+@end example
+
+
+@findex close
+@node Fermet un canal avec 'close'
+@subsection Fermet un canal avec @code{close}
+
+Un canal se referme avec la commande @code{close}
+@example
+# fermeture en écriture
+close canal w
+# fermeture en lecture
+close canal r
+# fermeture en lecture/écriture
+close canal r | w
+@end example
+
+
+@findex socket
+@node Ouvrir une connexion Tcp ('socket')
+@section Ouvrir une connextion Tcl (@code{socket})
+
+La commande @code{socket} fonctionne comme la commande @code{file}, mais
+ouvre une connexion Tcp à la place d'ouvrir un fichier. Sinon, toutes
+les autres commandes s'appliquent avec simplement une adaptation aux
+connexions Tcp.
+
+
+@node Configurer un canal ('fconfigure')
+@section Configurer un canal (@code{fconfigure})
+@findex fconfigure
+
+La command @code{fconfigure} lit et fixe les options des canaux.
+
+@example
+fconfigure channelId
+fconfigure channelId name
+fconfigure channelId name value ?name value...?
+@end example
+
+Sans options (la première version), la commande retourne la liste des
+options et de leur valeur pour le canal donné. Si on ne donne que le nom
+de l'option (deuxièle version), la commande retourne la valeur de
+l'option pour ce canal. La troisième version fixe les options pour ce
+canal.
+
+Les options qui sont suportées pour tous les canaux sont les suivantes.
+
+@table @code
+@item -blocking t/f
+Cette option détermine si une opération I/O sur le canal peut provoquer
+le bloquage du processus. Les canaux sont normalement bloquant. S'il ne
+le sont pas, cela affecter les commandes @code{gets} @code{read}
+@code{flush} et @code{close}. Pour que le mode non bloquant fonctionne,
+Tcl doit utiliser la boucle d'évènement (voir @code{vwait}
+@footnote{La commande 'vwait'})
+
+@item -buffering newValue
+Les valeurs de @code{newValue} sont à choisir parmis les choix suivants.
+@table @code
+@item full
+Le système I/O met la sortie en tampon jusqu'à ce qu'il soit plein ou que
+la commande @code{flush} soit appelée. C'est la choix par défaut, sauf
+pour les canaux qui se connectent à des terminaux.
+
+@item line
+Le système I/O écrit transmet le contenu de son tampon dans le canal
+quand un caractère @code{newline} est émis. Cela correspond finalement à
+une écriture ligne à ligne. C'est le mode par défaut des canaux qui se
+connectent à des terminaux et aussi des canaux standards @code{stdin} et
+@code{stdout}.
+
+@item none
+Les système I/O écrit dans le canal immédiatement à chaque opération de
+sortie. C'est le cas par défaut du canal standard @code{stderr}.
+@end table
+
+@item -bufferzie newSize
+La valeur de @code{newSize} doit être un entier entre dix et un million pour fixer la
+taille en octets du tampon alloué au canal.
+
+@item -encoding name
+Cette option permet de spécifier l'encodage à utiliser dans un
+canal. Les données peuvent ainsi être traduites au moment de cette
+transmission, sachant que Tcl utilise l'encodage unicode. Par exemple,
+si on lit un fichier écrit en Japonais et utilisant l'encodage
+@file{shiftjis}, en utilisant @code{-encoding shiftjis} au moment de la
+lecture du fichier, les caractères seront traduits directement en
+unicode, ce qui permettra de les lires sous Tcl. Ceci fonctionne aussi
+pour l'écriture. Si un fichier contient des données binaires pures (par
+exemple une image JPEG), on peut utiliser @code{-encoding binary} pour
+être sûr qu'il n'y aura aucun traitement que les octets seront donc
+transmis sans modification.
+
+@item -eofchar char  / -eofchar @{inChar outChar@}
+Cette option support le système de fichiers DOS qui utilise
+@kbd{Control-z} (@kbd{\x1a}) comme marqueur de fin de fichier.
+Si @code{char} est vide, c'est qu'il n'y a pas de marqueur de fin de
+fichier. Quand vous interrogez un canal pour connaitre son caractère de
+fin de fichier, vous receverez toujours deux valeur, l'une pour le canal
+en lecture et l'autre pour le canal en écriture. Par défaut (sous
+Windows ?), le caractère pour la lecture est @kbd{Control-z}
+(@kbd{\x1a}) et la chaine vide pour l'écriture.
+
+@item -translation mode / -translation @{inMode outMode@}
+Dans les scripts Tcl, la fin de ligne est toujours représentée par le
+caractère @kbd{newline} (@kbd{\n}). Mais la fin de ligne peut être
+représentée différement, par example @kbd{cariage return/line feed} est aussi
+utilisé courrament sur les réseaux pour la find de ligne. Le mode de
+traduction par défaut est @code{auto} qui gère les cas communs
+automatiquement. Mais cette option permet un contrôle explicite des
+traductions de fin de lignes.
+
+Voici dont les trducitons possibles.
+@table @code
+@item binary
+aucune traduction de fin de ligne n'est effectuée.
+
+@item lf
+la fin de ligne est représentée par un seul caractère @kbd{newline}. Ce
+mode est utilisé par défaut sour Unix. Aucune traduction n'est faite.
+
+@item cr
+La fin de ligne est représentée par un simple caractère retour chariot
+('cariage return'). En mode d'entrée, @code{cr} traduit les retours
+chariots en caractère nouvel ligne. En Ecriture, il fait le contraire.
+Ce mode est typiquement utilisé pour les plateformes Macintosh.
+
+@item crlf
+La fin de ligne est représenté par un caractère de retour chariot, suivi
+d'un caractère saut de ligne ('line feed'). C'est le mode utilisé
+principalement par les plateformes Windows.
+
+@item auto
+La taduction est faite automatiquement.
+
+@end table 
+
+@end table
+
+
+@node Déterminer la fin d'entrée d'un canal ('eof')
+@section Déterminer la fin d'entrée d'un canal (@code{eof})
+@findex eof
+
+La commande @code{eof id} permet de déterminer si on est arrivé à la fin
+de la lecture du canal @code{id}.
+
+Cette commande est souvent utilisée avec la commande @code{gets}.
+
+@example
+gets $fp line
+while @{![eof $fp]@} @{
+    gets $fp line
+@}
+@end example
+
+Maintenant, la commande @code{gets} renvoie @code{-1} quand elle tombe
+sur @code{eof}. On peut alors aussi écrire.
+
+@example
+while @{[gets $fp line] >= 0@} @{
+    ...
+@}
+close $fp
+@end example
+
+
+@findex flush
+@node Vider un canal avec 'Flush'
+@section Vider un canal evec @code{Flush}
+
+Les commandes d'écriture (@code{puts}) peuvent ne pas être exécutées
+directement, mais mise en mémoire tampon pour optimiser ensuite les
+temps d'accès au canal.
+
+Si on veut forcer l'écriture effective, on peut vider le tampon avec
+cette commande.
+
+@example
+flush numéroCanal
+@end example
+
+Cette commande est typiquement utilisée lors d'interaction avec
+l'utilisateur en mode console.
+
+@example
+puts -nonewline "Entrez votre nom : "
+flush stdout
+gets stdin name
+puts "Bonjour $name"
+@end example
