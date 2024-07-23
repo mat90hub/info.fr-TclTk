@@ -1413,7 +1413,7 @@ $input configure -width 10
 @subsection La commande @code{grid}
 @findex grid
 
-Beaucoup d'interface se concoivent finalement comme des grilles ou
+Beaucoup d'interface se conçoivent finalement comme des grilles ou
 tableau sur lesquelles on accrocherait les éléments graphiques. La
 commande @code{grid} effectue le placement en se référant à une grille
 virtuelle ayant des rangée des colonnes numérotées.

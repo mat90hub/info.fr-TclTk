@@ -3,29 +3,30 @@
 .DELETE_ON_ERROR:
 SHELL = /bin/bash
 
-ROOTDIR = .
-
-MASTER=00_montcl.texinfo
-
+ROOT_FILE=00_tcltk.fr.texinfo
+MASTER=tcltk.fr
 SOURCE=*.texinfo
-
-# IMG=./images/*
+IMG=./images/*
+COL=37   # column to start description
 
 INFO_PATH=/usr/local/share/info/
 INFO_PATH_IMAGES=/usr/local/share/info/images
 
 info : $(SOURCE)
-	makeinfo --document-language=fr $(MASTER)
+	texi2any --info --output=$(MASTER).info --document-language=fr_FR $(ROOT_FILE)
+
+install : info
 	gzip -f *.info*
 	cp *.info*.gz -t $(INFO_PATH)
 	rm -f *.info*.gz
-#	sudo cp $(IMG) $(INFO_PATH_IMAGES)
-# 	sudo cp ./images/* $(INFO_PATH_IMAGES)
+	cp $(IMG) $(INFO_PATH_IMAGES)
+	cp ./images/* $(INFO_PATH_IMAGES)
+	install-info --keep-old --align=$(COL) --calign=$(COL) $(INFO_PATH)/$(MASTER).info.gz $(INFO_PATH)/dir
 
-all: info
+all: install
 
 # clean directories
-.PHONY : all clean
+.PHONY : all clean info install
 clean:
 	rm -f *.info*
 	rm -f *~

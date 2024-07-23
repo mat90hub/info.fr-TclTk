@@ -1,3 +1,4 @@
+
 @c -*- coding: utf-8-unix; mode: texinfo; mode: auto-fill -*-
 @c typographie française :    «   » … ’
 
@@ -8,7 +9,7 @@ Les variables de Tcl (chaînes, listes, vecteurs associatif et
 dictionaires) sont toutes des chaînes de caractères. Il n'y pas de type
 numériques par exemple. Mais quand on veut faire une opération sur des
 chaînes numériques, la commande @code{expr} se charge de transformer les
-chaîne en variable numérique pour faire les opérations demandées.
+chaînes en variable numérique pour faire les opérations demandées.
 
 Ces chaînes sont la base sur laquelle se développera ensuite les variables
 'agrégées' que sont les listes, les dictionnaires et les vecteurs
@@ -36,9 +37,8 @@ set b [format %3.2f $a]
 @result{} 0.33
 @end example
 
-Figer le nombre de chiffres décimaux permet ensuite d'aligner les
-chiffres de manière homogène en utilisant un alignement de chaîne à
-droite.
+Figer le nombre de décimales permet en particulier d'aligner la
+séparation décimale avec un alignement à droite.
 
 @example
 puts "[format @{%+7s@} $b] \n [format @{%+6s@} [expr 10 + $b]]"
@@ -56,8 +56,8 @@ puts [format %+$@{l@}s $b \n format %+$@{l@}s [expr 10 + $b]]
 @result{}  10.33
 @end example
 
-On remarquera que la variable @code{l} a été encadrée par des accolades
-pour éviter qu'elle s'aggrège au code @code{s} de la définition du format.
+Ici, la variable @code{l} a été encadrée par des accolades pour éviter
+qu'elle s'aggrège au code @code{s} de la définition du format.
 
 Si on recontre toujours des difficultés, on peut toujours se rabattre
 sur la commande @code{join}, qui marchera toujours sous cette forme.
@@ -79,30 +79,31 @@ format formatString ?data1? ?data2? ...
 
 @table @code
 @item formatString
-Une chaîne de format qui va définit le format d'affichage de la donnée
-qui suit. S'il y a plusieurs données, on doit donner une liste de format
-correspondant à chacune des données. Seules les données qui auront un
-format correspondant seront affichées.
+Une chaîne de format qui définit le format d'affichage de la donnée qui
+suit. S'il y a plusieurs données, on doit donner une liste de formats
+correspondant à chacune des données. Seules les données, qui auront un
+format qui leur correspond, seront affichées.
 
 @item data#
 Les données qui vont être affichées avec ce format.
 @end table
 
 La chaîne de format commence par @code{%}. Si on veut afficher le
-caractère @code{%}, il faut le double @code{%%}. La définition d'un
+caractère @code{%}, il faut le doubler @code{%%}. La définition d'un
 format a ensuite 5 parties:@footnote{J'omet volontaire l'indicateur de
 position selon XPG3 qui ne semble pas être utilisé}
 
 @multitable {pos} {caractère de conversion} {conversion specifier}
 @headitem Pos @tab signification @tab en Anglais 
 @item  @code{1} @tab drapeaux                @tab set of flags
-@item  @code{2} @tab largeur minimale        @tab minmum field width
+@item  @code{2} @tab largeur minimale        @tab minimum field width
 @item  @code{3} @tab précision               @tab precision
 @item  @code{4} @tab modificateur de taille  @tab size modifier
 @item  @code{5} @tab caractère de conversion @tab conversion specifier
 @end multitable
 
-@subsubsection Drapeaux (optionnel)
+
+@subsubsection Drapeau (optionnel)
 
 Le premier caractère est un drapeau, correspondant aux indications suivantes:
 
@@ -130,26 +131,26 @@ des espaces à gauche.
 Si on a utilisé le code de justification à gauche @code{%-} alors les
 espaces seront ajoutés à droite.
 
-Si on a utilisé un début de code en @code{%0}, les espaces ajouté à
+Si on a utilisé un début de code en @code{%0}, les espaces ajoutés à
 gauche sont remplacés par des zéros.
 
 @subsubsection Précision (optionnelle)
 
 Le code de précision consiste en un point suivi d'un entier. Il définit
-le nombre de décimal à afficher.
+le nombre de décimales à afficher.
 
 @subsubsection Modificateur de conversion (optionnel et rarement utilisé)
 
-Ce champs est rarement utilisé. Il correspond à une éventuelle
+Ce champ est rarement utilisé. Il correspond à une éventuelle
 troncature d'un entier trop long.
 
-@multitable {@code{ll}} {l'entier est tronqué à une valeur sur 16 bit avant d'être converti}
+@multitable {@code{ll}} {l’entier est tronqué à une valeur sur 16 bit avant d'être converti}
 @item @code{ll}
-@tab l'entier est pris sans troncature ou conversion
+@tab l’entier est pris sans troncature ou conversion
 @item @code{h}
-@tab l'entier est tronqué à une valeur sur 16 bit avant d'être converti
+@tab l’entier est tronqué à une valeur sur 16 bit avant d'être converti
 @item @code{l}
-@tab l'entier est tronqué à la même valeur que celle utilisée par la
+@tab l’entier est tronqué à la même valeur que celle utilisée par la
 fonction @code{wide} de la commande @code{expr} (au moins un entier sur
 64 bits). 
 @end multitable
@@ -160,7 +161,7 @@ s'agit généralement de 32 bits qui est déterminé par la variable
 @code{wordSize} définie dans le vecteur système @code{tcl_platform}.
 
 
-@subsubsection Type de convesion (champs obligatoire)
+@subsubsection Type de conversion (champs obligatoire)
 
 La @code{définition_du_format} est l'un des codes suivants.
 
@@ -177,9 +178,9 @@ entier négatif est représenté comme le complément à la valeur entière maxi
 @item @code{b}
 @tab convertit un entier en une chaine binaire non signée
 @item  @code{c}
-@tab convertit un entier dans le caractère Unicode qu'il represente
+@tab convertit un entier dans le caractère Unicode qu'il représente
 @item  @code{s}
-@tab la chaine donnée en argument sera représentée sans conversion
+@tab la chaîne donnée en argument sera représentée sans conversion
 @item  @code{f}
 @tab convertit le nombre en sa représentation décimale. Le nombre de
 décimal par défaut est 6. Si le précision donnée est 0, il n'y aura pas
@@ -335,7 +336,7 @@ append str d e f g
 
 
 @node Concaténer deux chaînes (concat)
-@section Concaténer deux chaines (@code{concat}).
+@section Concaténer deux chaînes (@code{concat}).
 @findex concat
 
 La commande @code{concat} peut concaténer deux chaînes, c'est-à-dire ici
@@ -360,13 +361,14 @@ Elle ne modifie pas de chaîne, mais renvoie le résultat de concaténation
 qu'il faut donc mettre dans une variable.
 
 Apparte:
-la commande @code{lappend}@footnote{@ref{Ajouter un élément (lappend)}}
-pourrait apparaitre comme une alternative intéressante qui
-en plus fonctionne comme @code{append} et ajoute un élément en insérant
-un espace. Cette commande appartient cependant aux commandes de
-liste. C'est possible dans cet exemple simplet, mais il convient
-de faire attention aux passages alternatif du format de
-chaîne au format liste comme nous le verrons plus
+la commande
+@code{lappend}@footnote{@ref{Ajouter un élément (lappend)}}
+pourrait apparaître comme une alternative intéressante qui
+fonctionne comme @code{append} en ajoute un élément en insérant un
+espace. Cette commande appartient cependant aux commandes de
+listes. C'est possible dans cet exemple simplet, mais il convient de
+faire attention aux passages alternatif du format de chaîne au format
+liste comme nous le verrons plus
 tard@footnote{@ref{Effet de chatoiement}}.
 
 
@@ -376,8 +378,8 @@ tard@footnote{@ref{Effet de chatoiement}}.
 
 La commande @code{join} est plus complète que les précédentes, car elle
 permet de joindre les éléments d'une liste tout en précisant quel sera
-l'élément de liaison à utiliser. On peut néanmoins aussi l'utiliser pour
-ce même genre de contexte.
+l’élément de liaison à utiliser. On peut néanmoins aussi l'utiliser dans
+ce contexte.
 
 @example
 join @{Jean Marie@} -
@@ -707,7 +709,7 @@ en une seule passe de la façon suivante.
 @findex stdin
 @example
 while @{[set len [string length $password]] < 8@} @{
-  puts "$la longueur $len est insuffisnate, \
+  puts "$la longueur $len est insuffisante, \
           utilisez 8 lettres au moins "
   set password [gets stdin]
 @}
@@ -726,10 +728,10 @@ Dans la première lecture de @code{$b}, il est substitué par @code{$a}.
 Par contre entre crochet, la commande @code{set} va substituer @code{$b}
 par @code{$a} puis l'exécuter, ce qui donne @code{1}.
 
-Si l'on a besoin de réaliser des substitutions dans des cas plus complexes,
-on pourra utiliser la commande @code{subst}. Cette commande effectue
-la passe de substitution sans la faire suivre par l'évaluation de la
-ligne résultante.
+Si l'on a besoin de réaliser des substitutions dans des cas plus
+complexes, on pourra utiliser la commande @code{subst}. Cette commande
+effectue la passe de substitution sans la faire suivre par l'évaluation
+de la ligne résultante.
 
 L'exemple précédent se serait alors écrit.
 
@@ -757,12 +759,12 @@ set STR [string map @{chhaîne chaine avvec avec pleinn plein faautes@} $STR]
 @result{} ma chaine avec plein de fautes
 @end example
 
-Ceci est un cas simple. On peut parfois voulair utiliser des variables
+Ceci est un cas simple. On peut parfois vouloir utiliser des variables
 dans les mots à substituer. Dans ce cas, on remplace les accolades par
 des guillements. Voici un cas compliqué ou je veux remplacer le
 caractère @code{&} par @code{\&} avec que la barre oblique est un
 caractère d'échappement. Il faut en mettre quatre pour que cela
-fonctionne!
+fonctionne !
 
 @example
 set STR "Tom & Jerry"
@@ -808,14 +810,14 @@ puts $ma_liste
 @findex eval
 
 La commande @code{eval} concatène ses arguments en une chaîne, qu'elle
-exécuter ensuite, comme si cette chaîne avait fait partie des autres
+exécute ensuite, comme si cette chaîne avait fait partie des autres
 lignes d'instructions du script. On peut donc utiliser ce type de
 commande pour écrire des programmes, qui seront dirigés par les données.
 Les procédures seront écrites en fonction des données qui auront été
 lues par le programme lui même.
 
 Dans l'exemple suivant, on entre différentes instructions dans
-des vecteurs associatifs qu'on reparcourts ensuite avec la commande
+des vecteurs associatifs qu'on reparcourt ensuite avec la commande
 @code{eval}.
 
 @example

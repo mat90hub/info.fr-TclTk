@@ -156,7 +156,7 @@ faut remonter dans l'empilement des procédures (ou des modules, comme
 nous le verrons). Cette forme peut être utile quand on écrit des parties
 de code qui peuvent être intégrées dans d'autres et qu'on ne sait donc
 pas exactement où se trouve le niveau global. Le raisonnement en
-positionnnement relatif est donc alors préférable.
+positionnnement relatif est alors préférable.
 
 @example
 upvar ?level? varName1 localName1 ?varName2? ?localName2?
@@ -404,29 +404,34 @@ proc dicAppend @{dico cle val@} @{
 Ces techniques fonctionnent, mais elles trouveront leur limite avec un
 grand nombre de termes (typiquement au delà de 1000 termes). Le temps de
 recherche de la fonction @code{lsearch} appliquée à une liste croît
-linéairement avec le nombre de termes. Les dictionnaires utilisent (à
-l'insu de l'utilisateur) des tables de hachage qui permette de conserver
-de bonnes performances même avec un grand nombre de termes.
+linéairement avec le nombre de termes. Les dictionnaires utilisent des
+tables de hâchage qui permettent de conserver de bonnes performances de
+recherche sur leurs clés, même avec un grand nombre de termes.
 
 
 @node Les procédures et les vecteurs associatifs
 @subsection Les procédures et les vecteurs associatifs
 @cindex procédures et vecteurs associatifs
 
-Les vecteurs associatifs ne peuvent pas être passés (en valeur) en
+Les vecteurs associatifs ne peuvent pas être passés en valeur en
 argument dans une procédure ni être renvoyés par la commande
-@code{return}. Si on en a besoin, il faut peut être revoir le code pour
-utiliser un dictionnaire, qui n'a pas cette limitation.
+@code{return}. S’ils doivent être passés à une procédure, les vecteurs
+associatifs doivent être passés par adresse, comme l’avons vu plus haut
+(@ref{Passage d'argument par adresse avec la commande 'upvar'}).
 
-Maintenant, on peut modifier un vecteur associatif dans une procédure en
-utilisant la commande @code{upvar}, c'est à dire en passant le vecteur
-par adresse.
+Ceci interdit de passer un vecteur associatif comme une variable
+anonyme : avant d’être mis en argument, le vecteur associatif doit être
+rangé dans une variable déclaré et c’est l’adresse de cette variable qui
+sera utilisé comme argument réel. Si on a vraiment besoin de cette
+fonctionalité, il faut peut être revoir le code pour remplacer le
+vecteur associatif par un dictionnaire, qui lui, n'a pas cette
+limitation.
 
-On peut aussi vouloir construire un vecteur dans une procédure. Mais il
-n'est pas alors possible de renvoyer le vecteur avec la commande
-@code{return}. On contourne la difficulté en renvoyant une liste de
-couples index/valeur, qui permet ensuite de remplir un vecteur
-simplement avec la commande @code{array set 'vect' 'listIndVal'}.
+Pour qu’une procédure renvoie un vecteur associatif, il ne faut donc pas
+utiliser la commande @code{return}. Un moyen de contourner cette
+difficulté est de renvoyer une liste de couples index/valeur. Cette
+liste peut ensuite remplir un vecteur avec la commande
+@code{array set 'vect' 'listIndVal'}.
 
 @example
 proc x @{@} @{return [list Brigitte 14 Florence 16 Véronique 12]@}

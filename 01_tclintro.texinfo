@@ -12,8 +12,8 @@
 Le langage Tcl a une syntaxe simple@footnote{Il existe un synthèse de
 toute la grammaire de Tcl en douze règles
 @xref{dodecalogue}},
-qui facilite son apprentissage. Le sens d’une instruction est donné
-avant tout par la position des termes et non par les mots utilisés eux
+qui facilite son apprentissage. Le sens d’une instruction est donné avant
+tout par la position de ses termes et non par les mots utilisés eux
 mêmes.
 
 Tcl laisse une très grande liberté dans le nommage des variables ou des
@@ -30,42 +30,43 @@ paramètres ou des arguments (on parlera parfois de sous-commande pour
 les cas les plus évolués). Par contre, Tcl ne demande pas de regrouper
 ses instructions à l’intérieur de paranthèses imbriquées comme en Lisp
 mais utilise soit le saut de ligne, soit le point virgule (;) pour
-marquer une fin d’instruction --- comme le fait Python.
+marquer une fin d’une instruction --- comme le fait aussi Python.
 
 
 @node L’importance des commandes
 @section L’importance des commandes.
 
 La position de la commande en première place d’une instruction est un
-concept très fort en Tcl. Tcl se rapproche ainsi des langages
-fonctionnels et il permet de programmer selon cette approche, bien qu’il
-n’est pas été conçu spécifiquement pour cela.
+concept très fort en Tcl. Par cette importance donnée aux fonctions, Tcl
+se rapproche des langages fonctionnels. Il permet d’ailleurs de
+programmer dans ce style, sans que cela soit néanmoins une obligation.
 
-Ces commandes sont toujours du même type (nous verrons qu’on peut en
-créer d’autre avec la commande @code{proc}): il n’y a pas de distinction
-entre procédure et fonction par exemple. Toutes les procédures renvoient
-une valeur, qui est par défaut le résultat de sa dernière instruction.
+Les commandes sont toutes du même type: par exemple, il n’y a pas de
+distinction entre procédures et fonctions. Toutes les procédures
+renvoient une valeur. Nous verrons plus loin comment créer nos propres
+commandes avec l’instruction @code{proc}. Le résultat est alors celui de
+la dernière instruction, s’il n’a pas été défini autrement dans la
+procédure elle-même.
 
-Une grande liberté est donc donnée à chacun pour proposer de nouvelles
-commandes qui étendent le langage et il y a au final une grande
-richesse. La commande @code{proc} qui définit une nouvelle procédure est
-elle même une commande, dont il existe d’ailleurs des variantes (comme
-@code{lproc}).
+Une grande liberté est donnée pour proposer de nouvelles commandes
+étendant les possibilités du langage et au final il y en a beaucoup !
+Par exemple, la commande @code{proc} qui définit une nouvelle procédure
+est elle-même une procédure, dont il existe d’ailleurs des variantes
+(comme @code{lproc}).
 
-Il faudra toujours garder en mémoire ce fonctionnement par commande dans
-le déchiffrage des instructions Tcl.
+Il faudra toujours garder en mémoire ce fonctionnement pour interpréter
+une instruction Tcl.
 
 
 @node Calculer en Tcl
 @section Calculer en Tcl
 @findex expr
 
-Une conséquence immédiate de cette règle de position de la commande en
-première ligne est que l’écriture des expressions arithmétiques sera en
-fait l’interpréation d’une expressione@w{}: il faut utiliser une
-commande, ici la commande @code{expr} en début d’instruction pour que
-les termes suivants soient interprétés comme une expression arithmétique
-à exécuter. Une simple addition devient alors quelque chose comme@w{}:
+L’application de la règle de position se retrouve dans l’écriture
+d’expressions arithmétiques : une commande, ici @code{expr}, doit se
+trouver en début d’instruction pour que les termes suivants puissent
+être interprétés comme une expression arithmétique à exécuter. Une
+addition s’écrit ainsi de la façon suivante@w{}:
 
 @cindex opération arithmétique
 @findex expr
@@ -74,14 +75,14 @@ expr 3 + 2
 @end example
 
 La commande @code{expr} s’applique d’abord à une chaîne de caractères
-@code{2 + 2}. La commande reconnait que cette chaîne est une expression
+@code{3 + 2}. La commande reconnait que cette chaîne est une expression
 arithmétique, fait le tri entre ce qui peut être interprété comme un
-opérateur et ce qui doit être intérprété comme un nombre et fait ensuite
-l’opération. Tcl n’utilise que de chaîne de caractères, qu’il convertit
-en nombre si besoin, mais en arrière plan.
+opérateur et ce qui doit être intérprété comme un nombre et fait
+l’opération. Tcl n’utilise que des chaînes de caractères, qu’il
+convertit en nombre si besoin.
 
 Tcl reconnait tous les formats numériques classiques (@code{4},
-@code{4.1}, @code{4e2} ..) sont tous reconnus reconnus.
+@code{4.1}, @code{4e2} ..) sont tous reconnus.
 
 @example
 set a 5e3
@@ -91,9 +92,9 @@ expr $a + 1
 @end example
 
 Nous reverrons plus loin les fonctions @code{puts} et @code{append} qui
-permet d’ajouter un élément à une chaîne de caractères. On peut mélanger
-les expressions numériques avec des expressions s’appliquant à des
-chaînes.
+permettent d’ajouter un élément à une chaîne de caractères. On peut
+mélanger les expressions numériques avec des expressions s’appliquant à
+des chaînes.
 
 @example
 set b 3
@@ -110,7 +111,7 @@ expr $b / 4.0
 La première division est une division entière, car elle ne fait
 intervenir que des entiers. En divisant par @code{4.0}, j’introduis un
 flottant (en notation décimale), ce qui donne un résultat plus proche de
-nos attentes usuelles ☺.
+nos attentes usuelles.
 
 Tcl n’est pas un langage typé, parceque toutes les variables sont prises
 par défaut comme des chaînes de caractères. Mais quand la chaîne est
@@ -124,7 +125,7 @@ numérique.
 @cindex caractères spéciaux
 
 Il existe tout de même des caractères spéciaux, qui ont des
-significations particulières. La pluplat de ces règles se retrouve
+significations particulières. La plupart de ces règles se retrouve
 dans le dodécalogue
 @footnote{@ref{dodecalogue}}.
 
@@ -147,13 +148,13 @@ voir ci dessous).
 @item
 La barre oblique inverséee (\) ('antislash' en Anglais) est le caractère
 d’échappement.  Elle signifie que le caractère directement accolé va
-être substitué.  On retrouve les règles utilisées
-dans un shell Bash. Un cas particulier important est le retour à la
-ligne qui perd se signification de fin d’instruction quand il est accolé
-à cette barre oblique et devient alors une signe de continuation. Ceci
-permet d’interrompre une instruction longue pour l’écrire sur plusieurs
-lignes. Dans les chaînes de texte, on utilise aussi souvent @code{\n}
-qui insère un retour à la ligne. (pour les autres cas: @ref{dodecalogue}).
+être substitué.  On retrouve les règles utilisées dans un shell Bash. Un
+cas particulier important est le retour à la ligne qui perd se
+signification de fin d’instruction quand il est accolé à cette barre
+oblique. Ceci permet d’interrompre une instruction longue pour l’écrire
+sur plusieurs lignes. Dans les chaînes de texte, on utilise aussi
+souvent @code{\n} qui insère un retour à la ligne. (pour les autres cas:
+@ref{dodecalogue}).
 
 @kindex #
 @item
@@ -181,7 +182,7 @@ arithmétiques ou logiques.
 @kindex ::
 @item
 les doubles doubles-points (::) servent à construire les chemins vers
-les espaces de nom (@ref{Isoler dans des espaces de noms}).
+les espaces de noms (@ref{Isoler dans des espaces de noms}).
 
 @kindex . et :
 @item
@@ -253,9 +254,9 @@ variable.
 Utilisée en introduction d’une portion de code, la commande
 d’initialisation de valeur @code{set} peut permettre de rajouter de la
 clareté en retrouvant les habitudes des langages forçant les
-déclarations préliminaires de variables, mais ce seront jamais de
+déclarations préliminaires de variables, mais ce ne seront jamais de
 véritables déclarations, car aucune vérification n’est faite ensuite
-pour garantir que le code qui suite n’utilisera que ces variables
+pour garantir que le code qui suit n’utilisera que ces variables
 initialisées.
 
 Cette commande associe donc simplement un nom de variable à son contenu
@@ -269,7 +270,7 @@ Si le contenu n’est pas donné, la commande @code{set} renvoie alors le
 contenu actuel de la variable.@footnote{Avant que le signe d’indirection
 @code{$} ne soit introduit dans le langage, il fallait d’ailleurs
 toujours utiliser cette forme par accéder à la valeur d’une variable
-comme avec l’expression @code{puts "la valeur est: [set a]"}}
+comme avec l’expression @code{puts "la valeur est : [set a]"}}
 
 @example
 set a
@@ -294,13 +295,13 @@ puts "hello, [set [set [set [set ippp]]]]"
 @result{} hello, 42
 @end example
 
-On peut alors comparer la commande @code{set} avec l’astérisque @code{*} en
-C, qui permet de nommer les pointeurs (références) sur une variable.
+Le signe dollard @code{$} remplaçant la commande @code{set} a ainsi la
+même fonction que l’astérisque @code{*} en C. En C, on parle de
+pointeur. Avec Tcl, on dira tout simplement une référence.
 
-Enfin, cette commande @code{set} ne donnant pas de valeur
-d’initialisation ne doit pas être prise pour une commande de
-déclaration: elle retourne un message d’erreur si la variable n’existe
-pas.
+Une remarque pour finir sur ce sujet : un déférencement a besoin que la
+variable qu’il référence existe. Ainsi, si la variable @code{b} n’existe
+pas, la commande suivante échoue.
 
 @example
 set b
@@ -326,17 +327,19 @@ Cette commande qui retourne 0 ou 1 (l’équivalent d’un bouléen en Tcl)
 peut être intégrée dans un test logique comme nous le verrons plus
 loin@footnote{@ref{Les expressions logiques}}. Elle fait partie d’une
 série des commandes d’introspection, qui sont une des caractéristiques
-clé de Tcl@ref{Introspection avec la commande 'info'}.
+clé de Tcl
+@ref{Introspection avec la commande 'info'}.
 
 
 @node Montrer le contenu d’une variable avec 'puts'.
 @section Montrer le contenu d’une variable avec @code{puts}.
 @findex puts
 
-La commande @code{puts} affiche basiquement une chaîne de caractère sur
-la sortie par défaut. Cette sortie est par défaut la console sur
-laquelle on exécute le script, mais nous verrons qu’on peut aussi le faire
-dans un fichier @ref{Lire un fichier et y écrire}.
+La fonction de la commande @code{puts} est d’afficher une chaîne de
+caractères sur la sortie par défaut. Cette sortie est par défaut la
+console sur laquelle on exécute le script, mais nous verrons qu’on peut
+aussi le faire dans un fichier
+@ref{Lire un fichier et y écrire}.
 
 @example
 puts "ceci est une chaîne de caractères"
@@ -344,7 +347,7 @@ puts "ceci est une chaîne de caractères"
 @end example
 
 Comme les variables sont des chaînes, cette commande peut donc servir
-à visualiser la contenu d’une variable en la préfiant avec @code{$}.
+à visualiser la contenu d’une variable en la préfixant avec @code{$}.
 
 @example
 puts $a
@@ -383,7 +386,7 @@ puts $a
 
 Dans les versions récentes de Tcl, on peut utiliser l'option
 @code{-nocomplain} qui fera que la commande @code{unset} ne renverra pas
-de message d'erreur si on essaye de supprimer une variable qui n'existe
+de message d'erreur si on essaye de supprimer une variable qui n’existe
 pas.
 
 @example
@@ -421,10 +424,10 @@ puts $forêt
 Maintenant, Tcl dépend pour cela du comportement de la fonction C
 @code{isalnum} pour la reconnaissance de caractère. Donc l’exemple
 précédent peut dépendre de la plateforme, du shell utilisé et même de la
-localisation délcarée dans le système. S’il y a une difficulté et que le
-caractère accentués n’est pas reconnu correctement et que la lecture
-butte sur ce caractère, on peut toujours utiliser les accolades, ce qui
-est alors une méthode plus universelle.
+localisation déclarée dans le système. S’il y a une difficulté avec un
+caractère accentué qui ne serait pas reconnu, on peut toujours utiliser
+les accolades. On a alors la formulation suivante, qui fonctionne malgré
+la difficulté de reconnaissance venant du caractère accentué..
 
 @example
 puts $@{forêt@}
@@ -452,11 +455,12 @@ puts $@{set variable name@}
 @result{} 2
 @end example
 
-Les accolades ont neutralisée l’expression qui aurait sinon une commande
-et c’est donc ici simplement un nom de variable.
+Les accolades ont neutralisée l’expression qui aurait sinon exécuté une
+commande. Ici, cette expression est devenue un nom de variable. Bien
+sûr, ce genre de programmation est à éviter dans la pratique !
 
 Nous avons aussi vu que le point dans un nom de variable stoppe la
-subtitution.
+substitution.
 
 @example
 set a var
@@ -486,9 +490,8 @@ puts [set $a.b]
 @end example
 
 
-
 @node Regroupement substitutions et exécution
-@section Regroupement Substitutions et Exécution.
+@section Regroupement substitutions et exécution
 
 @cindex substitutions
 @kindex @{@}
@@ -500,24 +503,24 @@ expressions complexes en utilisant trois couples de caractères
 spéciaux.
 
 @table @code
-@item accolades: @{@}
-Les mots entre accolades forment un ensemble qui sera interprété comme un seul mot.
+@item Les accolades: @{@}
+Les mots entre accolades forment un ensemble qui sera interprété comme
+un seul mot.
 
-@item double guillemets: ""
+@item Les double guillemets: ""
 Les mots entre guillemets seront aussi regroupés pour être considérés
 comme un seul mot, mais auparavant les mots commençant par @code{$}
 seront remplacés par la valeur de la variables qu’ils représentent.
 
-@item crochets: []
-Les mots entre crochet seront interprétés comme une phrase Tcl à exécuter. Le
-premier mot sera donc interprété comme une commande et la phrase sera remplacée
-par le résultat de cette commande.
+@item Les crochets: []
+Les mots entre crochet seront interprétés comme une phrase Tcl à
+exécuter. Le premier mot sera donc interprété comme une commande et la
+phrase sera remplacée par le résultat de cette commande.
 @end table
 
-Notons que l’apostrophe simple (') n’a pas de signification particulière en Tcl et
-qu’elle est donc considérée comme un caractère comme les autres, ce qui peut être
-contraire à des habitudes prises avec d’autres langages de script (comme le
-shell bash par exemple, qui donne un signification aux symboles ’ et ` ).
+Notons que l’apostrophe simple (') n’a pas de signification particulière
+en Tcl, ce qui peut être contraire à des habitudes prises avec d’autres
+langages de script (comme le shell bash ou le langage Python).
 
 
 @node Les opérateurs
@@ -525,7 +528,7 @@ shell bash par exemple, qui donne un signification aux symboles ’ et ` ).
 
 @cindex opérateurs
 
-Les expressions arithmétitiques ou logiques utilisent des opérateurs
+Les expressions arithmétiques ou logiques utilisent des opérateurs
 classiques qu’on retrouvent dans beaucoup de langages de programmation.
 
 
@@ -613,13 +616,12 @@ le si-alors-sinon comme en language C (voir plus loin)
 Attention, les expressions logiques ne s’imbriquent pas bien avec les
 accolades.
 
-On n’écrira pas
+On n’écrira pas :
 @example
 if @{$a == $b@} || @{$a == $c@} @{ ...@} 
 @end example
 
-mais on écrira
-
+mais on écrira :
 @example
 if @{$a == $b || $a == $c@} @{ ...@} 
 @end example
@@ -657,7 +659,7 @@ test d’inégalité
 @section Les expressions logiques
 @cindex expressions logiques
 
-Les expressions logiques sont un sous ensembles des expressions
+Les expressions logiques sont un sous ensemble des expressions
 arithmétiques.  Elles apparaissent donc comme agument d’une commande
 @code{expr} oubien après une expression de test logique, que nous allons
 voir juste après (les @code{if/else} et @code{switch}). Ces expressions
@@ -942,7 +944,7 @@ puts $resultat
 @node L’interruption de boucle 'continue'
 @subsection L’interruption de boucle @code{continue}
 
-La commande @code{continnue} interromp l’exécution d’une boucle pour
+La commande @code{continnue} interrompt l’exécution d’une boucle pour
 passer à l’itération suivante.
 
 @example
@@ -992,7 +994,7 @@ La boucle n’est pas allée jusqu’au bout et s’est interrompue à la valeur
 
 Le langage ne permettrait pas d’aller bien loin s’il ne proposait pas
 les variables agrégées qui sont construites à partir des variables
-'scalaires' que nous avons vu. Voici une présentation courte des trois
+'scalaires' que nous avons vues. Voici une présentation courte des trois
 principales et nous reviendrons ensuite plus en détail dessus.
 
 @c @itemize @bullet
@@ -1010,8 +1012,8 @@ principales et nous reviendrons ensuite plus en détail dessus.
 @cindex liste
 @findex list
 
-Les listes peuvent se construire avec le commande @code{list} ou tout simplement en écrivant
-la liste comme des mots entre accolades.
+Les listes peuvent se construire avec le commande @code{list} ou tout
+simplement en écrivant la liste comme des mots entre accolades.
 
 @example
 set maListe [list a b c]
@@ -1022,11 +1024,13 @@ puts $monAutreListe
 @result{} a b c
 @end example
 
-Une liste est un groupe de mot, comme une chaîne. On peut donc traiter un groupe de mots
-comme une chaîne ou une liste, tout dépendra des fonctionalités qu’on voudra obtenir.
+Une liste est un groupe de mots, comme une chaîne. On peut donc traiter
+un groupe de mots comme une chaîne ou une liste, tout dépendra des
+fonctionalités qu’on voudra obtenir.
 
-Beaucoup des fonctions de liste portent un nom identique à une fonction de chaînes 
-avec simplement le préfixe @code{l} devant (voir plus loin).
+Comme nous le verrons plus loin, beaucoup des fonctions de liste portent
+un nom identique à une fonction de chaînes avec simplement le préfixe
+@code{l}.
 
 
 @node Dictionnaires

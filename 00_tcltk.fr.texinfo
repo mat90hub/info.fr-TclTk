@@ -3,22 +3,22 @@
 @c typographie française :    «   » … ’
 
 @c %**start of header (This is for running Texinfo on a region.)
-@setfilename montcl.info
+@setfilename tcltk.fr.info
 @documentlanguage fr_FR
 @documentencoding UTF-8
 
-@settitle Mes notes sur Tcl
+@settitle Notes sur Tcl/Tk
 @c %**end of header (This is for running Texinfo on a region.)
 
 @paragraphindent 0
 
 @dircategory Programming
 @direntry
-* Tcl: (montcl).              Note perso sur Tcl.
+* Tcl/Tk: (tcltk.fr).           Mes notes sur Tcl/Tk.
 @end direntry
 
 
-@set TITLE Notes glannées sur Tcl
+@set TITLE Notes sur Tcl/Tk
 
 @set xref-automatic-section-title
 
@@ -51,7 +51,14 @@
 @ifnottex
 @node Top
 @top Notes sur Tcl
-Je rassemble ici les notes glannées sur l'utilisation de Tcl.
+Je rassemble ici mes notes sur le langage de programmation Tcl. Tcl est
+parfois aussi appelé Tcl/Tk, Tk étant une extension graphique de
+Tcl.
+
+Tcl est un langage de script, à l'origine conçu pour faire le lien entre
+plusieurs programmes. Tk est l’extension permettant de construire un
+interface graphique avec des scripts Tcl. C'est ce qui l’a rendu
+populaire auprès des autres langages de script.
 @end ifnottex
 
 

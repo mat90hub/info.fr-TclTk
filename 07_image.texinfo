@@ -16,18 +16,18 @@
 
 @subsection Présentation  de SVG
 
-SVG est un format vectoriel, qui permet donc de ne pas figer la taille d'une image et de la redimensionner à l'infini.
+SVG est un format vectoriel, qui permet donc de ne pas figer la taille
+d'une image et de la redimensionner à l'infini.
 
-Le format SVG est très proche du format utilisé par Canvas. Voir le projet Coccinelle qui fait des traductions d'une image canvas en SVG.
+Le format SVG est très proche du format utilisé par Canvas. Voir le
+projet Coccinelle qui fait des traductions d'une image canvas en SVG.
 
-Il est auss proche de Java2D. La page Tcler's parle même d'une parenté
+Il est aussi proche de Java2D. La page Tcler's parle même d'une parenté
 avec Postbresql et bien sûr Pdf.
 
 
 
 @subsection Intégrer un image SVG dans un bouton.
-
-
 
 Voici comment utiliser une image SVG dans un bouton. On commence par en
 faire une photo avec ici une hauteur de 16 pixels. Ensuite, l'image peut
